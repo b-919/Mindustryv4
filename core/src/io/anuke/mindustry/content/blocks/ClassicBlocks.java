@@ -94,7 +94,7 @@ public class ClassicBlocks extends BlockList implements ContentList {
            useFlux = false;
            output = Items.steel;
            consumes.items(new ItemStack[]{new ItemStack(Items.iron, 1)});
-           consumes.item(Items.coal);
+           consumes.item(Items.coal).optional(true);
            setAmbientSound("loopSmelter", 0.07f);
            smokeInterval = 8f;
         }};
@@ -109,7 +109,7 @@ public class ClassicBlocks extends BlockList implements ContentList {
             useFlux = false;
             output = Items.dirium;
             consumes.items(new ItemStack[]{new ItemStack(Items.titanium, 1), new ItemStack(Items.steel, 1)});
-            consumes.item(Items.coal);
+            consumes.item(Items.coal).optional(true);
             setAmbientSound("loopSmelter", 0.07f);
             smokeInterval = 16f;
         }};

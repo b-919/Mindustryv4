@@ -18,22 +18,22 @@ public class Recipes implements ContentList{
     public void load(){
         //DEBUG
         String classicTech = TechTree.create("Classic");
-        new Recipe(turret, TurretBlocks.evilDuo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(turret, TurretBlocks.evilSalvo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(turret, TurretBlocks.evilScatter).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(turret, TurretBlocks.evilRipple).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(turret, TurretBlocks.evilCyclone).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(turret, TurretBlocks.evilFuse).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(effect, DebugBlocks.infectiontest).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(units, UnitBlocks.hiveSpawner).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(units, UnitBlocks.airHiveSpawner).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(units, UnitBlocks.heavyHiveSpawner).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(production, CraftingBlocks.biomassGenerator).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(distribution, DistributionBlocks.veins).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(distribution, DistributionBlocks.stackRouter).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(production, ProductionBlocks.biomassBulb).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(production, ProductionBlocks.corruptedcultivator).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
-        new Recipe(effect, StorageBlocks.hive).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources);
+        new Recipe(turret, TurretBlocks.evilDuo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(turret, TurretBlocks.evilSalvo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(turret, TurretBlocks.evilScatter).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(turret, TurretBlocks.evilRipple).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(turret, TurretBlocks.evilCyclone).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(turret, TurretBlocks.evilFuse).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(effect, DebugBlocks.infectiontest).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(units, UnitBlocks.hiveSpawner).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(units, UnitBlocks.airHiveSpawner).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(units, UnitBlocks.heavyHiveSpawner).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(production, CraftingBlocks.biomassGenerator).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(distribution, DistributionBlocks.veins).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(distribution, DistributionBlocks.stackRouter).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(production, ProductionBlocks.biomassBulb).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(production, ProductionBlocks.corruptedcultivator).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(effect, StorageBlocks.hive).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(distribution, DebugBlocks.itemSource).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(distribution, DebugBlocks.itemVoid).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(liquid, DebugBlocks.liquidSource).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();

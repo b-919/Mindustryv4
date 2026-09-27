@@ -1,5 +1,6 @@
 package io.anuke.mindustry.editor;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.ObjectMap;
 import io.anuke.mindustry.core.Platform;
 import io.anuke.mindustry.ui.dialogs.FloatingDialog;
@@ -66,6 +67,9 @@ public class MapInfoDialog extends FloatingDialog{
         content().addCheck("$text.editor.oregen", enabled -> {
             tags.put("oregen", enabled ? "1" : "0");
         }).update(c -> c.setChecked(!tags.get("oregen", "0").equals("0"))).left();
+
+        content().row();
+        content().add("$text.editor.oregen.info").color(Color.GRAY).wrap().width(400f).left();
 
         name.change();
         description.change();

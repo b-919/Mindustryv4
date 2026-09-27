@@ -105,4 +105,12 @@ public class Item extends UnlockableContent implements Comparable<Item>{
         }
         return arr;
     }
+
+    public static Array<Item> getAllOres(String tech){
+        Array<Item> arr = new Array<>();
+        for(Item item : Vars.content.items()){
+            if(item.genOre && item.belongsToTech(tech)) arr.add(item);
+        }
+        return arr;
+    }
 }

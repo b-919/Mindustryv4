@@ -66,7 +66,7 @@ public class WorldGenerator{
     }
 
     /**Loads raw map tile data into a Tile[][] array, setting up multiblocks, cliffs and ores. */
-    public void loadTileData(Tile[][] tiles, MapTileData data, boolean genOres, int seed){
+    public void loadTileData(Tile[][] tiles, MapTileData data, boolean genOres, int seed, String tech){
         data.position(0, 0);
         TileDataMarker marker = data.newDataMarker();
 
@@ -80,7 +80,7 @@ public class WorldGenerator{
 
         prepareTiles(tiles);
 
-        generateOres(tiles, seed, genOres, null);
+        generateOres(tiles, seed, genOres, null, tech);
     }
 
     /**'Prepares' a tile array by:<br>
@@ -161,7 +161,7 @@ public class WorldGenerator{
             int width = 380;
             int height = 380;
             Array<GridPoint2> spawns = new Array<>();
-            Array<Item> ores = Item.getAllOres();
+            Array<Item> ores = Item.getAllOres(state.techTree);
 
             if(state.mode.isPvp){
                 int scaling = 10;
@@ -218,27 +218,17 @@ public class WorldGenerator{
         });
     }
 
-    public void generateOres(Tile[][] tiles, long seed, boolean genOres, Array<Item> usedOres){
+    public void generateOres(Tile[][] tiles, long seed, boolean genOres, Array<Item> usedOres, String tech){
         oreIndex = 0;
 
         if(genOres){
-            Array<OreEntry> baseOres = Array.with(
-                new OreEntry(Items.copper, 0.3f, seed),
-                new OreEntry(Items.scrap, 0.342f, seed),
-                new OreEntry(Items.coal, 0.284f, seed),
-                new OreEntry(Items.lead, 0.28f, seed),
-                new OreEntry(Items.titanium, 0.27f, seed),
-                new OreEntry(Items.thorium, 0.26f, seed),
-                new OreEntry(Items.chromium, 0.28f, seed)
-            );
+            //ores bound to another tech tree never spawn here
+            Array<Item> allowed = Item.getAllOres(tech);
 
             Array<OreEntry> ores = new Array<>();
-            if(usedOres == null){
-                ores.addAll(baseOres);
-            }else{
-                for(Item item : usedOres){
-                    ores.add(baseOres.select(entry -> entry.item == item).iterator().next());
-                }
+            for(Item item : usedOres == null ? allowed : usedOres){
+                if(!item.genOre || !item.belongsToTech(tech)) continue;
+                ores.add(new OreEntry(item, oreFrequency(item), seed));
             }
 
             for(int x = 0; x < tiles.length; x++){
@@ -252,9 +242,9 @@ public class WorldGenerator{
 
                     for(int i = ores.size - 1; i >= 0; i--){
                         OreEntry entry = ores.get(i);
-                        if(entry.noise.octaveNoise2D(1, 0.7, 1f / (4 + i * 2), x, y) / 4f +
-                        Math.abs(0.5f - entry.noise.octaveNoise2D(2, 0.7, 1f / (50 + i * 2), x, y)) > 0.48f &&
-                        Math.abs(0.5f - entry.noise.octaveNoise2D(1, 1, 1f / (55 + i * 4), x, y)) > 0.22f){
+                        if(entry.noise.octaveNoise2D(1, 0.7, 1f / (4 + entry.index * 2), x, y) / 4f +
+                        Math.abs(0.5f - entry.noise.octaveNoise2D(2, 0.7, 1f / (50 + entry.index * 2), x, y)) > 0.48f &&
+                        Math.abs(0.5f - entry.noise.octaveNoise2D(1, 1, 1f / (55 + entry.index * 4), x, y)) > 0.22f){
                             tile.setFloor((Floor) OreBlocks.get(tile.floor(), entry.item));
                             break;
                         }
@@ -482,6 +472,15 @@ public class WorldGenerator{
     public static class GenResult{
         public Block floor, wall;
         public byte elevation;
+    }
+
+    private static float oreFrequency(Item item){
+        if(item == Items.thorium) return 0.26f;
+        if(item == Items.titanium) return 0.27f;
+        if(item == Items.lead || item == Items.chromium || item == Items.iron || item == Items.uranium) return 0.28f;
+        if(item == Items.coal) return 0.284f;
+        if(item == Items.scrap) return 0.342f;
+        return 0.3f;
     }
 
     public class OreEntry{

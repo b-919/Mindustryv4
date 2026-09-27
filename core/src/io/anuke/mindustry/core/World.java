@@ -318,11 +318,11 @@ public class World extends Module{
         EntityQuery.resizeTree(0, 0, width * tilesize, height * tilesize);
 
         try{
-            generator.loadTileData(tiles, MapIO.readTileData(map, true), map.meta.hasOreGen(), Mathf.random(99999));
-            state.darkness = Float.parseFloat(map.meta.tags.get("darkness", "0"));
-
             String tech = map.meta.tags.get("tech", "");
             state.techTree = tech.isEmpty() || tech.equals(io.anuke.mindustry.game.TechTree.defaultTech) ? null : tech;
+
+            generator.loadTileData(tiles, MapIO.readTileData(map, true), map.meta.hasOreGen(), Mathf.random(99999), state.techTree);
+            state.darkness = Float.parseFloat(map.meta.tags.get("darkness", "0"));
 
             if(!headless && renderer != null){
                 renderer.weather.setRain(map.meta.tags.get("rain", "0").equals("1"));

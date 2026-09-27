@@ -35,7 +35,8 @@ public class Sectors {
     public static final String defaultCampaign = CampaignRegistry.serpulo;
 
     private final ObjectMap<String, GridMap<Sector>> campaignGrids = new ObjectMap<>();
-    private final Array<Item> allOres = Item.getAllOres();
+    private Array<Item> cachedOres = null;
+    private String cachedOreTech = null;
     private final AsyncExecutor executor = new AsyncExecutor(6);
     private CampaignManager campaignManager;
     private String activeCampaign = defaultCampaign;
@@ -117,7 +118,26 @@ public class Sectors {
     }
 
     public Array<Item> getOres(int x, int y) {
-        return activeGenerator().getOres(x, y, allOres);
+        Array<Item> defaultOres = techOres();
+        Array<Item> ores = activeGenerator().getOres(x, y, defaultOres);
+        if(ores == defaultOres) return ores;
+
+        //preset lists may name ores belonging to other tech trees, so filter them too
+        Array<Item> filtered = new Array<>(ores.size);
+        for(Item ore : ores){
+            if(ore.genOre && ore.belongsToTech(state.techTree)) filtered.add(ore);
+        }
+        return filtered.size == 0 ? defaultOres : filtered;
+    }
+
+    /**Ores usable by the currently selected tech tree, cached until the tree changes.*/
+    private Array<Item> techOres(){
+        String tech = state.techTree == null ? "" : state.techTree;
+        if(!tech.equals(cachedOreTech) || cachedOres == null){
+            cachedOreTech = tech;
+            cachedOres = Item.getAllOres(state.techTree);
+        }
+        return cachedOres;
     }
 
     /** Unlocks a sector. This shows nearby sectors. */

@@ -2,12 +2,14 @@ package io.anuke.mindustry.editor;
 
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Pixmap.Format;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.content.Items;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.game.Team;
+import io.anuke.mindustry.game.TechTree;
 import io.anuke.mindustry.maps.MapTileData;
 import io.anuke.mindustry.maps.generation.WorldGenerator;
 import io.anuke.mindustry.maps.generation.WorldGenerator.GenResult;
@@ -18,10 +20,12 @@ import io.anuke.mindustry.world.ColorMapper;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Graphics;
 import io.anuke.ucore.function.Consumer;
+import io.anuke.ucore.scene.ui.ButtonGroup;
 import io.anuke.ucore.scene.ui.Image;
 import io.anuke.ucore.scene.ui.Label;
 import io.anuke.ucore.scene.ui.ScrollPane;
 import io.anuke.ucore.scene.ui.Slider;
+import io.anuke.ucore.scene.ui.TextButton;
 import io.anuke.ucore.scene.ui.TextField;
 import io.anuke.ucore.scene.ui.layout.Table;
 import io.anuke.ucore.util.Geometry;
@@ -45,6 +49,8 @@ public class SectorGenerateDialog extends FloatingDialog{
     boolean generateTrees = true;
     boolean generateOres = true;
     boolean generateCliffs = true;
+    /**Tech tree whose ores are generated. Ores of other trees are never placed.*/
+    String oreTech = TechTree.defaultTech;
 
     TextField seedField;
     Texture texture;
@@ -121,6 +127,26 @@ public class SectorGenerateDialog extends FloatingDialog{
             controlsContent.addCheck("$text.filter.option.generate-ores", b -> generateOres = b).checked(generateOres).left();
             controlsContent.row();
             controlsContent.addCheck("$text.filter.option.generate-cliffs", b -> generateCliffs = b).checked(generateCliffs).left();
+            controlsContent.row();
+            controlsContent.row();
+
+            controlsContent.add("$text.editor.oretech").left().padBottom(2f);
+            controlsContent.row();
+
+            Table techs = new Table();
+            techs.defaults().left();
+            ButtonGroup<TextButton> group = new ButtonGroup<>();
+            int i = 0;
+            for(String tree : TechTree.all()){
+                techs.addButton(TechTree.localizedName(tree), "toggle", () -> oreTech = tree).update(b -> {
+                    b.setChecked(oreTech.equals(tree));
+                }).group(group).size(120f, 36f);
+                if(i++ % 2 == 1) techs.row();
+            }
+            controlsContent.add(techs).left().padBottom(4f);
+            controlsContent.row();
+
+            controlsContent.add("$text.editor.oretech.info").color(Color.GRAY).wrap().width(280f).left();
 
             ScrollPane sp = new ScrollPane(controlsContent);
             sp.setScrollingDisabled(true, false);
@@ -166,6 +192,10 @@ public class SectorGenerateDialog extends FloatingDialog{
         }).left();
     }
 
+    Array<Item> genOres(){
+        return generateOres ? Item.getAllOres(oreTech.equals(TechTree.defaultTech) ? null : oreTech) : new Array<>();
+    }
+
     void applySettings(){
         WorldGenerator gen = world.generator;
         gen.elevationDensity = elevationDensity;
@@ -191,7 +221,7 @@ public class SectorGenerateDialog extends FloatingDialog{
         GenResult result = new GenResult();
         Array<GridPoint2> spawns = new Array<>();
         spawns.add(new GridPoint2(pixmap.getWidth() / 2, pixmap.getHeight() / 2));
-        Array<Item> ores = Item.getAllOres();
+        Array<Item> ores = genOres();
 
         for(int px = 0; px < pixmap.getWidth(); px++){
             for(int py = 0; py < pixmap.getHeight(); py++){
@@ -237,7 +267,7 @@ public class SectorGenerateDialog extends FloatingDialog{
         GenResult result = new GenResult();
         Array<GridPoint2> spawns = new Array<>();
         spawns.add(new GridPoint2(width / 2, height / 2));
-        Array<Item> ores = Item.getAllOres();
+        Array<Item> ores = genOres();
 
         Tile[][] tiles = new Tile[width][height];
 

@@ -200,9 +200,11 @@ public class Blocks extends BlockList implements ContentList{
 
         shrub = new Rock("shrub"){{
             shadow = "shrubshadow";
+            clearDeconstructDrops();
         }};
         infectedShrub = new Rock("infected-shrub"){{
             shadow = "infected-shrubshadow";
+            clearDeconstructDrops();
         }};
 
         rock = new Rock("rock"){{
@@ -215,6 +217,8 @@ public class Blocks extends BlockList implements ContentList{
 
         blackrock = new Rock("blackrock"){{
             variants = 1;
+            deconstructDrop(new DeconstructDrop(Items.stone, 4, 12),
+                    new DeconstructDrop(Items.obsidian, 1, 2, 0.25f));
         }};
 
         tree = new LivingTree("tree"){{

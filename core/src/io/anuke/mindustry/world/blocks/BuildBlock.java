@@ -244,6 +244,8 @@ public class BuildBlock extends Block{
 
         private float[] accumulator;
         private float[] totalAccumulator;
+        /** Whether the custom deconstruct drops of 'previous' have already been given to the core. */
+        private boolean deconstructDropsPaid;
 
         public void construct(Unit builder, TileEntity core, float amount){
             if(recipe == null){
@@ -303,7 +305,27 @@ public class BuildBlock extends Block{
             progress = Mathf.clamp(progress - amount);
 
             if(progress <= 0 || state.mode.infiniteResources){
+                if(previous != null && !(previous instanceof Prop && ((Prop)previous).damageWhenDeconstruct)){
+                    payDeconstructDrops(core, builder);
+                }
+
                 Call.onDeconstructFinish(tile, this.recipe == null ? previous : this.recipe.result);
+            }
+        }
+
+        private void payDeconstructDrops(TileEntity core, Unit builder){
+            if(deconstructDropsPaid || previous == null) return;
+
+            ItemStack[] drops = previous.rollDeconstructDrops();
+            if(drops == null) return;
+
+            deconstructDropsPaid = true;
+
+            for(ItemStack drop : drops){
+                if(drop.amount <= 0) continue;
+
+                int accepting = core.tile.block().acceptStack(drop.item, drop.amount, core.tile, builder);
+                core.tile.block().handleStack(drop.item, accepting, core.tile, builder);
             }
         }
 
@@ -352,6 +374,7 @@ public class BuildBlock extends Block{
         public void setDeconstruct(Block previous){
             this.previous = previous;
             this.progress = 1f;
+            this.deconstructDropsPaid = false;
             if(Recipe.getByResult(previous) != null){
                 this.recipe = Recipe.getByResult(previous);
                 this.accumulator = new float[Recipe.getByResult(previous).requirements.length];

@@ -69,6 +69,8 @@ public class Block extends BaseBlock {
     public boolean floating = false;
     /** stuff that drops when broken */
     public ItemStack drops = null;
+    /** extra items given when this block is deconstructed, in addition to the usual 50% recipe refund. */
+    public Array<DeconstructDrop> deconstructDrops = new Array<>(0);
     /** multiblock size */
     public int size = 1;
     /** if true, this block does not accept input from the sides (used for armored conveyors) */
@@ -264,6 +266,89 @@ public class Block extends BaseBlock {
 
     public boolean dropsItem(Item item){
         return drops != null && drops.item == item;
+    }
+
+    /** Adds one or more stacks given when this block is deconstructed, each using its own item and amount.
+     *  These are given in addition to the usual 50% recipe refund. */
+    public Block deconstructDrop(ItemStack... stacks){
+        for(ItemStack stack : stacks){
+            deconstructDrops.add(new DeconstructDrop(stack));
+        }
+        return this;
+    }
+
+    /**
+     * Adds one or more fully specified drops, for randomized amounts and/or a chance of being given.
+     */
+    public void deconstructDrop(DeconstructDrop drop, DeconstructDrop... more){
+        deconstructDrops.add(drop);
+        for(DeconstructDrop other : more){
+            deconstructDrops.add(other);
+        }
+    }
+
+    /**
+     * Removes every custom deconstruct drop, leaving only the 50% recipe refund.
+     */
+    public void clearDeconstructDrops(){
+        deconstructDrops.clear();
+    }
+
+    /** Rolls this block's deconstruct drops into fixed item stacks, or null if it has none.
+     *  Stacks that lost their chance roll keep an amount of 0. */
+    public ItemStack[] rollDeconstructDrops(){
+        if(deconstructDrops.size == 0) return null;
+
+        ItemStack[] stacks = new ItemStack[deconstructDrops.size];
+        for(int i = 0; i < stacks.length; i++){
+            DeconstructDrop drop = deconstructDrops.get(i);
+            stacks[i] = new ItemStack(drop.item, drop.roll());
+        }
+        return stacks;
+    }
+
+    /** An item returned when a block is deconstructed, with an optionally randomized amount and chance. */
+    public static class DeconstructDrop{
+        public final Item item;
+        public final int min, max;
+        /** Chance of this drop being given at all, 1 to always give it. */
+        public float chance;
+
+        /** Fixed amount taken from the stack. */
+        public DeconstructDrop(ItemStack stack){
+            this(stack.item, stack.amount, stack.amount);
+        }
+
+        /** Fixed amount taken from the stack, given only 'chance' (0 to 1) of the time. */
+        public DeconstructDrop(ItemStack stack, float chance){
+            this(stack.item, stack.amount, stack.amount, chance);
+        }
+
+        /** Amount rolled randomly from min to max, inclusive. */
+        public DeconstructDrop(Item item, int min, int max){
+            this(item, min, max, 1f);
+        }
+
+        /** Amount rolled randomly from min to max, inclusive, given only 'chance' (0 to 1) of the time. */
+        public DeconstructDrop(Item item, int min, int max, float chance){
+            this.item = item;
+            this.min = min;
+            this.max = max;
+            this.chance = Mathf.clamp(chance, 0f, 1f);
+        }
+
+        /** Sets the chance of this drop being given, from 0 to 1. */
+        public DeconstructDrop chance(float chance){
+            this.chance = Mathf.clamp(chance, 0f, 1f);
+            return this;
+        }
+
+        /** Rolls the amount given by this drop, or 0 if it lost its chance roll. */
+        public int roll(){
+            if(chance < 1f && !Mathf.chance(chance)) return 0;
+
+            return max > min ? Mathf.random(min, max + 1) : min;
+        }
     }
 
     public void onProximityRemoved(Tile tile){

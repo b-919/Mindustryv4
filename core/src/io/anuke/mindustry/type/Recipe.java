@@ -67,17 +67,13 @@ public class Recipe extends UnlockableContent{
         for(Recipe recipe : content.recipes()){
             if(recipe.category == category && recipe.visibility.shown() && 
                     (recipe.mode == state.mode || recipe.mode == null || state.mode.infiniteResources) && 
-                    (recipe.showIf == null || recipe.showIf.test(state.mode) || recipe.techOverrideVisible()) &&
+                    (recipe.showIf == null || recipe.showIf.test(state.mode)) &&
                     (!recipe.onlyCampaign || world.getSector() != null) &&
                     recipe.belongsToTech(state.techTree)){
                 returnArray.add(recipe);
             }
         }
         return returnArray;
-    }
-
-    public boolean techOverrideVisible(){
-        return state.techTree != null && !state.techTree.equals(TechTree.defaultTech) && belongsToTech(state.techTree);
     }
 
     public static Recipe getByResult(Block block){
@@ -141,8 +137,7 @@ public class Recipe extends UnlockableContent{
     public boolean isHidden(){
         GameMode mode = state.is(State.menu) ? GameMode.waves : state.mode;
         if(mode.infiniteResources) return false;
-        if(techOverrideVisible()) return false;
-        if(showIf != null && techTree.size == 0 && !showIf.test(mode)) return true;
+        if(showIf != null && !showIf.test(mode)) return true;
         return !visibility.shown() || hidden;
     }
 

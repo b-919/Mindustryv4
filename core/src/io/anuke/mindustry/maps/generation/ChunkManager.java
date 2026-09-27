@@ -2,6 +2,7 @@ package io.anuke.mindustry.maps.generation;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.utils.LongArray;
 import com.badlogic.gdx.utils.LongMap;
 import com.badlogic.gdx.utils.LongSet;
@@ -66,6 +67,11 @@ public class ChunkManager{
     private final RidgedPerlin rid;
     private final SeedRandom random;
     private final Simplex[] oreNoises;
+    /** Ores allowed by the active tech tree, refreshed when the tree changes. */
+    private final Array<Item> activeOres = new Array<>();
+    /** Index into {@link #oreNoises} for each entry of {@link #activeOres}; keeps noise tied to the ore, not its position in the filtered list. */
+    private final IntArray activeOreNoise = new IntArray();
+    private String activeOreTech = null;
 
     private int lastUnloadCheck = 0;
     private int lastColdCheck = 0;
@@ -125,6 +131,31 @@ public class ChunkManager{
 
     public long getSeed(){
         return worldSeed;
+    }
+
+    private void updateActiveOres(){
+        String tech = state.techTree == null ? "" : state.techTree;
+        if(activeOreTech != null && activeOreTech.equals(tech)) return;
+
+        activeOreTech = tech;
+        activeOres.clear();
+        activeOreNoise.clear();
+
+        int index = 0;
+        for(Item item : content.items()){
+            if(!item.genOre) continue;
+            if(item.belongsToTech(state.techTree)){
+                activeOres.add(item);
+                activeOreNoise.add(index);
+            }
+            index++;
+        }
+    }
+
+    private Simplex oreNoise(int slot){
+        if(oreNoises.length == 0) return sim;
+        int index = activeOreNoise.get(slot);
+        return index >= 0 && index < oreNoises.length ? oreNoises[index] : oreNoises[0];
     }
 
     public boolean isNetMode(){
@@ -404,6 +435,8 @@ public class ChunkManager{
         WorldChunk chunk = loadedChunks.get(packKey(cx, cy));
         if(chunk == null || chunk.tiles == null) return;
 
+        updateActiveOres();
+
         generatingChunk = true;
         try{
             for(int i = 0; i < chunk.tiles.length; i++){
@@ -471,16 +504,16 @@ public class ChunkManager{
 
                         if(cleanNeighbor && tile.floor() instanceof Floor && ((Floor)tile.floor()).hasOres
                             && !tile.hasCliffs() && tile.block() == Blocks.air){
-                            Array<Item> ores = Item.getAllOres();
                             int ox = wx + Short.MAX_VALUE;
                             int oy = wy + Short.MAX_VALUE;
                             Floor baseFloor = tile.floor();
-                            for(int i = ores.size - 1; i >= 0; i--){
-                                Item entry = ores.get(i);
-                                Simplex noise = i < oreNoises.length ? oreNoises[i] : oreNoises[0];
-                                if(noise.octaveNoise2D(1, 0.7, 1f / (4 + i * 2), ox, oy) / 4f +
-                                    Math.abs(0.5f - noise.octaveNoise2D(2, 0.7, 1f / (50 + i * 2), ox, oy)) > 0.48f &&
-                                    Math.abs(0.5f - noise.octaveNoise2D(1, 1, 1f / (55 + i * 4), ox, oy)) > 0.22f){
+                            for(int i = activeOres.size - 1; i >= 0; i--){
+                                Item entry = activeOres.get(i);
+                                int slot = activeOreNoise.get(i);
+                                Simplex noise = oreNoise(i);
+                                if(noise.octaveNoise2D(1, 0.7, 1f / (4 + slot * 2), ox, oy) / 4f +
+                                    Math.abs(0.5f - noise.octaveNoise2D(2, 0.7, 1f / (50 + slot * 2), ox, oy)) > 0.48f &&
+                                    Math.abs(0.5f - noise.octaveNoise2D(1, 1, 1f / (55 + slot * 4), ox, oy)) > 0.22f){
                                     Floor oreFloor = (Floor) OreBlocks.get(baseFloor, entry);
                                     if(tile.floor() != oreFloor) tile.setFloor(oreFloor);
                                     break;
@@ -503,7 +536,8 @@ public class ChunkManager{
         // needs to be called after cliff generation if not the ore will override the cliff block since ores doesn't have cliffs
         int worldStartX = chunk.cx * CHUNK_SIZE;
         int worldStartY = chunk.cy * CHUNK_SIZE;
-        Array<Item> ores = Item.getAllOres();
+        updateActiveOres();
+        Array<Item> ores = activeOres;
 
         for(int lx = 0; lx < CHUNK_SIZE; lx++){
             for(int ly = 0; ly < CHUNK_SIZE; ly++){
@@ -518,10 +552,11 @@ public class ChunkManager{
                 Floor baseFloor = tile.floor();
                 for(int i = ores.size - 1; i >= 0; i--){
                     Item entry = ores.get(i);
-                    Simplex noise = i < oreNoises.length ? oreNoises[i] : oreNoises[0];
-                    if(noise.octaveNoise2D(1, 0.7, 1f / (4 + i * 2), x, y) / 4f +
-                        Math.abs(0.5f - noise.octaveNoise2D(2, 0.7, 1f / (50 + i * 2), x, y)) > 0.48f &&
-                        Math.abs(0.5f - noise.octaveNoise2D(1, 1, 1f / (55 + i * 4), x, y)) > 0.22f){
+                    int slot = activeOreNoise.get(i);
+                    Simplex noise = oreNoise(i);
+                    if(noise.octaveNoise2D(1, 0.7, 1f / (4 + slot * 2), x, y) / 4f +
+                        Math.abs(0.5f - noise.octaveNoise2D(2, 0.7, 1f / (50 + slot * 2), x, y)) > 0.48f &&
+                        Math.abs(0.5f - noise.octaveNoise2D(1, 1, 1f / (55 + slot * 4), x, y)) > 0.22f){
                         tile.setFloor((Floor) OreBlocks.get(baseFloor, entry));
                         break;
                     }

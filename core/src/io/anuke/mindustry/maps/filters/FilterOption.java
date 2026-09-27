@@ -3,6 +3,7 @@ package io.anuke.mindustry.maps.filters;
 import com.badlogic.gdx.utils.Align;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.blocks.Blocks;
+import io.anuke.mindustry.game.TechTree;
 import io.anuke.mindustry.ui.ImageStack;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.blocks.Floor;
@@ -11,10 +12,12 @@ import io.anuke.ucore.function.BooleanProvider;
 import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.function.Predicate;
 import io.anuke.ucore.function.Supplier;
+import io.anuke.ucore.scene.ui.ButtonGroup;
 import io.anuke.ucore.scene.ui.ImageButton;
 import io.anuke.ucore.scene.ui.Label;
-import io.anuke.ucore.scene.ui.Slider;
 import io.anuke.ucore.scene.ui.ScrollPane;
+import io.anuke.ucore.scene.ui.Slider;
+import io.anuke.ucore.scene.ui.TextButton;
 import io.anuke.ucore.scene.ui.layout.Table;
 import io.anuke.ucore.util.Strings;
 
@@ -126,6 +129,44 @@ public abstract class FilterOption{
                 changed.run();
             }).checked(getter.get());
             table.row();
+        }
+    }
+
+    /**Selects a tech tree from a group of buttons.*/
+    public static class TechOption extends FilterOption{
+        final String name;
+        final Supplier<String> getter;
+        final Consumer<String> setter;
+
+        public TechOption(String name, Supplier<String> getter, Consumer<String> setter){
+            this.name = name;
+            this.getter = getter;
+            this.setter = setter;
+        }
+
+        @Override
+        public void build(Table table){
+            table.defaults().left();
+            table.add("$text.filter.option." + name).width(150f).padRight(10);
+
+            Table techs = new Table();
+            techs.defaults().left().padRight(2f).padLeft(2f);
+            ButtonGroup<TextButton> group = new ButtonGroup<>();
+            int i = 0;
+            for(String tree : TechTree.all()){
+                techs.addButton(TechTree.localizedName(tree), "toggle", () -> {
+                    setter.accept(tree);
+                    changed.run();
+                }).update(b -> b.setChecked(current(getter).equals(tree))).group(group).size(100f, 34f);
+                if(i++ % 2 == 1) techs.row();
+            }
+            table.add(techs).growX();
+            table.row();
+        }
+
+        private String current(Supplier<String> getter){
+            String value = getter.get();
+            return value == null || value.isEmpty() || !TechTree.contains(value) ? TechTree.defaultTech : value;
         }
     }
 
