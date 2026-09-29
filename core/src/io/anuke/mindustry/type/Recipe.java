@@ -65,8 +65,8 @@ public class Recipe extends UnlockableContent{
     public static Array<Recipe> getByCategory(Category category){
         returnArray.clear();
         for(Recipe recipe : content.recipes()){
-            if(recipe.category == category && recipe.visibility.shown() && 
-                    (recipe.mode == state.mode || recipe.mode == null || state.mode.infiniteResources) && 
+            if(recipe.category == category && recipe.visibility.shown() &&
+                    (recipe.mode == state.mode || recipe.mode == null || state.mode.infiniteResources) &&
                     (recipe.showIf == null || recipe.showIf.test(state.mode)) &&
                     (!recipe.onlyCampaign || world.getSector() != null) &&
                     recipe.belongsToTech(state.techTree)){
@@ -74,6 +74,13 @@ public class Recipe extends UnlockableContent{
             }
         }
         return returnArray;
+    }
+
+    public boolean available(){
+        if(mode != null && mode != state.mode) return false;
+        if(showIf != null && !showIf.test(state.mode)) return false;
+
+        return belongsToTech(state.techTree);
     }
 
     public static Recipe getByResult(Block block){

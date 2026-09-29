@@ -1,5 +1,6 @@
 package io.anuke.mindustry.world.blocks.power;
 
+import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.LongArray;
@@ -9,6 +10,7 @@ import io.anuke.annotations.Annotations.Remote;
 import io.anuke.mindustry.core.Renderer;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.TileEntity;
+import io.anuke.mindustry.game.Schematic;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Layer;
 import io.anuke.mindustry.graphics.Palette;
@@ -106,6 +108,22 @@ public class PowerNode extends PowerBlock{
 
     @Override
     public void setBars(){
+    }
+
+    @Override
+    public Object pointConfig(Object config, Consumer<GridPoint2> transformer){
+        if(config instanceof int[]){
+            int[] links = (int[])config;
+            int[] result = new int[links.length];
+            for(int i = 0; i < links.length; i++){
+                GridPoint2 point = Schematic.unpackOffset(links[i]);
+                transformer.accept(point);
+                result[i] = Schematic.packOffset(point.x, point.y);
+            }
+            return result;
+        }
+
+        return config;
     }
 
     @Override
@@ -526,9 +544,7 @@ public class PowerNode extends PowerBlock{
             for(int i = 0; i < links.size; i++){
                 Tile other = world.tile(links.get(i));
                 if(other != null){
-                    int dx = other.x - tile.x;
-                    int dy = other.y - tile.y;
-                    relLinks[i] = (dx << 16) | (dy & 0xFFFF);
+                    relLinks[i] = Schematic.packOffset(other.x - tile.x, other.y - tile.y);
                 }else{
                     relLinks[i] = 0;
                 }
@@ -541,11 +557,9 @@ public class PowerNode extends PowerBlock{
             if(config instanceof int[]){
                 int[] relLinks = (int[])config;
                 power.links.clear();
-                for(int i = 0; i < relLinks.length; i++){
-                    int rel = relLinks[i];
-                    int dx = rel >> 16;
-                    int dy = (short)(rel & 0xFFFF);
-                    Tile other = world.tile(tile.x + dx, tile.y + dy);
+                for(int rel : relLinks){
+                    GridPoint2 offset = Schematic.unpackOffset(rel);
+                    Tile other = world.tile(tile.x + offset.x, tile.y + offset.y);
                     if(other != null && other.block().hasPower && other.getTeamID() == tile.getTeamID()){
                         power.links.add(other.packedPosition());
                     }

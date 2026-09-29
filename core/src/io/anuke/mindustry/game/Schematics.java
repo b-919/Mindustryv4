@@ -210,13 +210,15 @@ public class Schematics {
     public void place(Schematic schem, int x, int y, Team team) {
         for (Schematic.Stile stile : schem.tiles) {
             if (stile.block == null) continue;
+            Recipe recipe = Recipe.getByResult(stile.block);
+            if (recipe == null || !recipe.available()) continue;
             int ox = x + stile.x + (stile.block.size - 1) / 2;
             int oy = y + stile.y + (stile.block.size - 1) / 2;
             //register every tile placed from the schematic, even without a config,
             //so blocks know not to apply their "last placed" presets while the
             //schematic config (or lack of one) is still pending
             pendingConfigs.put(key(ox, oy), stile.config);
-            Vars.control.input(0).tryPlaceBlock(ox, oy, Recipe.getByResult(stile.block), stile.rotation);
+            Vars.control.input(0).tryPlaceBlock(ox, oy, recipe, stile.rotation);
         }
     }
 

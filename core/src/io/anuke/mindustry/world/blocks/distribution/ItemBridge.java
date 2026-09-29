@@ -11,6 +11,7 @@ import io.anuke.annotations.Annotations.Remote;
 import io.anuke.mindustry.core.Renderer;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.TileEntity;
+import io.anuke.mindustry.game.Schematic;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Layer;
 import io.anuke.mindustry.graphics.Palette;
@@ -20,6 +21,7 @@ import io.anuke.mindustry.world.Edges;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.meta.BlockGroup;
 import io.anuke.ucore.core.Timers;
+import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.graphics.CapStyle;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Lines;
@@ -318,6 +320,17 @@ public class ItemBridge extends Block{
         return new ItemBridgeEntity();
     }
 
+    @Override
+    public Object pointConfig(Object config, Consumer<GridPoint2> transformer){
+        if(config instanceof Integer){
+            GridPoint2 point = Schematic.unpackOffset((Integer)config);
+            transformer.accept(point);
+            return Schematic.packOffset(point.x, point.y);
+        }
+
+        return config;
+    }
+
     public boolean linkValid(Tile tile, Tile other){
         return linkValid(tile, other, true);
     }
@@ -371,18 +384,14 @@ public class ItemBridge extends Block{
             if(link == -1) return null;
             Tile other = world.tile(link);
             if(other == null) return null;
-            int dx = other.x - tile.x;
-            int dy = other.y - tile.y;
-            return (dx << 16) | (dy & 0xFFFF);
+            return Schematic.packOffset(other.x - tile.x, other.y - tile.y);
         }
 
         @Override
         public void configured(Object config){
             if(config instanceof Integer){
-                int rel = (Integer)config;
-                int dx = rel >> 16;
-                int dy = (short)(rel & 0xFFFF);
-                Tile other = world.tile(tile.x + dx, tile.y + dy);
+                GridPoint2 offset = Schematic.unpackOffset((Integer)config);
+                Tile other = world.tile(tile.x + offset.x, tile.y + offset.y);
                 if(other != null && other.block() == tile.block()){
                     link = other.packedPosition();
                 }

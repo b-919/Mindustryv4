@@ -2,6 +2,7 @@ package io.anuke.mindustry.world.blocks.distribution;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.ObjectSet;
 import com.badlogic.gdx.utils.Pool.Poolable;
 import io.anuke.annotations.Annotations.Loc;
@@ -13,6 +14,7 @@ import io.anuke.mindustry.content.fx.ShootFx;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.bullet.Bullet;
+import io.anuke.mindustry.game.Schematic;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Layer;
 import io.anuke.mindustry.graphics.Palette;
@@ -24,6 +26,7 @@ import io.anuke.mindustry.world.meta.StatUnit;
 import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Effects.Effect;
 import io.anuke.ucore.core.Timers;
+import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Lines;
 import io.anuke.ucore.util.Angles;
@@ -254,6 +257,17 @@ public class MassDriver extends Block{
         return new MassDriverEntity();
     }
 
+    @Override
+    public Object pointConfig(Object config, Consumer<GridPoint2> transformer){
+        if(config instanceof Integer){
+            GridPoint2 point = Schematic.unpackOffset((Integer)config);
+            transformer.accept(point);
+            return Schematic.packOffset(point.x, point.y);
+        }
+
+        return config;
+    }
+
     protected boolean linkValid(Tile tile){
         MassDriverEntity entity = tile.entity();
         if(entity == null || entity.link == -1) return false;
@@ -338,18 +352,14 @@ public class MassDriver extends Block{
             if(link == -1) return null;
             Tile other = world.tile(link);
             if(other == null) return null;
-            int dx = other.x - tile.x;
-            int dy = other.y - tile.y;
-            return (dx << 16) | (dy & 0xFFFF);
+            return Schematic.packOffset(other.x - tile.x, other.y - tile.y);
         }
 
         @Override
         public void configured(Object config){
             if(config instanceof Integer){
-                int rel = (Integer)config;
-                int dx = rel >> 16;
-                int dy = (short)(rel & 0xFFFF);
-                Tile other = world.tile(tile.x + dx, tile.y + dy);
+                GridPoint2 offset = Schematic.unpackOffset((Integer)config);
+                Tile other = world.tile(tile.x + offset.x, tile.y + offset.y);
                 if(other != null && other.block() instanceof MassDriver){
                     link = other.packedPosition();
                 }

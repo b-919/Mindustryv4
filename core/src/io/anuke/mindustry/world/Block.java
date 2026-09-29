@@ -3,6 +3,7 @@ package io.anuke.mindustry.world;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.LongArray;
 import io.anuke.mindustry.Vars;
@@ -29,6 +30,7 @@ import io.anuke.mindustry.type.ItemStack;
 import io.anuke.mindustry.world.meta.*;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.core.Core;
+import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Hue;
 import io.anuke.ucore.graphics.Lines;
@@ -445,6 +447,10 @@ public class Block extends BaseBlock {
     /** Returns whether ot not this block can be place on the specified tile. */
     public boolean canPlaceOn(Tile tile){
         return true;
+    }
+
+    public Object pointConfig(Object config, Consumer<GridPoint2> transformer){
+        return config;
     }
 
     /**Call when some content is produced. This unlocks the content if it is applicable.*/

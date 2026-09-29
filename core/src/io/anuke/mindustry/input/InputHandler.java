@@ -421,6 +421,10 @@ public abstract class InputHandler extends InputAdapter{
 
     public boolean validPlace(int x, int y, Block type, int rotation){
         if(type == null) return false;
+
+        Recipe target = Recipe.getByResult(type);
+        if(target == null || !control.unlocks.isUnlocked(target)) return false;
+
         for(Tile tile : state.teams.get(player.getTeam()).cores){
             if(tile.distanceTo(x * tilesize, y * tilesize) < coreBuildRange){
                 return Build.validPlace(player.getTeam(), x, y, type, rotation) &&
