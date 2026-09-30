@@ -53,8 +53,8 @@ public class BlockRenderer{
             threads.runGraphics(() -> {
                 int avgx = Mathf.scl(camera.position.x, tilesize);
                 int avgy = Mathf.scl(camera.position.y, tilesize);
-                int rangex = (int) (camera.viewportWidth * camera.zoom / tilesize / 2) + 2;
-                int rangey = (int) (camera.viewportHeight * camera.zoom / tilesize / 2) + 2;
+                int rangex = (int) (camera.viewportWidth / tilesize / 2) + 2;
+                int rangey = (int) (camera.viewportHeight / tilesize / 2) + 2;
 
                 if(Math.abs(avgx - event.tile.x) <= rangex && Math.abs(avgy - event.tile.y) <= rangey){
                     blocksDirty = true;
@@ -87,8 +87,8 @@ public class BlockRenderer{
         int avgx = Mathf.scl(camera.position.x, tilesize);
         int avgy = Mathf.scl(camera.position.y, tilesize);
 
-        int rangex = (int) (camera.viewportWidth * camera.zoom / tilesize / 2) + 2;
-        int rangey = (int) (camera.viewportHeight * camera.zoom / tilesize / 2) + 2;
+        int rangex = (int) (camera.viewportWidth / tilesize / 2) + 2;
+        int rangey = (int) (camera.viewportHeight / tilesize / 2) + 2;
 
         boolean cameraMoved = avgx != lastCamX || avgy != lastCamY || lastRangeX != rangex || lastRangeY != rangey;
 
@@ -113,8 +113,8 @@ public class BlockRenderer{
             maxy = Math.min(world.height() - 1, avgy + rangey + expandr);
         }
 
-        float halfW = camera.viewportWidth * camera.zoom / 2f;
-        float halfH = camera.viewportHeight * camera.zoom / 2f;
+        float halfW = camera.viewportWidth / 2f;
+        float halfH = camera.viewportHeight / 2f;
         int shadowPad = 3;
         int shMinX = MathUtils.floor((camera.position.x - halfW) / tilesize) - shadowPad;
         int shMaxX = MathUtils.floor((camera.position.x + halfW) / tilesize) + shadowPad;

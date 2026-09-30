@@ -93,7 +93,7 @@ public class Vars{
     public static String mapExtension = "mmap";
     public static String saveExtension = "msav";
     //camera zoom displayed on startup
-    public static int baseCameraScale;
+    public static float baseCameraScale;
     public static boolean showBlockDebug = false;
     public static boolean showFog = true;
     public static boolean headless = false;
@@ -189,7 +189,7 @@ public class Vars{
         customMapDirectory = dataDirectory.child("maps/");
         schematicDirectory = dataDirectory.child("schematics/");
         saveDirectory = dataDirectory.child("saves/");
-        baseCameraScale = Math.round(Unit.dp.scl(4));
+        baseCameraScale = Unit.dp.scl(4f);
 
         schematics = new Schematics();
     }

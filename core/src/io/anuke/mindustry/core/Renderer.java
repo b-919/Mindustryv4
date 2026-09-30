@@ -79,14 +79,37 @@ public class Renderer extends RendererModule{
     private Bloom bloom;
     private boolean lastBloom;
 
-    private int targetscale = baseCameraScale;
+    /**
+     * Target camera scale (pixels per world unit) that the player has asked for, and the scale
+     * that is actually used for rendering. The two are lerped toward each other every frame, which
+     * is what makes zooming smooth. Both are floats: fractional scale means smooth zooming at any
+     * resolution instead of snapping between integers.
+     */
+    public float targetscale = baseCameraScale, camerascale = baseCameraScale;
+    /** Most zoomed-in limit, and most zoomed-out limit, before the settings multipliers. */
+    private final float minZoom = baseCameraScale * 0.5f, maxZoom = baseCameraScale * 1.25f;
+    /** Smallest cursor lead the camera will ever use, in world units. */
+    private static final float minAimRange = 4f * tilesize;
+    /** How much of the visible height the cursor lead may grow to when zoomed way out. */
+    private static final float aimRangeFactor = 0.25f;
+    /** When true the camera is controlled by hand and does not follow the player. Set every frame
+     *  by the input handler, which is the only thing that knows if the player is panning. */
+    public boolean detached = false;
+    /** Screen shake offset applied around the draw call so it never accumulates into the position. */
+    private final Vector2 camShakeOffset = new Vector2();
+    /** How strong the shake reads, relative to the intensity the shake was triggered with. */
+    private static final float shakeScale = 0.75f;
+    /** How fast the current shake's intensity decays, so that it always reaches 0 as time runs out. */
+    private float shakeReduction, lastShakeDuration;
     private Rectangle rect = new Rectangle(), rect2 = new Rectangle();
     private Vector2 avgPosition = new Translator();
     private Color ambient = new Color();
 
-    /** Water reflection sprites re-drawn mirrored, then washed toward the tint configured
-     * on Shaders.water during composite. */
-    /** When true, unit draw() calls skip internally drawn shadows so reflections stay clean. */
+    /**
+     * Water reflection sprites re-drawn mirrored, then washed toward the tint configured on
+     * Shaders.water during composite. When true, unit draw() calls skip internally drawn shadows so
+     * reflections stay clean.
+     */
     public static boolean captureReflections = false;
     private static final float reflectionGroundGap = 3f;
     private static final float reflectionFlyerGap = 10f;
@@ -117,6 +140,8 @@ public class Renderer extends RendererModule{
     private final Rectangle lightRect = new Rectangle();
     /** Last applied render scale setting, used to detect changes and rebuild the surfaces. */
     private int lastRenderScale;
+    /** Last applied surface scale, which also changes as the camera zooms. */
+    private int lastSurfaceScale = -1;
 
     public Renderer(){
         Core.batch = new SpriteBatch(4096);
@@ -125,7 +150,8 @@ public class Renderer extends RendererModule{
 
         Shaders.init();
 
-        Core.cameraScale = baseCameraScale;
+        //the float scale is the source of truth, so the int mirror starts at its rounded value
+        Core.cameraScale = Math.max(1, Math.round(baseCameraScale));
         Effects.setEffectProvider((effect, color, x, y, rotation, data) -> {
             if(effect == Fx.none) return;
             if(Settings.getBool("effects")){
@@ -190,6 +216,9 @@ public class Renderer extends RendererModule{
         reflectSurface = Graphics.createSurface(renderScale());
         bloomSurface = Graphics.createSurface(renderScale());
 
+        //the surfaces were just built at this scale, so the first update must not rebuild them
+        lastSurfaceScale = renderScale();
+
         Settings.defaults("bloom", true);
         Settings.defaults("bloomintensity", 10);
         Settings.defaults("bloomblur", 2);
@@ -214,66 +243,155 @@ public class Renderer extends RendererModule{
         checkPostSettings();
         checkRendererSettings();
 
-        if(Core.cameraScale != targetscale){
-            float targetzoom = (float) Core.cameraScale / targetscale;
-            camera.zoom = Mathf.lerpDelta(camera.zoom, targetzoom, 0.2f);
-
-            if(Mathf.in(camera.zoom, targetzoom, 0.005f)){
-                camera.zoom = 1f;
-                Graphics.setCameraScale(targetscale);
-                for(Player player : players){
-                    control.input(player.playerIndex).resetCursor();
-                }
-            }
-        }else{
-            camera.zoom = Mathf.lerpDelta(camera.zoom, 1f, 0.2f);
-        }
+        updateScale();
+        updateCameraViewport();
+        Lod.update();
 
         if(state.is(State.menu)){
             Graphics.clear(Color.BLACK);
         }else{
             Vector2 position = averagePosition();
 
-            if(players[0].isDead()){
-                TileEntity core = players[0].getClosestCore();
-                if(core != null && players[0].spawner == -1){
-                    smoothCamera(core.x, core.y, 0.08f);
-                }else{
-                    smoothCamera(position.x + 0.0001f, position.y + 0.0001f, 0.08f);
+            if(Float.isNaN(camera.position.x) || Float.isNaN(camera.position.y) || Float.isInfinite(camera.position.x) || Float.isInfinite(camera.position.y)){
+                //a NaN position would silently break every bounds check for the rest of the session
+                camera.position.set(players[0].x, players[0].y, 0f);
+            }
+
+            //while the camera is detached the input handler owns the position, so following the
+            //player here would immediately undo every pan
+            if(!detached){
+                if(players[0].isDead()){
+                    TileEntity core = players[0].getClosestCore();
+                    if(core != null && players[0].spawner == -1){
+                        smoothCamera(core.x, core.y, 0.08f);
+                    }else{
+                        smoothCamera(position.x + 0.0001f, position.y + 0.0001f, 0.08f);
+                    }
+                }else if(!mobile){
+                    //the offset avoids float equality drift when the position is snapped to a tile
+                    followCamera(position.x + 0.0001f, position.y + 0.0001f);
                 }
-            }else if(!mobile){
-                setCamera(position.x + 0.0001f, position.y + 0.0001f);
             }
+
             if(!world.isOpenWorld()){
-                camera.position.x = Mathf.clamp(camera.position.x, -tilesize / 2f, world.width() * tilesize - tilesize / 2f);
-                camera.position.y = Mathf.clamp(camera.position.y, -tilesize / 2f, world.height() * tilesize - tilesize / 2f);
+                //in open world the position is unbounded, negative coordinates are valid
+                clampCamera(0f, 0f, world.width() * tilesize, world.height() * tilesize);
             }
 
-            float prex = camera.position.x, prey = camera.position.y;
-            updateShake(0.75f);
+            //shake is applied as an offset that is removed again after drawing, so it can never
+            //drift the real camera position
+            updateShakeOffset();
+            camera.position.x += camShakeOffset.x;
+            camera.position.y += camShakeOffset.y;
 
-            float deltax = camera.position.x - prex, deltay = camera.position.y - prey;
-            float lastx = camera.position.x, lasty = camera.position.y;
+            try{
+                if(snapCamera){
+                    camera.position.set((int) camera.position.x, (int) camera.position.y, 0);
+                }
 
-            if(snapCamera){
-                camera.position.set((int) camera.position.x, (int) camera.position.y, 0);
+                draw();
+            }finally{
+                //a frame that throws must not leave the offset baked into the camera position
+                camera.position.x -= camShakeOffset.x;
+                camera.position.y -= camShakeOffset.y;
             }
-
-            if(Gdx.graphics.getHeight() / Core.cameraScale % 2 == 1){
-                camera.position.add(0, -0.5f, 0);
-            }
-
-            if(Gdx.graphics.getWidth() / Core.cameraScale % 2 == 1){
-                camera.position.add(-0.5f, 0, 0);
-            }
-
-            draw();
-
-            camera.position.set(lastx - deltax, lasty - deltay, 0);
         }
 
         if(!ui.chatfrag.chatOpen()){
             renderer.record(); //this only does something if GdxGifRecorder is on the class path, which it usually isn't
+        }
+    }
+
+    /**
+     * Lerps the actual camera scale toward the target set by the player. The scale is applied to
+     * the render surfaces and to the mirror of it in {@link Core#cameraScale}, but only when it
+     * crosses a whole step, so a smooth zoom doesn't reallocate a framebuffer every frame.
+     */
+    private void updateScale(){
+        float dest = Mathf.clamp(targetscale, minScale(), maxScale());
+        if(dest != targetscale){
+            targetscale = dest;
+        }
+
+        camerascale = Mathf.lerpDelta(camerascale, dest, 0.1f);
+        if(Mathf.in(camerascale, dest, 0.001f)){
+            camerascale = dest;
+        }
+
+        //the surface scale is fractional too, so it changes with the zoom even though the mirrored
+        //int does not; both are handled together in the settings check below
+        int scale = Math.max(1, Math.round(camerascale));
+        if(scale != Core.cameraScale){
+            Core.cameraScale = scale;
+            for(Player player : players){
+                control.input(player.playerIndex).resetCursor();
+            }
+        }
+    }
+
+    /** Sets the camera's visible area from the current scale.*/
+    private void updateCameraViewport(){
+        camera.zoom = 1f;
+
+        float viewWidth = Gdx.graphics.getWidth() / camerascale;
+        float viewHeight = Gdx.graphics.getHeight() / camerascale;
+
+        if(!Mathf.in(camera.viewportWidth, viewWidth, 0.01f) || !Mathf.in(camera.viewportHeight, viewHeight, 0.01f)){
+            camera.viewportWidth = viewWidth;
+            camera.viewportHeight = viewHeight;
+        }
+    }
+
+    /** Smoothly (or instantly) moves the camera toward a target.*/
+    private void followCamera(float x, float y){
+        if(Settings.getBool("smoothcamera")){
+            float limit = aimRange();
+            float ax = Mathf.clamp((Gdx.input.getX() - Gdx.graphics.getWidth() / 2f) / camerascale, -limit, limit) * 0.5f;
+            float ay = Mathf.clamp(-(Gdx.input.getY() - Gdx.graphics.getHeight() / 2f) / camerascale, -limit, limit) * 0.5f;
+            x += ax;
+            y += ay;
+
+            camera.position.x = Mathf.lerpDelta(camera.position.x, x, 0.08f);
+            camera.position.y = Mathf.lerpDelta(camera.position.y, y, 0.08f);
+        }else{
+            camera.position.set(x, y, 0f);
+        }
+    }
+
+    /** How far, in world units, the smooth camera may lean toward the cursor */
+    private float aimRange(){
+        return Math.max(minAimRange, camera.viewportHeight * aimRangeFactor);
+    }
+
+    /**
+     * Screen shake. The intensity decays at a rate derived from the shake's own duration, so a
+     * long shake fades out smoothly instead of being cut off, and the resulting offset is stored
+     * rather than added to the position directly.
+     */
+    private void updateShakeOffset(){
+        if(shaketime <= 0f){
+            shakeIntensity = 0f;
+            shakeReduction = 0f;
+            lastShakeDuration = 0f;
+            camShakeOffset.setZero();
+            return;
+        }
+        if(lastShakeDuration <= 0f || shaketime > lastShakeDuration){
+            lastShakeDuration = shaketime;
+            shakeReduction = shakeIntensity / Math.max(shaketime, 0.0001f);
+        }
+
+        float intensity = shakeIntensity * (Settings.getInt("screenshake", 4) / 4f) * shakeScale;
+        camShakeOffset.set(Mathf.range(intensity), Mathf.range(intensity));
+
+        shakeIntensity = Mathf.clamp(shakeIntensity - shakeReduction * Timers.delta(), 0f, 100f);
+        shaketime -= Timers.delta();
+
+        if(shaketime <= 0f){
+            shaketime = 0f;
+            shakeIntensity = 0f;
+            shakeReduction = 0f;
+            lastShakeDuration = 0f;
         }
     }
 
@@ -283,8 +401,7 @@ public class Renderer extends RendererModule{
 
         camera.update();
         if(Float.isNaN(Core.camera.position.x) || Float.isNaN(Core.camera.position.y)){
-            Core.camera.position.x = players[0].x;
-            Core.camera.position.y = players[0].y;
+            Core.camera.position.set(players[0].x, players[0].y, 0f);
         }
 
         if(bloom != null){
@@ -439,8 +556,8 @@ public class Renderer extends RendererModule{
         //draw lights over a wider area than the visible blocks
         int avgx = Mathf.scl(camera.position.x, tilesize);
         int avgy = Mathf.scl(camera.position.y, tilesize);
-        int rangex = (int)(camera.viewportWidth * camera.zoom / tilesize / 2) + 2;
-        int rangey = (int)(camera.viewportHeight * camera.zoom / tilesize / 2) + 2;
+        int rangex = (int)(camera.viewportWidth / tilesize / 2) + 2;
+        int rangey = (int)(camera.viewportHeight / tilesize / 2) + 2;
 
         int minx, miny, maxx, maxy;
         if(world.isOpenWorld()){
@@ -455,9 +572,9 @@ public class Renderer extends RendererModule{
             maxy = Math.min(world.height() - 1, avgy + rangey + lightMargin);
         }
 
-        lightRect.set(camera.position.x - camera.viewportWidth * camera.zoom / 2f,
-                camera.position.y - camera.viewportHeight * camera.zoom / 2f,
-                camera.viewportWidth * camera.zoom, camera.viewportHeight * camera.zoom);
+        lightRect.set(camera.position.x - camera.viewportWidth / 2f,
+                camera.position.y - camera.viewportHeight / 2f,
+                camera.viewportWidth, camera.viewportHeight);
 
         Shaders.light.type = 0;
         Graphics.shader(Shaders.light);
@@ -651,8 +768,8 @@ public class Renderer extends RendererModule{
 
         int avgx = Mathf.scl(camera.position.x, tilesize);
         int avgy = Mathf.scl(camera.position.y, tilesize);
-        int rangex = (int)(camera.viewportWidth * camera.zoom / tilesize / 2) + 2;
-        int rangey = (int)(camera.viewportHeight * camera.zoom / tilesize / 2) + 2;
+        int rangex = (int)(camera.viewportWidth / tilesize / 2) + 2;
+        int rangey = (int)(camera.viewportHeight / tilesize / 2) + 2;
 
         int minx, miny, maxx, maxy;
         if(world.isOpenWorld()){
@@ -829,9 +946,9 @@ public class Renderer extends RendererModule{
 
     private void blitPixelSurface(){
         batch.draw(pixelSurface.texture(),
-                camera.position.x - camera.viewportWidth / 2 * camera.zoom,
-                camera.position.y + camera.viewportHeight / 2 * camera.zoom,
-                camera.viewportWidth * camera.zoom, -camera.viewportHeight * camera.zoom);
+                camera.position.x - camera.viewportWidth / 2,
+                camera.position.y + camera.viewportHeight / 2,
+                camera.viewportWidth, -camera.viewportHeight);
     }
 
     //applies the bloom chain (threshold -> blur -> photographic combine) to the composed
@@ -863,11 +980,11 @@ public class Renderer extends RendererModule{
     private void drawReflections(){
         int avgx = Mathf.scl(camera.position.x, tilesize);
         int avgy = Mathf.scl(camera.position.y, tilesize);
-        int rangex = (int)(camera.viewportWidth * camera.zoom / tilesize / 2) + 2;
-        int rangey = (int)(camera.viewportHeight * camera.zoom / tilesize / 2) + 2;
+        int rangex = (int)(camera.viewportWidth / tilesize / 2) + 2;
+        int rangey = (int)(camera.viewportHeight / tilesize / 2) + 2;
 
-        float halfW = camera.viewportWidth * camera.zoom / 2f;
-        float halfH = camera.viewportHeight * camera.zoom / 2f;
+        float halfW = camera.viewportWidth / 2f;
+        float halfH = camera.viewportHeight / 2f;
 
         Graphics.surface(reflectSurface, true, false);
 
@@ -1122,6 +1239,9 @@ public class Renderer extends RendererModule{
         for(Player player : players){
             control.input(player.playerIndex).resetCursor();
         }
+        //super.resize() derives the viewport from the integer Core.cameraScale, which loses
+        //precision; re-derive it from the float scale so the view doesn't jump
+        updateCameraViewport();
         camera.update();
         camera.position.set(lastX, lastY, 0f);
 
@@ -1158,12 +1278,15 @@ public class Renderer extends RendererModule{
         for(Surface surface : Graphics.getSurfaces()){
             surface.setScale(renderScale());
         }
+        //the surface scale is derived from the scale, so a zoom that crosses a whole step has to
+        //rescale the surfaces; recording the step stops a smooth zoom from doing it every frame
+        lastRenderScale = Settings.getInt("renderer", 100);
     }
 
     /** The scale factor used by the render surfaces. Larger = smaller surfaces.
      *  A render scale below 100% renders at a lower resolution and upscales to the screen, cutting GPU fill rate. */
     private int renderScale(){
-        return Math.max(1, Math.round(targetscale * 100f / Math.max(Settings.getInt("renderer", 100), 1)));
+        return Math.max(1, Math.round(camerascale * 100f / Math.max(Settings.getInt("renderer", 100), 1)));
     }
 
     /** Detects render scale changes and rebuilds the surfaces when it changes. */
@@ -1171,9 +1294,9 @@ public class Renderer extends RendererModule{
         showFog = Settings.getBool("fogofwar");
 
         int rs = Settings.getInt("renderer", 100);
-        if(rs != lastRenderScale){
-            lastRenderScale = rs;
+        if(rs != lastRenderScale || renderScale() != lastSurfaceScale){
             applyScale();
+            lastRenderScale = rs;
         }
     }
 
@@ -1213,45 +1336,76 @@ public class Renderer extends RendererModule{
         return avgPosition;
     }
 
-    public void setCameraScale(int amount){
-        targetscale = amount;
+    public void scaleCamera(float amount){
+        targetscale *= (amount / 4f) + 1f;
         clampScale();
-        applyScale();
     }
 
-    public void scaleCamera(int amount){
-        setCameraScale(targetscale + amount);
+    public void setScale(float scale){
+        targetscale = scale;
+        clampScale();
+    }
+
+    public float getScale(){
+        return targetscale;
+    }
+
+    public float getDisplayScale(){
+        return camerascale;
+    }
+
+    public float minScale(){
+        return Math.max(1f, minZoom / zoomLimit("minzoomingamemultiplier"));
+    }
+
+    public float maxScale(){
+        return Math.max(minScale(), maxZoom * zoomLimit("maxzoomingamemultiplier"));
+    }
+
+    private static float zoomLimit(String name){
+        return Math.max(1, Settings.getInt(name, 100)) / 100f;
     }
 
     public void clampScale(){
-        float s = io.anuke.ucore.scene.ui.layout.Unit.dp.scl(1f);
-        int amp = Math.max(Settings.getInt("zoom", 100), 100);
-        int minScale = Math.max(1, Math.round(s * 2 * 100f / amp));
-        if(world.isOpenWorld() && !headless){
-            minScale = Math.max(minScale, (int)Math.ceil((float)Gdx.graphics.getWidth() / (world.width() * tilesize)));
-        }
-        targetscale = Mathf.clamp(targetscale, minScale, Math.round(s * 5));
+        //in open world there is no map edge to look past, so only the settings limits apply
+        targetscale = Mathf.clamp(targetscale, minScale(), maxScale());
     }
 
     public void takeMapScreenshot(){
+        int w = world.width() * tilesize, h = world.height() * tilesize;
+        int memory = w * h * 4 / 1024 / 1024;
+
+        if(memory >= (mobile ? 65 : 120)){
+            ui.showInfo(Bundles.format("text.screenshot.invalid", memory));
+            return;
+        }
+
         float vpW = Core.camera.viewportWidth, vpH = Core.camera.viewportHeight;
-        int w = world.width()*tilesize, h =  world.height()*tilesize;
+        float px = Core.camera.position.x, py = Core.camera.position.y;
         int pw = pixelSurface.width(), ph = pixelSurface.height();
+        boolean lastShowFog = showFog;
+        boolean lodDisable = Lod.disable;
+
         showFog = false;
         disableUI = true;
+        //a full-map render is the one place where all LOD detail should be drawn, no matter how small it gets
+        Lod.disable = true;
         pixelSurface.setSize(w, h, true);
         Graphics.getEffectSurface().setSize(w, h, true);
         Core.camera.viewportWidth = w;
         Core.camera.viewportHeight = h;
-        Core.camera.position.x = w/2f;
-        Core.camera.position.y = h/2f;
+        Core.camera.position.set(w / 2f, h / 2f, 0f);
 
-        draw();
-
-        showFog = true;
-        disableUI = false;
-        Core.camera.viewportWidth = vpW;
-        Core.camera.viewportHeight = vpH;
+        try{
+            draw();
+        }finally{
+            showFog = lastShowFog;
+            disableUI = false;
+            Lod.disable = lodDisable;
+            Core.camera.viewportWidth = vpW;
+            Core.camera.viewportHeight = vpH;
+            Core.camera.position.set(px, py, 0f);
+        }
 
         pixelSurface.getBuffer().begin();
         byte[] lines = ScreenUtils.getFrameBufferPixels(0, 0, w, h, true);

@@ -209,10 +209,10 @@ public class Shaders{
             shader.setUniformf("u_dp", Unit.dp.scl(1f));
             shader.setUniformf("u_time", Timers.time() / Unit.dp.scl(1f));
             shader.setUniformf("u_offset",
-                    Core.camera.position.x - Core.camera.viewportWidth / 2 * Core.camera.zoom,
-                    Core.camera.position.y - Core.camera.viewportHeight / 2 * Core.camera.zoom);
-            shader.setUniformf("u_texsize", Core.camera.viewportWidth * Core.camera.zoom,
-            Core.camera.viewportHeight * Core.camera.zoom);
+                    Core.camera.position.x - Core.camera.viewportWidth / 2,
+                    Core.camera.position.y - Core.camera.viewportHeight / 2);
+            shader.setUniformf("u_texsize", Core.camera.viewportWidth,
+            Core.camera.viewportHeight);
             shader.setUniformf("u_teamColor", teamColor);
         }
     }
@@ -256,10 +256,10 @@ public class Shaders{
         @Override
         public void apply(){
             shader.setUniformf("camerapos",
-                    Core.camera.position.x - Core.camera.viewportWidth / 2 * Core.camera.zoom,
-                    Core.camera.position.y - Core.camera.viewportHeight / 2 * Core.camera.zoom);
-            shader.setUniformf("screensize", Core.camera.viewportWidth* Core.camera.zoom,
-            Core.camera.viewportHeight * Core.camera.zoom);
+                    Core.camera.position.x - Core.camera.viewportWidth / 2,
+                    Core.camera.position.y - Core.camera.viewportHeight / 2);
+            shader.setUniformf("screensize", Core.camera.viewportWidth,
+            Core.camera.viewportHeight);
             shader.setUniformf("time", Timers.time());
         }
     }

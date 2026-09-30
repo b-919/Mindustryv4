@@ -78,10 +78,10 @@ public class FloorRenderer{
 
         OrthographicCamera camera = Core.camera;
 
-        int minx = Math.max((int)((camera.position.x - camera.viewportWidth * camera.zoom / 2f) / (chunksize * tilesize)), 0);
-        int miny = Math.max((int)((camera.position.y - camera.viewportHeight * camera.zoom / 2f) / (chunksize * tilesize)), 0);
-        int maxx = Math.min(Mathf.ceil((camera.position.x + camera.viewportWidth * camera.zoom / 2f) / (chunksize * tilesize)), chunksx);
-        int maxy = Math.min(Mathf.ceil((camera.position.y + camera.viewportHeight * camera.zoom / 2f) / (chunksize * tilesize)), chunksy);
+        int minx = Math.max((int)((camera.position.x - camera.viewportWidth / 2f) / (chunksize * tilesize)), 0);
+        int miny = Math.max((int)((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize)), 0);
+        int maxx = Math.min(Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize)), chunksx);
+        int maxy = Math.min(Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize)), chunksy);
 
         CacheLayer[] layers = CacheLayer.values();
 
@@ -140,10 +140,10 @@ public class FloorRenderer{
 
         OrthographicCamera camera = Core.camera;
 
-        int minx = (int)Math.floor((camera.position.x - camera.viewportWidth * camera.zoom / 2f) / (chunksize * tilesize));
-        int miny = (int)Math.floor((camera.position.y - camera.viewportHeight * camera.zoom / 2f) / (chunksize * tilesize));
-        int maxx = Mathf.ceil((camera.position.x + camera.viewportWidth * camera.zoom / 2f) / (chunksize * tilesize));
-        int maxy = Mathf.ceil((camera.position.y + camera.viewportHeight * camera.zoom / 2f) / (chunksize * tilesize));
+        int minx = (int)Math.floor((camera.position.x - camera.viewportWidth / 2f) / (chunksize * tilesize));
+        int miny = (int)Math.floor((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize));
+        int maxx = Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize));
+        int maxy = Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize));
 
         CacheLayer[] layers = CacheLayer.values();
 
@@ -388,10 +388,10 @@ public class FloorRenderer{
 
         OrthographicCamera camera = Core.camera;
 
-        int minx = Math.max((int)((camera.position.x - camera.viewportWidth * camera.zoom / 2f) / (chunksize * tilesize)), 0);
-        int miny = Math.max((int)((camera.position.y - camera.viewportHeight * camera.zoom / 2f) / (chunksize * tilesize)), 0);
-        int maxx = Math.min(Mathf.ceil((camera.position.x + camera.viewportWidth * camera.zoom / 2f) / (chunksize * tilesize)), chunksx);
-        int maxy = Math.min(Mathf.ceil((camera.position.y + camera.viewportHeight * camera.zoom / 2f) / (chunksize * tilesize)), chunksy);
+        int minx = Math.max((int)((camera.position.x - camera.viewportWidth / 2f) / (chunksize * tilesize)), 0);
+        int miny = Math.max((int)((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize)), 0);
+        int maxx = Math.min(Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize)), chunksx);
+        int maxy = Math.min(Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize)), chunksy);
 
         int layerOrd = layer.ordinal();
 

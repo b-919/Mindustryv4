@@ -54,7 +54,7 @@ public class OverlayRenderer{
 
         for(Player player : playerGroup.all()){
             if(Settings.getBool("indicators") && player != players[0] && player.getTeam() == players[0].getTeam()){
-                if(!rect.setSize(Core.camera.viewportWidth * Core.camera.zoom * 0.9f, Core.camera.viewportHeight * Core.camera.zoom * 0.9f)
+                if(!rect.setSize(Core.camera.viewportWidth * 0.9f, Core.camera.viewportHeight * 0.9f)
                 .setCenter(Core.camera.position.x, Core.camera.position.y).contains(player.x, player.y)){
 
                     Tmp.v1.set(player.x, player.y).sub(Core.camera.position.x, Core.camera.position.y).setLength(indicatorLength);

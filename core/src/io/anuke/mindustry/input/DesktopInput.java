@@ -43,6 +43,7 @@ import io.anuke.ucore.entities.EntityGroup;
 import static io.anuke.mindustry.Vars.*;
 import static io.anuke.mindustry.input.CursorType.*;
 import static io.anuke.mindustry.input.PlaceMode.*;
+import static io.anuke.ucore.core.Core.camera;
 
 public class DesktopInput extends InputHandler{
     private final String section;
@@ -51,6 +52,9 @@ public class DesktopInput extends InputHandler{
     private boolean controlling;
     /**Current cursor type.*/
     private CursorType cursorType = normal;
+    /** How fast the detached camera pans, in world units per second. */
+    private static final float panSpeed = 4.5f, panBoostSpeed = 15f;
+    private final Vector2 panVec = new Vector2();
 
     /**Animation scale for line.*/
     private float selectScale;
@@ -89,6 +93,28 @@ public class DesktopInput extends InputHandler{
     @Override
     public boolean isDrawing(){
         return mode != none || recipe != null;
+    }
+
+    /** @return whether the camera is detached from the player */
+    public boolean isCameraDetached(){
+        return Settings.getBool("detach-camera");
+    }
+
+    /** Detached camera panning*/
+    private void updateCamera(){
+        boolean panning = isCameraDetached() || player.isDead() || state.is(State.paused);
+        renderer.detached = panning;
+
+        if(!panning) return;
+
+        float camSpeed = (Inputs.keyDown(section, "dash") ? panBoostSpeed : panSpeed) * Timers.delta();
+
+        float ax = Inputs.getAxis(section, "move_x"), ay = Inputs.getAxis(section, "move_y");
+        if(ax != 0f || ay != 0f){
+            panVec.set(ax, ay).nor().scl(camSpeed);
+            camera.position.x += panVec.x;
+            camera.position.y += panVec.y;
+        }
     }
 
     @Override
@@ -223,10 +249,12 @@ public class DesktopInput extends InputHandler{
 
         //zoom and rotate things
         if(Inputs.getAxisActive("zoom") && (Inputs.keyDown(section, "zoom_hold") || controller)){
-            renderer.scaleCamera((int) Inputs.getAxisTapped(section, "zoom"));
+            renderer.scaleCamera(Inputs.getAxisTapped(section, "zoom"));
         }
 
         renderer.minimap.zoomBy(-(int) Inputs.getAxisTapped(section, "zoom_minimap"));
+
+        updateCamera();
 
         if(player.isDead()) return;
 

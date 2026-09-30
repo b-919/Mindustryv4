@@ -14,6 +14,7 @@ import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.game.Schematic;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Layer;
+import io.anuke.mindustry.graphics.Lod;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Block;
@@ -248,10 +249,12 @@ public class ItemBridge extends Block{
         float time = entity.time2 / 1.7f;
         int arrows = (dist) * tilesize / 4 - 2;
 
+        if(!Lod.l1) return;
+
         Draw.color();
 
         for(int a = 0; a < arrows; a++){
-            Draw.alpha(Mathf.absin(a / (float) arrows - entity.time / 100f, 0.1f, 1f) * entity.uptime);
+            Draw.alpha(Mathf.absin(a / (float) arrows - entity.time / 100f, 0.1f, 1f) * entity.uptime * Lod.alpha1);
             Draw.rect(arrowRegion,
                     tile.worldx() + Geometry.d4[i].x * (tilesize / 2f + a * 4f + time % 4f),
                     tile.worldy() + Geometry.d4[i].y * (tilesize / 2f + a * 4f + time % 4f),

@@ -6,13 +6,11 @@ import com.badlogic.gdx.graphics.Pixmap.Format;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.Rectangle;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Mathf;
 import io.anuke.ucore.util.Tmp;
 
-import static io.anuke.ucore.core.Core.camera;
 /**
  * Snow weather, drawn as soft gaussian-blurred snowflakes that drift side to side.
  * Adapted from modern Mindustry's ParticleWeather class and Weather.drawParticles().
@@ -36,9 +34,6 @@ public class SnowWeather extends Weather{
 
     private static final float boundMax = 10000 * 8f;
     private static final int regionSize = 64;
-
-    private final Rectangle rect = new Rectangle();
-    private final Rectangle visible = new Rectangle();
 
     private TextureRegion region;
 
@@ -151,17 +146,5 @@ public class SnowWeather extends Weather{
             }
         }
         return out;
-    }
-
-    private void viewRect(float padding){
-        rect.set(camera.position.x - camera.viewportWidth * camera.zoom / 2f - padding,
-                camera.position.y - camera.viewportHeight * camera.zoom / 2f - padding,
-                camera.viewportWidth * camera.zoom + padding * 2,
-                camera.viewportHeight * camera.zoom + padding * 2);
-
-        visible.set(camera.position.x - camera.viewportWidth * camera.zoom / 2f,
-                camera.position.y - camera.viewportHeight * camera.zoom / 2f,
-                camera.viewportWidth * camera.zoom,
-                camera.viewportHeight * camera.zoom);
     }
 }

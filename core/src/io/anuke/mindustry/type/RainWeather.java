@@ -1,7 +1,6 @@
 package io.anuke.mindustry.type;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.math.Rectangle;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
@@ -11,8 +10,7 @@ import io.anuke.ucore.util.Mathf;
 import io.anuke.ucore.util.Tmp;
 
 import static io.anuke.mindustry.Vars.world;
-import static io.anuke.ucore.core.Core.batch;
-import static io.anuke.ucore.core.Core.camera;
+
 
 /**
  * Rain weather, drawn as moving line streaks with ground splashes.
@@ -34,9 +32,6 @@ public class RainWeather extends Weather{
     public Color color = Color.valueOf("7a95ea");
 
     private static final float boundMax = 10000 * 8f;
-
-    private final Rectangle rect = new Rectangle();
-    private final Rectangle visible = new Rectangle();
 
     public RainWeather(String name){
         super(name);
@@ -130,18 +125,6 @@ public class RainWeather extends Weather{
         }
 
         Draw.reset();
-    }
-
-    private void viewRect(float padding){
-        rect.set(camera.position.x - camera.viewportWidth * camera.zoom / 2f - padding,
-                camera.position.y - camera.viewportHeight * camera.zoom / 2f - padding,
-                camera.viewportWidth * camera.zoom + padding * 2,
-                camera.viewportHeight * camera.zoom + padding * 2);
-
-        visible.set(camera.position.x - camera.viewportWidth * camera.zoom / 2f,
-                camera.position.y - camera.viewportHeight * camera.zoom / 2f,
-                camera.viewportWidth * camera.zoom,
-                camera.viewportHeight * camera.zoom);
     }
 
     private static float slope(float fin){

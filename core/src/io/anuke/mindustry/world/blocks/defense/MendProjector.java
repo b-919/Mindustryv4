@@ -6,6 +6,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.LongSet;
 import io.anuke.mindustry.content.fx.BlockFx;
 import io.anuke.mindustry.entities.TileEntity;
+import io.anuke.mindustry.graphics.Lod;
 import io.anuke.mindustry.graphics.Shaders;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
@@ -117,14 +118,17 @@ public class MendProjector extends Block{
         float f = 1f - (Timers.time() / 100f) % 1f;
 
         Draw.color(color, phase, entity.phaseHeat);
-        Draw.alpha(entity.heat * Mathf.absin(Timers.time(), 10f, 1f) * 0.5f);
+        Draw.alpha(entity.heat * Mathf.absin(Timers.time(), 10f, 1f) * 0.5f * Lod.alpha2);
         Graphics.setAdditiveBlending();
         Draw.rect(topRegion, tile.drawx(), tile.drawy());
 
         Graphics.setNormalBlending();
         Draw.alpha(1f);
-        Lines.stroke((2f  * f + 0.2f)* entity.heat);
-        Lines.circle(tile.drawx(), tile.drawy(), (1f-f) * 9f);
+
+        if(Lod.l2){
+            Lines.stroke((2f  * f + 0.2f)* entity.heat);
+            Lines.circle(tile.drawx(), tile.drawy(), (1f-f) * 9f);
+        }
 
         Draw.reset();
     }

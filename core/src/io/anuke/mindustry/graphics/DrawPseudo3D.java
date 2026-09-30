@@ -3,6 +3,8 @@ package io.anuke.mindustry.graphics;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Mathf;
 
+import static io.anuke.mindustry.Vars.baseCameraScale;
+import static io.anuke.mindustry.Vars.renderer;
 import static io.anuke.ucore.core.Core.camera;
 
 /** Utility for rendering things at a fake "height" above the ground, making them shift relative to the camera.
@@ -58,9 +60,9 @@ public class DrawPseudo3D{
         Draw.rect("circle", x, y, s, s);
     }
 
-    /** The current display scale, approximated from the camera zoom. */
+    /** The current display scale, relative to the scale the game starts at. */
     public static float scale(){
-        return Mathf.clamp(camera.zoom, 0.5f, 4f);
+        return Mathf.clamp(renderer.getDisplayScale() / baseCameraScale, 0.5f, 4f);
     }
 
     public static float layerOffset(float x, float y){

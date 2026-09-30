@@ -48,6 +48,8 @@ public class MobileInput extends InputHandler implements GestureListener{
     private Vector2 vector = new Vector2();
     private boolean canPan;
     private boolean zoomed = false;
+    /** Camera scale the current pinch gesture started from, so the zoom is relative to it. */
+    private float pinchStartScale = 1f;
     /** Set of completed guides. */
     private ObjectSet<String> guides = new ObjectSet<>();
 
@@ -716,6 +718,10 @@ public class MobileInput extends InputHandler implements GestureListener{
 
     @Override
     public void update(){
+        //mobile pans by dragging, so the camera is never 'detached' from following the player;
+        //this also clears the flag if the input handler was swapped out for a desktop one
+        renderer.detached = false;
+
         if(state.is(State.menu) || player.isDead()){
             selection.clear();
             removals.clear();
@@ -784,7 +790,7 @@ public class MobileInput extends InputHandler implements GestureListener{
                     panY = (screenY - Gdx.graphics.getHeight()) + edgePan;
                 }
 
-                vector.set(panX, panY).scl((Core.camera.viewportWidth * Core.camera.zoom) / Gdx.graphics.getWidth());
+                vector.set(panX, panY).scl((Core.camera.viewportWidth) / Gdx.graphics.getWidth());
                 vector.limit(maxPanSpeed);
 
                 //pan view
@@ -815,7 +821,10 @@ public class MobileInput extends InputHandler implements GestureListener{
             return false;
         }
 
-        float dx = deltaX * Core.camera.zoom / Core.cameraScale, dy = deltaY * Core.camera.zoom / Core.cameraScale;
+        //screen pixels become world units by dividing by the display scale, which includes the
+        //render scale setting and any in-progress zoom animation
+        float displayScale = renderer.getDisplayScale();
+        float dx = deltaX / displayScale, dy = deltaY / displayScale;
 
         if(draggingSchematic){
             schemX += dx;
@@ -850,15 +859,18 @@ public class MobileInput extends InputHandler implements GestureListener{
 
     @Override
     public boolean zoom(float initialDistance, float distance){
+        if(initialDistance <= 0f) return false;
 
-        if(Math.abs(distance - initialDistance) > io.anuke.ucore.scene.ui.layout.Unit.dp.scl(100f) && !zoomed){
-            int amount = (distance > initialDistance ? 1 : -1);
-            renderer.scaleCamera(Math.round(io.anuke.ucore.scene.ui.layout.Unit.dp.scl(amount)));
+        if(!zoomed){
+            //first event of this gesture: remember the scale it started from
+            pinchStartScale = renderer.getScale();
             zoomed = true;
-            return true;
         }
 
-        return false;
+        //proportional zoom: the scale is set directly from how far apart the fingers are, so the
+        //view tracks the pinch exactly instead of jumping through whole zoom levels
+        renderer.setScale(pinchStartScale * distance / initialDistance);
+        return true;
     }
 
     @Override
