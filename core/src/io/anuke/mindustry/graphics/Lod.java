@@ -2,6 +2,7 @@ package io.anuke.mindustry.graphics;
 
 import io.anuke.ucore.util.Mathf;
 
+import static io.anuke.mindustry.Vars.baseCameraScale;
 import static io.anuke.mindustry.Vars.renderer;
 
 /**
@@ -10,10 +11,7 @@ import static io.anuke.mindustry.Vars.renderer;
  * (and then skipped entirely) instead of being drawn as a shimmering mess.
  */
 public class Lod{
-    /** Scale (pixels per world unit) at which level 1 and 2 content stop being drawn. */
-    private static final float threshold1 = 1.4f, threshold2 = 0.8f;
-    /** Width of the fade range, in scale units. */
-    private static final float fade = 0.2f;
+    private static final float end1 = 0.5f, start1 = 0.9f, end2 = 0.5f, start2 = 0.78f;
 
     /** When true, all LOD content is drawn at full opacity. */
     public static boolean disable = false;
@@ -35,10 +33,10 @@ public class Lod{
             return;
         }
 
-        float scale = renderer.getDisplayScale();
+        float scale = renderer.getDisplayScale() / baseCameraScale;
 
-        alpha1 = Mathf.clamp((scale - threshold1) / fade, 0f, 1f);
-        alpha2 = Mathf.clamp((scale - threshold2) / fade, 0f, 1f);
+        alpha1 = 1f - Mathf.clamp((start1 - scale) / (start1 - end1), 0f, 1f);
+        alpha2 = 1f - Mathf.clamp((start2 - scale) / (start2 - end2), 0f, 1f);
         l1 = alpha1 >= 1f / 255f;
         l2 = alpha2 >= 1f / 255f;
     }

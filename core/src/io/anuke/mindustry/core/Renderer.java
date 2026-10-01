@@ -31,6 +31,7 @@ import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.entities.units.FlyingUnit;
 import io.anuke.mindustry.entities.traits.MinerTrait;
 import io.anuke.mindustry.entities.traits.BuilderTrait;
+import io.anuke.mindustry.game.EventType.WorldLoadGraphicsEvent;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.graphics.*;
 import io.anuke.mindustry.world.Block;
@@ -95,6 +96,7 @@ public class Renderer extends RendererModule{
     /** When true the camera is controlled by hand and does not follow the player. Set every frame
      *  by the input handler, which is the only thing that knows if the player is panning. */
     public boolean detached = false;
+    private boolean snapToSpawn = false;
     /** Screen shake offset applied around the draw call so it never accumulates into the position. */
     private final Vector2 camShakeOffset = new Vector2();
     /** How strong the shake reads, relative to the intensity the shake was triggered with. */
@@ -152,6 +154,7 @@ public class Renderer extends RendererModule{
 
         //the float scale is the source of truth, so the int mirror starts at its rounded value
         Core.cameraScale = Math.max(1, Math.round(baseCameraScale));
+        Events.on(WorldLoadGraphicsEvent.class, event -> snapToSpawn = true);
         Effects.setEffectProvider((effect, color, x, y, rotation, data) -> {
             if(effect == Fx.none) return;
             if(Settings.getBool("effects")){
@@ -257,20 +260,20 @@ public class Renderer extends RendererModule{
                 camera.position.set(players[0].x, players[0].y, 0f);
             }
 
+            if(snapToSpawn){
+                snapToSpawn = false;
+                snapToSpawnCamera();
+            }
+
             //while the camera is detached the input handler owns the position, so following the
             //player here would immediately undo every pan
-            if(!detached){
-                if(players[0].isDead()){
-                    TileEntity core = players[0].getClosestCore();
-                    if(core != null && players[0].spawner == -1){
-                        smoothCamera(core.x, core.y, 0.08f);
-                    }else{
-                        smoothCamera(position.x + 0.0001f, position.y + 0.0001f, 0.08f);
-                    }
-                }else if(!mobile){
-                    //the offset avoids float equality drift when the position is snapped to a tile
-                    followCamera(position.x + 0.0001f, position.y + 0.0001f);
+            if(players[0].isDead()){
+                TileEntity core = players[0].getClosestCore();
+                if(core != null){
+                    camera.position.set(core.x, core.y, 0f);
                 }
+            }else if(!detached && !mobile){
+                followCamera(position.x + 0.0001f, position.y + 0.0001f);
             }
 
             if(!world.isOpenWorld()){
@@ -361,6 +364,18 @@ public class Renderer extends RendererModule{
     /** How far, in world units, the smooth camera may lean toward the cursor */
     private float aimRange(){
         return Math.max(minAimRange, camera.viewportHeight * aimRangeFactor);
+    }
+
+    private void snapToSpawnCamera(){
+        Player player = players[0];
+        //the player may not have been placed yet, but the spawn core always is
+        TileEntity core = player.getClosestCore();
+
+        if(core != null){
+            camera.position.set(core.x, core.y, 0f);
+        }else{
+            camera.position.set(player.x, player.y, 0f);
+        }
     }
 
     /**
