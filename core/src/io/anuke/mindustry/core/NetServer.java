@@ -658,8 +658,11 @@ public class NetServer extends Module{
             tile.entity.items.write(dataStream);
         }
 
-        //write timestamp
-        dataStream.writeLong(TimeUtils.millis());
+//write weather and day/night state, so clients follow the server's cycle and rules exactly
+            weather.write(dataStream);
+
+            //write timestamp
+            dataStream.writeLong(TimeUtils.millis());
 
         int totalGroups = 0;
 

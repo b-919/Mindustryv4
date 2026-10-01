@@ -110,6 +110,7 @@ public class Vars{
     public static Logic logic;
     public static Renderer renderer;
     public static SoundController soundController;
+    public static WeatherState weather;
     public static UI ui;
     public static World world;
     public static NetServer netServer;

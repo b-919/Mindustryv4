@@ -69,8 +69,8 @@ public class Save17 extends SaveFileVersion{
         //mode flags and RTS bits are not saved, so restore canonical values instead of inheriting stale custom game settings
         state.mode.reset();
         state.rtsAIBits = GameState.defaultRtsAIBits;
-        if(!headless && renderer != null){
-            renderer.weather.setRain(state.rain);
+        if(weather != null){
+            weather.setRain(state.rain);
         }
     }
 

@@ -130,8 +130,8 @@ public class Logic extends Module{
         infection.reset();
         TileEntity.sleepingEntities = 0;
 
-        if(!headless && renderer != null){
-            renderer.weather.setRain(false);
+        if(weather != null){
+            weather.setRain(false);
         }
 
         Events.fire(new ResetEvent());
@@ -241,8 +241,8 @@ public class Logic extends Module{
             if(!state.isPaused()){
                 Timers.update();
 
-                if(!headless && renderer != null){
-                    renderer.weather.update();
+                if(weather != null){
+                    weather.update();
                 }
 
                 boolean SiegeModeTimer = state.mode == GameMode.SiegeMode;

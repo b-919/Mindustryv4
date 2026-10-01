@@ -34,7 +34,7 @@ public class SolarGenerator extends PowerGenerator{
     }
 
     private float daylight(){
-        float darkness = renderer.weather.isDayNight() ? renderer.weather.cycleDarkness() : state.darkness;
+        float darkness = weather.isDayNight() ? weather.cycleDarkness() : state.darkness;
         return Math.max(0f, 1f - darkness);
     }
 

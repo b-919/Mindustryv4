@@ -75,7 +75,7 @@ public class Renderer extends RendererModule{
     public final MinimapRenderer minimap = new MinimapRenderer();
     public final OverlayRenderer overlays = new OverlayRenderer();
     public final FogRenderer fog = new FogRenderer();
-    public final WeatherRenderer weather = new WeatherRenderer();
+    public final WeatherRenderer weatherRenderer = new WeatherRenderer();
 
     private Bloom bloom;
     private boolean lastBloom;
@@ -435,7 +435,7 @@ public class Renderer extends RendererModule{
 
         blocks.drawFloor();
 
-        weather.drawUnder();
+        weatherRenderer.drawUnder();
 
         drawAndInterpolate(groundEffectGroup, e -> e instanceof BelowLiquidTrait);
         drawAndInterpolate(puddleGroup);
@@ -545,7 +545,7 @@ public class Renderer extends RendererModule{
 
         Graphics.beginCam();
         EntityDraw.setClip(false);
-        weather.drawOver();
+        weatherRenderer.drawOver();
         drawAndInterpolate(playerGroup, p -> !p.isDead() && !p.isLocal, Player::drawName);
         EntityDraw.setClip(true);
         Graphics.end();

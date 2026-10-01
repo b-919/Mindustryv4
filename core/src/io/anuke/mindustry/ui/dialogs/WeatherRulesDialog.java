@@ -9,7 +9,7 @@ import io.anuke.ucore.scene.ui.TextButton;
 import io.anuke.ucore.scene.ui.layout.Table;
 import io.anuke.ucore.util.Bundles;
 
-import static io.anuke.mindustry.Vars.renderer;
+import static io.anuke.mindustry.Vars.weather;
 
 /**Lets the player configure the weather events of a custom game*/
 public class WeatherRulesDialog extends FloatingDialog{
@@ -33,24 +33,24 @@ public class WeatherRulesDialog extends FloatingDialog{
         list.top().defaults().pad(3f).top().left();
 
         auto = new CheckBox("$text.weather.auto");
-        auto.setChecked(renderer.weather.isAutoWeather());
-        auto.changed(() -> renderer.weather.setAutoWeather(auto.isChecked()));
+        auto.setChecked(weather.isAutoWeather());
+        auto.changed(() -> weather.setAutoWeather(auto.isChecked()));
         list.add(auto).left().pad(3f).padBottom(4f);
         list.row();
 
         CheckBox daynight = new CheckBox("$text.weather.daynight");
-        daynight.setChecked(renderer.weather.isDayNight());
-        daynight.changed(() -> renderer.weather.setDayNight(daynight.isChecked()));
+        daynight.setChecked(weather.isDayNight());
+        daynight.changed(() -> weather.setDayNight(daynight.isChecked()));
         list.add(daynight).left().pad(3f).padBottom(4f);
         list.row();
 
-        int cycle = (int) renderer.weather.getCycleDuration();
+        int cycle = (int) weather.getCycleDuration();
         Label cycleLabel = new Label(Bundles.get("text.weather.cycle", "Cycle duration") + ": " + cycle + "min");
         Slider cycleSlider = new Slider(1, 60, 1, false);
         cycleSlider.setValue(cycle);
         cycleSlider.changed(() -> {
             int val = (int) cycleSlider.getValue();
-            renderer.weather.setCycleDuration(val);
+            weather.setCycleDuration(val);
             cycleLabel.setText(Bundles.get("text.weather.cycle", "Cycle duration") + ": " + val + "min");
         });
 
@@ -64,7 +64,7 @@ public class WeatherRulesDialog extends FloatingDialog{
         list.add(status).left().pad(3f).padBottom(8f);
         list.row();
 
-        Weather[] weathers = renderer.weather.weathers();
+        Weather[] weathers = weather.weathers();
         for(int i = 0; i < weathers.length; i++){
             list.add(card(weathers[i], i)).top().left();
             list.row();
@@ -72,15 +72,15 @@ public class WeatherRulesDialog extends FloatingDialog{
     }
 
     private void updateStatus(){
-        int sel = renderer.weather.selected();
+        int sel = weather.selected();
         String name = sel < 0 ? Bundles.get("text.weather.none", "None")
-                : Bundles.get("text.weather." + renderer.weather.weathers()[sel].name,
-                renderer.weather.weathers()[sel].name);
+                : Bundles.get("text.weather." + weather.weathers()[sel].name,
+                weather.weathers()[sel].name);
         status.setText("[accent]" + Bundles.get("text.weather.selected", "Selected") + ":[] " + name);
     }
 
-    private Table card(Weather weather, int index){
-        String name = Bundles.get("text.weather." + weather.name, weather.name);
+    private Table card(Weather type, int index){
+        String name = Bundles.get("text.weather." + type.name, type.name);
 
         Table card = new Table();
         card.background("button").margin(8f).top().left();
@@ -91,8 +91,8 @@ public class WeatherRulesDialog extends FloatingDialog{
         TextButton pick = new TextButton("$text.weather.pick");
         pick.getLabel().setWrap(false);
         pick.clicked(() -> {
-            renderer.weather.select(renderer.weather.selected() == index ? -1 : index);
-            renderer.weather.setAutoWeather(false);
+            weather.select(weather.selected() == index ? -1 : index);
+            weather.setAutoWeather(false);
             auto.setChecked(false);
             updateStatus();
         });
@@ -100,20 +100,20 @@ public class WeatherRulesDialog extends FloatingDialog{
         card.row();
 
         CheckBox always = new CheckBox("$text.weather.always");
-        always.setChecked(renderer.weather.isAlways(weather));
+        always.setChecked(weather.isAlways(type));
         always.changed(() -> {
-            renderer.weather.setAlways(weather, always.isChecked());
+            weather.setAlways(type, always.isChecked());
             if(always.isChecked()){
-                renderer.weather.select(index);
+                weather.select(index);
             }
             updateStatus();
         });
         card.add(always).colspan(2).left().pad(2f);
         card.row();
 
-        int minFreq = (int) renderer.weather.getMinFrequency(weather);
-        int maxFreq = (int) renderer.weather.getMaxFrequency(weather);
-        int duration = (int) renderer.weather.getDuration(weather);
+        int minFreq = (int) weather.getMinFrequency(type);
+        int maxFreq = (int) weather.getMaxFrequency(type);
+        int duration = (int) weather.getDuration(type);
 
         Label minLabel = new Label(Bundles.get("text.weather.minfreq", "Min time") + ": " + minFreq + "min");
         Label maxLabel = new Label(Bundles.get("text.weather.maxfreq", "Max time") + ": " + maxFreq + "min");
@@ -133,7 +133,7 @@ public class WeatherRulesDialog extends FloatingDialog{
                 minSlider.setValue(maxVal);
                 val = (int) minSlider.getValue();
             }
-            renderer.weather.setMinFrequency(weather, val);
+            weather.setMinFrequency(type, val);
             minLabel.setText(Bundles.get("text.weather.minfreq", "Min time") + ": " + val + "min");
         });
 
@@ -144,13 +144,13 @@ public class WeatherRulesDialog extends FloatingDialog{
                 maxSlider.setValue(minVal);
                 val = (int) maxSlider.getValue();
             }
-            renderer.weather.setMaxFrequency(weather, val);
+            weather.setMaxFrequency(type, val);
             maxLabel.setText(Bundles.get("text.weather.maxfreq", "Max time") + ": " + val + "min");
         });
 
         durSlider.changed(() -> {
             int val = (int) durSlider.getValue();
-            renderer.weather.setDuration(weather, val);
+            weather.setDuration(type, val);
             durLabel.setText(Bundles.get("text.weather.duration", "Duration") + ": " + val + "min");
         });
 

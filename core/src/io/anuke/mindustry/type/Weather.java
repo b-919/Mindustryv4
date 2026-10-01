@@ -10,7 +10,8 @@ import static io.anuke.mindustry.Vars.renderer;
 
 /**
  * Base class for weather content.
- * Weather is rendered and managed by {@link io.anuke.mindustry.graphics.WeatherRenderer}.
+ * Weather is rendered by {@link io.anuke.mindustry.graphics.WeatherRenderer} and simulated by
+ * {@link io.anuke.mindustry.core.WeatherState}, which is authoritative on the server.
  * Adapted from modern Mindustry's Weather class.
  */
 public abstract class Weather extends Content{
@@ -18,7 +19,7 @@ public abstract class Weather extends Content{
     public static final RandomXS128 rand = new RandomXS128();
     /**Name of this weather, e.g. "rain".*/
     public final String name;
-    /**Current opacity of this weather, managed by the renderer.*/
+    /**Current opacity of this weather, driven by {@link io.anuke.mindustry.core.WeatherState}.*/
     public float opacity;
     /**Area the particles are laid out over, larger than the screen so they can wrap around the view.*/
     protected final Rectangle rect = new Rectangle();

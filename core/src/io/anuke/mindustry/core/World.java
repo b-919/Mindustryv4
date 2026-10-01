@@ -324,8 +324,8 @@ public class World extends Module{
             generator.loadTileData(tiles, MapIO.readTileData(map, true), map.meta.hasOreGen(), Mathf.random(99999), state.techTree);
             state.darkness = Float.parseFloat(map.meta.tags.get("darkness", "0"));
 
-            if(!headless && renderer != null){
-                renderer.weather.setRain(map.meta.tags.get("rain", "0").equals("1"));
+            if(weather != null){
+                weather.setRain(map.meta.tags.get("rain", "0").equals("1"));
             }
         } catch(Exception e){
             Log.err(e);

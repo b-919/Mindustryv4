@@ -323,6 +323,8 @@ public class NetClient extends Module{
             }
         }
 
+        weather.read(input);
+
         long timestamp = input.readLong();
 
         byte totalGroups = input.readByte();

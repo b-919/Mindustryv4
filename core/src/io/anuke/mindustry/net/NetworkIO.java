@@ -340,8 +340,8 @@ public class NetworkIO{
                 currentMap.meta.tags.putAll(tags);
                 world.setMap(currentMap);
                 state.darkness = Float.parseFloat(currentMap.meta.tags.get("darkness", "0"));
-                if(!headless && renderer != null){
-                    renderer.weather.setRain(currentMap.meta.tags.get("rain", "0").equals("1"));
+                if(weather != null){
+                    weather.setRain(currentMap.meta.tags.get("rain", "0").equals("1"));
                 }
 
                 Tile[][] tiles = world.createTiles(width, height);
@@ -431,9 +431,9 @@ public class NetworkIO{
 
             if(!openWorld){
                 world.endMapLoad();
-            }else if(!headless && renderer != null){
+            }else if(weather != null){
                 //open world has no map tags to carry the weather, use the networked custom config
-                renderer.weather.setRain(state.rain);
+                weather.setRain(state.rain);
             }
 
             //read raw snapshot

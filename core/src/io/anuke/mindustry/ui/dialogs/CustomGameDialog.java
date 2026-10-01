@@ -25,7 +25,7 @@ import io.anuke.ucore.util.Mathf;
 import static io.anuke.mindustry.Vars.*;
 
 public class CustomGameDialog extends FloatingDialog{
-    private WeatherRulesDialog weather = new WeatherRulesDialog();
+    private WeatherRulesDialog weatherDialog = new WeatherRulesDialog();
 
     public CustomGameDialog(){
         super("$text.customgame");
@@ -34,7 +34,7 @@ public class CustomGameDialog extends FloatingDialog{
             state.darkness = 0f;
             state.rain = false;
             control.customDarkness = false;
-            renderer.weather.reset();
+            weather.reset();
             setup();
         });
 
@@ -125,7 +125,7 @@ public class CustomGameDialog extends FloatingDialog{
 
             image.clicked(() -> {
                 hide();
-                renderer.weather.autoSelect(map);
+                weather.autoSelect(map);
                 control.playMap(map);
             });
 
@@ -244,7 +244,7 @@ public class CustomGameDialog extends FloatingDialog{
             control.customDarkness = true;
         }).width(200f).left();
         table.row();
-        table.addButton("$text.weather.title", weather::show).size(200f, 40f).left();
+        table.addButton("$text.weather.title", weatherDialog::show).size(200f, 40f).left();
         table.row();
         table.add("$text.weather.rules.info", Color.GRAY).wrap().width(300f).left().padBottom(6f);
         table.row();

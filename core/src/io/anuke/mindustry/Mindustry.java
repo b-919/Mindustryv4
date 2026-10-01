@@ -28,6 +28,7 @@ public class Mindustry extends ModuleCore{
         content.load();
         schematics.load();
 
+        weather = new WeatherState();
         module(logic = new Logic());
         module(world = new World());
         module(soundController = new SoundController());
