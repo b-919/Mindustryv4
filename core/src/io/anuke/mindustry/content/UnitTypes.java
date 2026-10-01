@@ -2,11 +2,14 @@ package io.anuke.mindustry.content;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.ObjectSet;
+import io.anuke.mindustry.content.bullets.TurretBullets;
 import io.anuke.mindustry.entities.units.*;
 import io.anuke.mindustry.entities.units.types.*;
 import io.anuke.mindustry.game.ContentList;
+import io.anuke.mindustry.type.AmmoType;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.graphics.Palette;
+import io.anuke.mindustry.type.Weapon;
 import io.anuke.ucore.util.Mathf;
 
 public class UnitTypes implements ContentList{
@@ -342,6 +345,20 @@ public class UnitTypes implements ContentList{
             baseRotateSpeed = 0.04f;
             trailColor = Palette.lighterOrange;
             weapon = Weapons.reaperGun;
+            addWeapons(//Weapons.reaperGun,
+                    new Weapon("large-laser"){{
+                        shake = 4f;
+                        shootY = 9f;
+                        x = 18f;
+                        y = 5f;
+                        rotateSpeed = 2f;
+                        reload = 45f;
+                        recoil = 4f;
+                        setShootSound("shootLaser");
+                        shadow = 20f;
+                        rotate = true;
+                        ammo = AmmoTypes.bulletThoriumBig;
+                    }});
             unitCost = 4000;
             isBoss = true;
         }};

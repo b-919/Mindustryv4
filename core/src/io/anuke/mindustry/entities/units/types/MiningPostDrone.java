@@ -11,10 +11,16 @@ import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.logic.MiningPost;
 import io.anuke.mindustry.world.blocks.logic.MiningPost.MiningPostEntity;
+import io.anuke.ucore.graphics.Draw;
 
 public class MiningPostDrone extends FlyingUnit implements MinerTrait {
     private Tile mineTile;
     //3rd drone type that mines stuff, yay no more original ideas XD
+
+    @Override
+    public boolean canShootWeapons(){
+        return !isMining();
+    }
 
     public final UnitState 
         mine = new UnitState() {
@@ -99,6 +105,16 @@ public class MiningPostDrone extends FlyingUnit implements MinerTrait {
         //no
     }
 
+    @Override
+    public void draw(){
+        Draw.alpha(hitTime / hitDuration);
+
+        Draw.rect(type.name, x, y, rotation - 90);
+
+        drawItems();
+
+        Draw.alpha(1f);
+    }
 
     @Override
     public void drawOver(){

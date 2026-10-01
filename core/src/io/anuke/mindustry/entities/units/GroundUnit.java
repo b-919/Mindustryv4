@@ -40,9 +40,8 @@ public abstract class GroundUnit extends BaseUnit{
 
     protected float walkTime;
     protected float stuckTime;
-    protected float baseRotation;
-    protected float[] weaponAngles = {0, 0};
-    protected Weapon weapon;
+protected float baseRotation;
+protected Weapon weapon;
     protected LongArray orderPath = new LongArray();
     protected int orderPathCursor = 0;
     protected int orderPathRepath = 0;
@@ -685,15 +684,7 @@ public abstract class GroundUnit extends BaseUnit{
 
         Draw.rect(type.region, x, y, rotation - 90);
 
-        for(int i : Mathf.signs){
-            if(!weapon.weaponMirror && i < 0) continue;
-            float tra = rotation - 90, trY = -weapon.getRecoil(this, i > 0);
-            float w = i > 0 ? -12 : 12;
-            float weaponRot = type.rotateWeapon ? rotation + weaponAngles[i > 0 ? 1 : 0] : rotation;
-            Draw.rect(weapon.equipRegion,
-                    x + Angles.trnsx(tra, weapon.width * i, trY),
-                    y + Angles.trnsy(tra, weapon.width * i, trY), w, 12, weaponRot - 90);
-        }
+        drawWeaponMounts();
 
         drawItems();
 
@@ -719,48 +710,26 @@ public abstract class GroundUnit extends BaseUnit{
 
     @Override
     protected void updateShooting(){
-        Weapon weapon = getWeapon();
-        if(weapon == null) return;
+        ensureWeaponMounts();
+        if(getWeaponMounts().length == 0) return;
 
-        if(type.rotateWeapon){//rotating mounts track independently of the hull
-            boolean valid = target != null && weapon.getAmmo() != null
-                    && !Units.invalidateTarget(target, team, x, y, Math.max(weapon.getAmmo().getRange(), type.range));
+        AmmoType ammo = getWeaponMountAmmo();
+        float range = getWeaponMountRange();
 
-            for(boolean left : new boolean[]{true, false}){
-                int wi = left ? 1 : 0;
-                float side = left ? 1f : -1f;
-                float mountAngle = rotation - 90f;
-                float wx = x + Angles.trnsx(mountAngle, weapon.width * side);
-                float wy = y + Angles.trnsy(mountAngle, weapon.width * side);
+        //idle mounts rest pointing forwards
+        float aimX = x + Angles.trnsx(rotation, 100f), aimY = y + Angles.trnsy(rotation, 100f);
+        boolean shoot = false;
 
-                if(!valid){
-                    weaponAngles[wi] = 0f;
-                    continue;
-                }
-
-                weaponAngles[wi] = Mathf.slerpDelta(weaponAngles[wi], Angles.angle(wx, wy, target.getX(), target.getY()) - rotation, 0.1f);
-
-                float fireAngle = rotation + weaponAngles[wi];
-                float targetAngle = Angles.angle(wx, wy, target.getX(), target.getY());
-
-                if(distanceTo(target) < weapon.getAmmo().getRange() && Mathf.angNear(fireAngle, targetAngle, type.shootCone)){
-                    float tipX = wx + Angles.trnsx(fireAngle, weapon.length);
-                    float tipY = wy + Angles.trnsy(fireAngle, weapon.length);
-                    weapon.update(this, tipX, tipY, fireAngle, left);
-                }
-            }
-            return;
+        if(ammo != null && target != null && !Units.invalidateTarget(target, team, x, y, Math.max(range, type.range))){
+            Vector2 to = Predict.intercept(this, target, ammo.bullet.speed);
+            aimX = to.x;
+            aimY = to.y;
+            shoot = !Units.invalidateTarget(target, team, x, y, range);
         }
 
-        if(weapon.getAmmo() == null || target == null) return;
-
-        //fixed weapons fire from the body require body alignment within the shoot cone
-        if(Units.invalidateTarget(target, team, x, y, weapon.getAmmo().getRange())) return;
-
-        Vector2 to = Predict.intercept(this, target, weapon.getAmmo().bullet.speed);
-        if(Mathf.angNear(angleTo(target), rotation, type.shootCone)){
-            weapon.update(this, to.x, to.y);
-        }
+        //rotating mounts track independently of the hull, fixed weapons need the hull aimed at the target
+        aimWeaponMounts(aimX, aimY);
+        controlWeaponMounts(type.rotateWeapon, shoot);
     }
 
     @Override

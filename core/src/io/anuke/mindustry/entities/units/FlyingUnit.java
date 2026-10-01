@@ -26,7 +26,6 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
     }
     protected static Translator vec = new Translator();
     protected static float wobblyness = 0.6f;
-    protected float[] weaponAngles = {0, 0};
     protected boolean itWobbles = true;
     public Trail trail = new Trail(8);
     public Trail trail2 = new Trail(8);
@@ -88,45 +87,9 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
                 }
             }else if(target != null){
                 attack(type.attackLength);
-
-                boolean inRange = distanceTo(target) < Math.max(getWeapon().getAmmo().getRange(), type.range);
-
-                if(type.rotateWeapon){
-                    for(boolean left : new boolean[]{true, false}){
-                        int wi = left ? 1 : 0;
-                        float side = left ? 1f : -1f;
-                        float mountAngle = rotation - 90;
-                        float wx = x + Angles.trnsx(mountAngle, getWeapon().width * side);
-                        float wy = y + Angles.trnsy(mountAngle, getWeapon().width * side);
-
-                        if(inRange){
-                            weaponAngles[wi] = Mathf.slerpDelta(weaponAngles[wi], Angles.angle(wx, wy, target.getX(), target.getY()) - rotation, 0.1f);
-                        }else{
-                            weaponAngles[wi] = 0f;
-                        }
-
-                        if(inRange && (Mathf.angNear(angleTo(target), rotation, type.shootCone) || !getWeapon().getAmmo().bullet.keepVelocity)){
-                            float fireAngle = rotation + weaponAngles[wi];
-                            float tipX = wx + Angles.trnsx(fireAngle, getWeapon().length);
-                            float tipY = wy + Angles.trnsy(fireAngle, getWeapon().length);
-                            getWeapon().update(FlyingUnit.this, tipX, tipY, fireAngle, left);
-                        }
-                    }
-                }else{
-                    if(inRange && (Mathf.angNear(angleTo(target), rotation, type.shootCone) || !getWeapon().getAmmo().bullet.keepVelocity)){
-                        Vector2 to = Predict.intercept(FlyingUnit.this, target, getWeapon().getAmmo().bullet.speed);
-                        getWeapon().update(FlyingUnit.this, to.x, to.y);
-                    }
-                }
             } else {
                 target = getClosestCore();
                 moveTo(Math.max(type.range, 120f));
-                if(type.rotateWeapon){
-                    for(boolean left : new boolean[]{true, false}){
-                        int wi = left ? 1 : 0;
-                        weaponAngles[wi] = 0f;
-                    }
-                }
             }
         }
     },
@@ -156,45 +119,9 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
         public void update(){
             if(Units.invalidateTarget(target, team, x, y) || distanceTo(target) > getType().pursueRange){
                 target = null;
-                if(type.rotateWeapon){
-                    for(boolean left : new boolean[]{true, false}){
-                        int wi = left ? 1 : 0;
-                        weaponAngles[wi] = 0f;
-                    }
-                }
                 onCommand(getCommand());
             }else{
                 attack(type.attackLength);
-
-                boolean inRange = distanceTo(target) < Math.max(getWeapon().getAmmo().getRange(), type.range);
-
-                if(type.rotateWeapon){
-                    for(boolean left : new boolean[]{true, false}){
-                        int wi = left ? 1 : 0;
-                        float side = left ? 1f : -1f;
-                        float mountAngle = rotation - 90;
-                        float wx = x + Angles.trnsx(mountAngle, getWeapon().width * side);
-                        float wy = y + Angles.trnsy(mountAngle, getWeapon().width * side);
-
-                        if(inRange){
-                            weaponAngles[wi] = Mathf.slerpDelta(weaponAngles[wi], Angles.angle(wx, wy, target.getX(), target.getY()) - rotation, 0.1f);
-                        }else{
-                            weaponAngles[wi] = 0f;
-                        }
-
-                        if(inRange && (Mathf.angNear(angleTo(target), rotation, type.shootCone) || !getWeapon().getAmmo().bullet.keepVelocity)){
-                            float fireAngle = rotation + weaponAngles[wi];
-                            float tipX = wx + Angles.trnsx(fireAngle, getWeapon().length);
-                            float tipY = wy + Angles.trnsy(fireAngle, getWeapon().length);
-                            getWeapon().update(FlyingUnit.this, tipX, tipY, fireAngle, left);
-                        }
-                    }
-                }else{
-                    if(inRange && (Mathf.angNear(angleTo(target), rotation, type.shootCone) || !getWeapon().getAmmo().bullet.keepVelocity)){
-                        Vector2 to = Predict.intercept(FlyingUnit.this, target, getWeapon().getAmmo().bullet.speed);
-                        getWeapon().update(FlyingUnit.this, to.x, to.y);
-                    }
-                }
             }
         }
     },
@@ -295,12 +222,6 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
             if(retarget()){
                 targetClosest();
             }
-            if(target != null && !Units.invalidateTarget(target, team, x, y)
-            && distanceTo(target) < Math.max(getWeapon().getAmmo().getRange(), type.range)){
-                AmmoType ammo = getWeapon().getAmmo();
-                Vector2 to = Predict.intercept(FlyingUnit.this, target, ammo.bullet.speed);
-                getWeapon().update(FlyingUnit.this, to.x, to.y);
-            }
 
             vec.set(getOrderX() - x, getOrderY() - y);
             if(vec.len() <= Math.max(type.hitsize, 10f)){
@@ -317,13 +238,6 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
         if(getOrderType() == UnitOrderType.attackMove){
             if(retarget()){
                 targetClosest();
-            }
-
-            if(target != null && !Units.invalidateTarget(target, team, x, y)
-            && distanceTo(target) < Math.max(getWeapon().getAmmo().getRange(), type.range)){
-                AmmoType ammo = getWeapon().getAmmo();
-                Vector2 to = Predict.intercept(FlyingUnit.this, target, ammo.bullet.speed);
-                getWeapon().update(FlyingUnit.this, to.x, to.y);
             }
 
             vec.set(getOrderX() - x, getOrderY() - y);
@@ -373,29 +287,35 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
 
         Draw.rect(type.name, x, y, rotation - 90);
 
-        if(type.rotateWeapon){
-            Draw.alpha(1f);
-
-            if(Units.invalidateTarget(target, this)){
-                for(int wi = 0; wi < 2; wi++){
-                    weaponAngles[wi] = 0f;
-                }
-            }
-
-            for(int i : new int[]{1, -1}){
-                boolean left = i > 0;
-                if(!getWeapon().weaponMirror && !left) continue;
-                float tra = rotation - 90,
-                        trY = -getWeapon().getRecoil(this, left);
-                float wx = x + Angles.trnsx(tra, getWeapon().width * i, trY),
-                        wy = y + Angles.trnsy(tra, getWeapon().width * i, trY);
-                Draw.rect(getWeapon().equipRegion, wx, wy, rotation - 90 + weaponAngles[left ? 1 : 0]);
-            }
-        }
+        Draw.alpha(hitTime / hitDuration);
+        drawWeaponMounts();
 
         drawItems();
 
         Draw.alpha(1f);
+    }
+
+    @Override
+    protected void updateShooting(){
+        ensureWeaponMounts();
+        if(getWeaponMounts().length == 0) return;
+
+        AmmoType ammo = getWeaponMountAmmo();
+        float range = getWeaponMountRange();
+
+        //idle mounts rest pointing forwards
+        float aimX = x + Angles.trnsx(rotation, 100f), aimY = y + Angles.trnsy(rotation, 100f);
+        boolean shoot = false;
+
+        if(ammo != null && target != null && !Units.invalidateTarget(target, team, x, y, Math.max(range, type.range))){
+            Vector2 to = Predict.intercept(this, target, ammo.bullet.speed);
+            aimX = to.x;
+            aimY = to.y;
+            shoot = !Units.invalidateTarget(target, team, x, y, range);
+        }
+
+        aimWeaponMounts(aimX, aimY);
+        controlWeaponMounts(type.rotateWeapon, shoot);
     }
 
     @Override

@@ -23,6 +23,7 @@ import io.anuke.mindustry.world.blocks.BuildBlock.BuildEntity;
 import io.anuke.mindustry.world.meta.BlockFlag;
 import io.anuke.ucore.core.Events;
 import io.anuke.ucore.entities.EntityGroup;
+import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Geometry;
 import io.anuke.ucore.util.Mathf;
 import io.anuke.ucore.util.Structs;
@@ -36,6 +37,12 @@ import static io.anuke.mindustry.Vars.world;
 
 public class Drone extends FlyingUnit implements BuilderTrait{
     protected static int timerRepairEffect = timerIndex++;
+
+    @Override
+    public boolean canShootWeapons(){
+        //don't shoot while mining or building!
+        return !(state.is(mine) || state.is(build));
+    }
 
     protected Item targetItem;
     protected Tile mineTile;
@@ -387,6 +394,17 @@ public class Drone extends FlyingUnit implements BuilderTrait{
     @Override
     public UnitState getStartState(){
         return repair;
+    }
+
+    @Override
+    public void draw(){
+        Draw.alpha(hitTime / hitDuration);
+
+        Draw.rect(type.name, x, y, rotation - 90);
+
+        drawItems();
+
+        Draw.alpha(1f);
     }
 
     @Override

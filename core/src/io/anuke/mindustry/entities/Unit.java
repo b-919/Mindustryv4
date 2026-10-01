@@ -7,6 +7,8 @@ import com.badlogic.gdx.math.Vector2;
 import io.anuke.mindustry.ai.MassAI;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.entities.traits.*;
+import io.anuke.mindustry.entities.weapon.WeaponMount;
+import io.anuke.mindustry.entities.weapon.WeaponMounts;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.Teams.TeamData;
 import io.anuke.mindustry.net.Interpolator;
@@ -29,10 +31,11 @@ import io.anuke.ucore.util.Mathf;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Arrays;
 
 import static io.anuke.mindustry.Vars.*;
 
-public abstract class Unit extends DestructibleEntity implements SaveTrait, TargetTrait, SyncTrait, DrawTrait, TeamTrait, CarriableTrait, InventoryTrait{
+public abstract class Unit extends DestructibleEntity implements SaveTrait, TargetTrait, WeaponMounts, SyncTrait, DrawTrait, TeamTrait, CarriableTrait, InventoryTrait{
     /**Total duration of hit flash effect*/
     public static final float hitDuration = 9f;
     /**Percision divisor of velocity, used when writing. For example a value of '2' would mean the percision is 1/2 = 0.5-size chunks.*/
@@ -54,6 +57,9 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
     public boolean isRTSAIControllable = true;
     /**If true, the unit is drawn above trees (like air units). */
     public boolean highAltitude;
+
+    private transient WeaponMount[] weaponMounts = new WeaponMount[0];
+    private transient Weapon[] weaponMountDefinitions = new Weapon[0];
 
     protected final Interpolator interpolator = new Interpolator();
     protected final StatusController status = new StatusController();
@@ -85,6 +91,29 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
     @Override
     public Team getTeam(){
         return team;
+    }
+
+    @Override
+    public float getRotation(){
+        return rotation;
+    }
+
+    @Override
+    public WeaponMount[] getWeaponMounts(){
+        return weaponMounts;
+    }
+
+    @Override
+    public void setWeaponMounts(WeaponMount[] mounts){
+        this.weaponMounts = mounts == null ? new WeaponMount[0] : mounts;
+    }
+
+    public void ensureWeaponMounts(){
+        Weapon[] definitions = getWeaponDefinitions();
+        if(!Arrays.equals(definitions, weaponMountDefinitions)){
+            weaponMountDefinitions = definitions;
+            buildWeaponMounts(definitions);
+        }
     }
 
     @Override

@@ -7,6 +7,7 @@ import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.Liquid;
 import io.anuke.mindustry.type.Mech;
+import io.anuke.mindustry.type.Weapon;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.mindustry.world.blocks.OreBlock;
@@ -71,12 +72,12 @@ public class Generators {
                 }
             }
         });
-
-        context.generate("mech-icons", () -> {
+context.generate("mech-icons", () -> {
             for(Mech mech : content.<Mech>getBy(ContentType.mech)){
 
                 mech.load();
-                mech.weapon.load();
+                Weapon[] weapons = mech.allWeapons();
+                for(Weapon weapon : weapons) weapon.load();
 
                 Image image = context.get(mech.region);
 
@@ -87,21 +88,27 @@ public class Generators {
                     image.drawCenter(mech.region);
                 }
 
-                int off = (image.width() - mech.weapon.equipRegion.getRegionWidth())/2;
-
-                image.draw(mech.weapon.equipRegion, -(int)mech.weapon.width + off, off, false, false);
-                image.draw(mech.weapon.equipRegion, (int)mech.weapon.width + off, off, true, false);
-
+                //draw each weapon mount
+                for(Weapon weapon : weapons){
+                    if(weapon == null) continue;
+                    int off = (image.width() - weapon.equipRegion.getRegionWidth())/2;
+                    //main mount at +x (right side), no flip
+                    image.draw(weapon.equipRegion, (int)weapon.x + off, off, false, false);
+                    //mirror mount at -x (left side), flipped
+                    if(weapon.mirror){
+                        image.draw(weapon.equipRegion, -(int)weapon.x + off, off, true, false);
+                    }
+                }
 
                 image.save("mech-icon-" + mech.name);
             }
         });
-
         context.generate("unit-icons", () -> {
             for(UnitType type : content.<UnitType>getBy(ContentType.unit)){
 
                 type.load();
-                type.weapon.load();
+                Weapon[] weapons = type.allWeapons();
+                for(Weapon weapon : weapons) weapon.load();
 
                 Image image = context.get(type.region);
 
@@ -113,14 +120,16 @@ public class Generators {
                     if(type.isTank) image.draw(type.treadRegion, true, false);
                     image.draw(type.region);
 
-                    if(!type.isTank)image.draw(type.weapon.equipRegion,
-                            -(int)type.weapon.width + (image.width() - type.weapon.equipRegion.getRegionWidth())/2,
-                            (image.height() - type.weapon.equipRegion.getRegionHeight())/2 + 1,
-                            false, false);
-                    if(!type.isTank)image.draw(type.weapon.equipRegion,
-                            (int)type.weapon.width + (image.width() - type.weapon.equipRegion.getRegionWidth())/2,
-                            (image.height() - type.weapon.equipRegion.getRegionHeight())/2 + 1,
-                            true, false);
+                    //draw each weapon mount
+                    for(Weapon weapon : weapons){
+                        if(weapon == null) continue;
+                        int offX = (image.width() - weapon.equipRegion.getRegionWidth())/2;
+                        int offY = (image.height() - weapon.equipRegion.getRegionHeight())/2 + 1;
+                        image.draw(weapon.equipRegion, (int)weapon.x + offX, offY, false, false);
+                        if(weapon.mirror){
+                            image.draw(weapon.equipRegion, -(int)weapon.x + offX, offY, true, false);
+                        }
+                    }
                 }
 
                 image.save("unit-icon-" + type.name);

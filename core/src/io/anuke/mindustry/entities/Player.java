@@ -14,6 +14,7 @@ import io.anuke.mindustry.content.Mechs;
 import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.effect.ScorchDecal;
 import io.anuke.mindustry.entities.traits.*;
+import io.anuke.mindustry.entities.weapon.WeaponMount;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Palette;
@@ -351,14 +352,8 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
 
         mech.draw(this);
 
-        for(int i : Mathf.signs){
-            if(!mech.weapon.weaponMirror && i < 0) continue;
-            float tra = rotation - 90, trY = -mech.weapon.getRecoil(this, i > 0);
-            float w = i > 0 ? -mech.weapon.equipRegion.getRegionWidth() : mech.weapon.equipRegion.getRegionWidth();
-            Draw.rect(mech.weapon.equipRegion,
-                    x + Angles.trnsx(tra, (mech.weapon.width + mech.spreadX(this)) * i, trY),
-                    y + Angles.trnsy(tra, (mech.weapon.width + mech.spreadX(this)) * i, trY), w, mech.weapon.equipRegion.getRegionHeight(), rotation - 90);
-        }
+        ensureWeaponMounts();
+        drawWeaponMounts();
 
         float backTrns = 4f, itemSize = 5f;
         if(inventory.hasItem()){
@@ -517,6 +512,8 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
     @Override
     public void update(){
         hitTime -= Timers.delta();
+
+        ensureWeaponMounts();
 
         if(Float.isNaN(x) || Float.isNaN(y)){
             velocity.set(0f, 0f);
@@ -678,9 +675,27 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
     }
 
     protected void updateShooting(){
-        if(isShooting() && mech.canShoot(this)){
-            mech.weapon.update(this, pointerX, pointerY);
-        }
+        ensureWeaponMounts();
+
+        aimWeaponMounts(pointerX, pointerY);
+        controlWeaponMounts(false, isShooting() && mech.canShoot(this));
+        updateWeaponMounts();
+    }
+
+    @Override
+    public Weapon[] getWeaponDefinitions(){
+        return mech == null ? new Weapon[0] : mech.allWeapons(mech.weapon);
+    }
+
+    /**Players aim freely, so mounts never refuse to fire over a shoot cone.*/
+    @Override
+    public float getShootCone(){
+        return 361f;
+    }
+
+    @Override
+    public float getMountOffsetX(WeaponMount mount){
+        return mech == null ? 0f : mech.spreadX(this);
     }
 
     protected void updateFlying(){

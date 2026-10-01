@@ -62,33 +62,6 @@ public class Lich extends FlyingUnit{
             }
         }
     }
-    @Override
-    public void draw(){
-        Draw.alpha(hitTime / hitDuration);
-
-        Draw.rect(type.name, x, y, rotation - 90);
-        drawItems();
-        Draw.alpha(1f);
-
-        if(type.rotateWeapon){
-            if(Units.invalidateTarget(target, this)){
-                for(int wi = 0; wi < 2; wi++){
-                    weaponAngles[wi] = 0f;
-                }
-            }
-
-            for(int i : new int[]{1, -1}){
-                boolean left = i > 0;
-                if(!getWeapon().weaponMirror && !left) continue;
-                Draw.alpha(hitTime / hitDuration);
-                float tra = rotation - 90,
-                        trY = -getWeapon().getRecoil(this, left);
-                float wx = x + Angles.trnsx(tra, getWeapon().width * i, trY),
-                        wy = y + Angles.trnsy(tra, getWeapon().width * i, trY);
-                Draw.rect(weapon.equipRegion, wx, wy, rotation - 90 + weaponAngles[left ? 1 : 0]);
-            }
-        }
-    }
 
     @Override
     public void write(DataOutput data) throws IOException {

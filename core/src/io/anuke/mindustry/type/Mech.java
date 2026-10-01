@@ -38,6 +38,8 @@ public class Mech extends UnlockableContent{
 
     public float healTurretOffsetX, healTurretOffsetY;
     public Weapon weapon = Weapons.blaster;
+    /**additional weapon mounts. {@link #weapon} stays the first mount, so existing code keeps working.*/
+    public Weapon[] weapons = new Weapon[0];
 
     public TextureRegion baseRegion, legRegion, region, iconRegion;
 
@@ -45,6 +47,43 @@ public class Mech extends UnlockableContent{
         this.flying = flying;
         this.name = name;
         this.description = Bundles.get("mech." + name + ".description");
+    }
+
+    /**Appends weapons to this mech's mount array, after {@link #weapon}.*/
+    public Mech addWeapons(Weapon... weapons){
+        if(weapons.length == 0) return this;
+
+        Weapon[] combined = new Weapon[this.weapons.length + weapons.length];
+        System.arraycopy(this.weapons, 0, combined, 0, this.weapons.length);
+        System.arraycopy(weapons, 0, combined, this.weapons.length, weapons.length);
+        this.weapons = combined;
+        return this;
+    }
+
+    /**Replaces this mech's mount array. {@link #weapon} is still prepended unless it is null.*/
+    public Mech setWeapons(Weapon... weapons){
+        this.weapons = weapons;
+        return this;
+    }
+
+    /**Every weapon this mech mounts, {@link #weapon} first.*/
+    public Weapon[] allWeapons(){
+        return allWeapons(weapon);
+    }
+
+    /**Every weapon a player using this mech mounts when the weapon field is {@code override}.*/
+    public Weapon[] allWeapons(Weapon override){
+        if(weapons.length == 0){
+            return new Weapon[]{override};
+        }
+        if(override == null){
+            return weapons;
+        }
+
+        Weapon[] combined = new Weapon[weapons.length + 1];
+        combined[0] = override;
+        System.arraycopy(weapons, 0, combined, 1, weapons.length);
+        return combined;
     }
 
     public String localizedName(){

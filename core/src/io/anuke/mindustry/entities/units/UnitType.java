@@ -3,7 +3,6 @@ package io.anuke.mindustry.entities.units;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.ObjectSet;
-import io.anuke.mindustry.content.StatusEffects;
 import io.anuke.mindustry.content.Weapons;
 import io.anuke.mindustry.entities.traits.TypeTrait;
 import io.anuke.mindustry.game.Team;
@@ -55,6 +54,7 @@ public class UnitType extends UnlockableContent{
     public ObjectSet<Item> toMine = new ObjectSet<>();
     public float buildPower = 0.3f, minePower = 0.7f;
     public Weapon weapon = Weapons.blaster;
+    public Weapon[] weapons = new Weapon[0];
     public float healTurretOffsetX, healTurretOffsetY;
     public Color trailColor = Color.valueOf("ffa665");
     public float engineOffsetX = 0f;
@@ -110,7 +110,7 @@ public class UnitType extends UnlockableContent{
 
     public TextureRegion iconRegion, legRegion, treadRegion, baseRegion, region, jointRegion, footRegion, legBaseRegion, baseJointRegion;
 
-    public <T extends BaseUnit> UnitType(String name, Class<T> type, Supplier<T> mainConstructor){
+public <T extends BaseUnit> UnitType(String name, Class<T> type, Supplier<T> mainConstructor){
         this.name = name;
         this.constructor = mainConstructor;
         this.description = Bundles.getOrNull("unit." + name + ".description");
@@ -119,8 +119,46 @@ public class UnitType extends UnlockableContent{
 
         if(!Bundles.has("unit." + this.name + ".name")){
             Log.err("Warning: unit '" + name + "' is missing a localized name. Add the follow to bundle.properties:");
-            Log.err("unit." + this.name + ".name=" + Strings.capitalize(name.replace('-', '_')));
+            Log.err("unit." + name + ".name=" + Strings.capitalize(name.replace('-', '_')));
         }
+    }
+
+    /**
+     * Appends weapons to this unit's mount array, after {@link #weapon}.
+     */
+    public void addWeapons(Weapon... weapons){
+        if(weapons.length == 0) return;
+
+        Weapon[] combined = new Weapon[this.weapons.length + weapons.length];
+        System.arraycopy(this.weapons, 0, combined, 0, this.weapons.length);
+        System.arraycopy(weapons, 0, combined, this.weapons.length, weapons.length);
+        this.weapons = combined;
+    }
+
+    /**Replaces this unit's mount array. {@link #weapon} is still prepended unless it is null.*/
+    public UnitType setWeapons(Weapon... weapons){
+        this.weapons = weapons;
+        return this;
+    }
+
+    /**Every weapon this unit mounts, {@link #weapon} first.*/
+    public Weapon[] allWeapons(){
+        return allWeapons(weapon);
+    }
+
+    /**Every weapon a unit of this type mounts when its weapon field is {@code override}.*/
+    public Weapon[] allWeapons(Weapon override){
+        if(weapons.length == 0){
+            return new Weapon[]{override};
+        }
+        if(override == null){
+            return weapons;
+        }
+
+Weapon[] combined = new Weapon[weapons.length + 1];
+        combined[0] = override;
+        System.arraycopy(weapons, 0, combined, 1, weapons.length);
+        return combined;
     }
 
     @Override

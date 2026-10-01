@@ -12,6 +12,7 @@ import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.ItemType;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.meta.BlockFlag;
+import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Geometry;
 import io.anuke.ucore.util.Mathf;
 import io.anuke.ucore.util.Structs;
@@ -23,6 +24,11 @@ import java.io.IOException;
 import static io.anuke.mindustry.Vars.world;
 
 public class DroneMiner extends FlyingUnit implements MinerTrait {
+
+    @Override
+    public boolean canShootWeapons(){
+        return !isMining();
+    }
 
     protected Item targetItem;
     protected Tile mineTile;
@@ -193,6 +199,16 @@ public class DroneMiner extends FlyingUnit implements MinerTrait {
     public void drawOver(){
         trail.draw(Palette.lightFlame, 3f);
         drawMining(this);
+    }
+    @Override
+    public void draw(){
+        Draw.alpha(hitTime / hitDuration);
+
+        Draw.rect(type.name, x, y, rotation - 90);
+
+        drawItems();
+
+        Draw.alpha(1f);
     }
 
     @Override

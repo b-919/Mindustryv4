@@ -247,7 +247,8 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     /**
      * Fires at the current target whenever it is valid, in weapon range and aimed at.
      * Runs every tick, independent of AI states, orders and movement (modern-style
-     * autonomous weapon targeting). No-op by default; combat classes override it.
+     * autonomous weapon targeting). Only aims and controls mounts; {@link #updateWeaponMounts()}
+     * ticks them exactly once per frame.
      */
     protected void updateShooting(){
 
@@ -255,9 +256,23 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
     /**True when a valid enemy target is inside weapon range; movement code must not fight body rotation while this is set.*/
     protected boolean isAiming(){
-        Weapon weapon = getWeapon();
-        return target != null && weapon != null && weapon.getAmmo() != null
-                && !Units.invalidateTarget(target, team, x, y, weapon.getAmmo().getRange());
+        return target != null && getWeaponMountAmmo() != null
+                && !Units.invalidateTarget(target, team, x, y, getWeaponMountRange());
+    }
+
+    @Override
+    public Weapon[] getWeaponDefinitions(){
+        return type == null ? new Weapon[0] : type.allWeapons(getWeapon());
+    }
+
+    @Override
+    public float getShootCone(){
+        return type == null ? super.getShootCone() : type.shootCone;
+    }
+
+    @Override
+    public boolean rotatesWeapons(){
+        return type != null && type.rotateWeapon;
     }
 
     public boolean isRetreating(){
@@ -282,7 +297,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     }
 
     public void targetClosest(){
-        TargetTrait next = Units.getClosestTarget(team, x, y, Math.max(getWeapon().getAmmo().getRange(), type.range), u -> type.targetAir || !u.isFlying());
+        TargetTrait next = Units.getClosestTarget(team, x, y, Math.max(getWeaponMountRange(), type.range), u -> type.targetAir || !u.isFlying());
         if(next != null) target = next;
     }
 
@@ -871,6 +886,8 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     public void update(){
         hitTime -= Timers.delta();
 
+        ensureWeaponMounts();
+
         if(isDead()){
             updateRespawning();
             return;
@@ -903,6 +920,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
         if(target != null) behavior();
         updateShooting();
+        updateWeaponMounts();
 
         if(!world.isOpenWorld()){
             x = Mathf.clamp(x, tilesize, world.width() * tilesize - tilesize);
