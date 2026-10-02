@@ -18,7 +18,7 @@ public class Recipes implements ContentList{
     public void load(){
         //DEBUG
         String classicTech = TechTree.create("Classic");
-        new Recipe(turret, TurretBlocks.evilDuo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        /*new Recipe(turret, TurretBlocks.evilDuo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(turret, TurretBlocks.evilSalvo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(turret, TurretBlocks.evilScatter).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(turret, TurretBlocks.evilRipple).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
@@ -33,7 +33,7 @@ public class Recipes implements ContentList{
         new Recipe(distribution, DistributionBlocks.stackRouter).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(production, ProductionBlocks.biomassBulb).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(production, ProductionBlocks.corruptedcultivator).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
-        new Recipe(effect, StorageBlocks.hive).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(effect, StorageBlocks.hive).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();*/
         new Recipe(distribution, DebugBlocks.itemSource).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(distribution, DebugBlocks.itemVoid).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(liquid, DebugBlocks.liquidSource).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();

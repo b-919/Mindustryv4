@@ -16,9 +16,9 @@ import io.anuke.ucore.util.Mathf;
 
 public class TurretBlocks extends BlockList implements ContentList{
     public static Block duo, scatter,
-            scorch, hail, wave, lancer, arc, swarmer, salvo, fuse, ripple, cyclone, spectre, meltdown, foreshadow,
+            scorch, hail, wave, lancer, arc, swarmer, salvo, fuse, ripple, cyclone, spectre, meltdown, foreshadow;
             //The mass
-            evilScatter, evilDuo, evilSalvo, evilRipple, evilFuse, evilCyclone;
+            //evilScatter, evilDuo, evilSalvo, evilRipple, evilFuse, evilCyclone;
             /*TODO
             *  Turrets For Infection
             *  Basic ground/air target turret
@@ -335,7 +335,7 @@ public class TurretBlocks extends BlockList implements ContentList{
             }
         };
         // The mass
-        evilDuo = new ItemTurret("evil-duo"){{
+        /*evilDuo = new ItemTurret("evil-duo"){{
             ammoTypes = new AmmoType[]{AmmoTypes.bulletCopper, AmmoTypes.bulletDense, AmmoTypes.bulletPyratite, AmmoTypes.bulletSilicon};
             reload = 25f;
             restitution = 0.03f;
@@ -430,7 +430,7 @@ public class TurretBlocks extends BlockList implements ContentList{
             size = 3;
             living = true;
             health = 155 * size * size;
-        }};
+        }};*/
 
 
     }

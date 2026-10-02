@@ -20,7 +20,7 @@ import io.anuke.ucore.util.Mathf;
 import static io.anuke.mindustry.content.blocks.Blocks.infectedGrass;
 
 public class ProductionBlocks extends BlockList implements ContentList{
-    public static Block mechanicalDrill, pneumaticDrill, laserDrill, blastDrill, plasmaDrill, waterExtractor, oilExtractor, cultivator, corruptedcultivator, biomassBulb;
+    public static Block mechanicalDrill, pneumaticDrill, laserDrill, blastDrill, plasmaDrill, waterExtractor, oilExtractor, cultivator;// corruptedcultivator, biomassBulb;
 
     @Override
     public void load(){
@@ -115,7 +115,7 @@ public class ProductionBlocks extends BlockList implements ContentList{
             consumes.power(0.08f);
             consumes.liquid(Liquids.water, 0.2f);
         }};
-        corruptedcultivator = new Cultivator("corrupted-cultivator"){{
+        /*corruptedcultivator = new Cultivator("corrupted-cultivator"){{
             result = Items.corruptedbiomatter;
             drillTime = 260;
             size = 2;
@@ -163,7 +163,7 @@ public class ProductionBlocks extends BlockList implements ContentList{
                 Draw.color();
             }
         }
-        };
+        };*/
 
     }
 }

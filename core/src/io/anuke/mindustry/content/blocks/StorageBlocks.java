@@ -6,7 +6,8 @@ import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.blocks.storage.*;
 
 public class StorageBlocks extends BlockList implements ContentList{
-    public static Block core, vault, container, unloader, hive, launchPad, landingPad;
+    public static Block core, vault, container, unloader, launchPad, landingPad;
+    // hive
 
     @Override
     public void load(){
@@ -40,7 +41,7 @@ public class StorageBlocks extends BlockList implements ContentList{
             speed = 60f / 11f;
         }};
 
-        hive = new HiveBlock("hive"){{
+        /*hive = new HiveBlock("hive"){{
             size = 3;
             itemCapacity = 200000;
             health = 10000;
@@ -50,6 +51,6 @@ public class StorageBlocks extends BlockList implements ContentList{
             shadow = "hive-shadow";
             living = true;
             defenseDroneType = UnitTypes.evilSwarmDrone;
-        }};
+        }};*/
     }
 }

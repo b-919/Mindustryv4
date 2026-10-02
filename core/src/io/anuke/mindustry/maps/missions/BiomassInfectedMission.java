@@ -71,7 +71,7 @@ public class BiomassInfectedMission extends MissionWithStartingCore{
 
             GridPoint2 enemySpawn = spawnPoints.get(1);
             hiveCore = gen.tiles[enemySpawn.x][enemySpawn.y];
-            hiveCore.setBlock(StorageBlocks.hive);
+            hiveCore.setBlock(StorageBlocks.core);
             hiveCore.setTeam(Team.themass);
             state.teams.get(Team.themass).cores.add(hiveCore);
         }
@@ -92,7 +92,7 @@ public class BiomassInfectedMission extends MissionWithStartingCore{
         for(int x = 0; x < gen.width; x++){
             for(int y = 0; y < gen.height; y++){
                 Tile tile = gen.tile(x, y);
-                if(tile != null && tile.block() == StorageBlocks.hive && tile.getTeam() == Team.themass){
+                if(tile != null && tile.block() == StorageBlocks.core && tile.getTeam() == Team.themass){
                     state.teams.get(Team.themass).cores.add(tile);
                     return tile;
                 }

@@ -101,11 +101,11 @@ public class Logic extends Module{
 
         Events.fire(new PlayEvent());
 
-        if (state.startWithBiomass) {
+        /*if (state.startWithBiomass) {
             MassAI.spawnInitialHive();
         } else if (state.allowMassInfection && (MassAI.nextInfectionTime <= 0)){
             MassAI.nextInfectionTime = Mathf.random(5f, 40f) * 60f * 60f;
-        }
+        }*/
     }
 
     public void reset(){
@@ -306,7 +306,7 @@ public class Logic extends Module{
 
                 world.pathfinder.update();
                 infection.update();
-                MassAI.update();
+                //MassAI.update();
                 updateRtsAI();
 
                 if(world.isOpenWorld() && world.chunks() != null){

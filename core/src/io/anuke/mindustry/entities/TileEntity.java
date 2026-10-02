@@ -198,14 +198,14 @@ public class TileEntity extends BaseEntity implements TargetTrait, HealthTrait{
                 world.indexer.notifyTileDamaged(this);
             }
 
-            if(tile.getTeam() == Team.themass && !Net.client()){
+           /* if(tile.getTeam() == Team.themass && !Net.client()){
                 MassAI.onDamage();
 
                 if(Mathf.chance(0.4)){
                     boolean air = lastDamager instanceof Unit && ((Unit) lastDamager).isFlying();
                     MassAI.trySpawnTurret(true, air, lastDamager != null ? lastDamager.getX() : tile.worldx(), lastDamager != null ? lastDamager.getY() : tile.worldy());
                 }
-            }
+            }*/
 
             if(tile.block().defenseDrones && !Net.client()){
                 for(int i = defenseDronesCount; i < tile.block().maxDefenseDrones; i++){
