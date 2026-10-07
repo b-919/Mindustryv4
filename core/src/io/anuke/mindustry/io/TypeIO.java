@@ -18,6 +18,7 @@ import io.anuke.mindustry.net.Packets.AdminAction;
 import io.anuke.mindustry.net.Packets.KickReason;
 import io.anuke.mindustry.type.*;
 import io.anuke.mindustry.world.Block;
+import io.anuke.ucore.entities.EntityGroup;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Effects.Effect;
@@ -65,6 +66,11 @@ public class TypeIO{
 
     @WriteClass(ShooterTrait.class)
     public static void writeShooter(ByteBuffer buffer, ShooterTrait trait){
+        if(trait == null || trait.getGroup() == null){
+            buffer.put((byte)-1);
+            buffer.putInt(-1);
+            return;
+        }
         buffer.put((byte) trait.getGroup().getID());
         buffer.putInt(trait.getID());
     }
@@ -73,7 +79,10 @@ public class TypeIO{
     public static ShooterTrait readShooter(ByteBuffer buffer){
         byte gid = buffer.get();
         int id = buffer.getInt();
-        return (ShooterTrait) Entities.getGroup(gid).getByID(id);
+        if(gid < 0 || id < 0) return null;
+        EntityGroup<?> group = Entities.getGroup(gid);
+        if(group == null) return null;
+        return (ShooterTrait) group.getByID(id);
     }
 
     @WriteClass(Bullet.class)
@@ -89,7 +98,7 @@ public class TypeIO{
 
     @WriteClass(CarriableTrait.class)
     public static void writeCarriable(ByteBuffer buffer, CarriableTrait unit){
-        if(unit == null){
+        if(unit == null || unit.getGroup() == null){
             buffer.put((byte) -1);
             return;
         }
@@ -104,7 +113,9 @@ public class TypeIO{
             return null;
         }
         int id = buffer.getInt();
-        return (CarriableTrait) Entities.getGroup(gid).getByID(id);
+        EntityGroup<?> group = Entities.getGroup(gid);
+        if(group == null) return null;
+        return (CarriableTrait) group.getByID(id);
     }
 
     @WriteClass(CarryTrait.class)

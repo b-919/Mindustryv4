@@ -115,7 +115,7 @@ public class Weapon extends Content{
 
     @Remote(targets = Loc.server, called = Loc.both, unreliable = true)
     public static void onPlayerShootWeapon(Player player, float x, float y, float rotation, boolean left){
-        if(player == null) return;
+        if(player == null || !player.isAdded()) return;
         //clients do not see their own shoot events: they are simulated completely clientside to prevent laggy visuals
         //messing with the firerate or any other stats does not affect the server (take that, script kiddies!)
         if(Net.client() && player == Vars.players[0]){
@@ -126,14 +126,14 @@ public class Weapon extends Content{
     }
 
     @Remote(targets = Loc.server, called = Loc.both, unreliable = true)
-    public static void onGenericShootWeapon(ShooterTrait shooter, float x, float y, float rotation, boolean left){
-        if(shooter == null) return;
-        shootDirect(shooter, x, y, rotation, left);
+    public static void onGenericShootWeapon(ShooterTrait shooter, float x, float y, float angle, boolean left){
+        if(shooter == null || !shooter.isAdded()) return;
+        shootDirect(shooter, x, y, angle, left);
     }
 
     @Remote(targets = Loc.server, called = Loc.both, unreliable = true)
     public static void onPlayerShootWeaponMount(Player player, int mount, float x, float y, float rotation){
-        if(player == null) return;
+        if(player == null || !player.isAdded()) return;
         //clients do not see their own shoot events, see onPlayerShootWeapon
         if(Net.client() && player == Vars.players[0]) return;
 
@@ -142,7 +142,7 @@ public class Weapon extends Content{
 
     @Remote(targets = Loc.server, called = Loc.both, unreliable = true)
     public static void onGenericShootWeaponMount(ShooterTrait shooter, int mount, float x, float y, float rotation){
-        if(shooter == null) return;
+        if(shooter == null || !shooter.isAdded()) return;
         shootDirectMount(shooter, mount, x, y, rotation);
     }
 
