@@ -22,8 +22,8 @@ public class UnitTypes implements ContentList{
         debugtank, nova,
         atrax,
         trainEngine,
-        minerDroneT1, minerDroneT2, logisticsDrone;
-        //evilDraug, evilDagger, evilWraith, explosiveBiomass, FlyingExplosiveBiomass, evilTanky, exterminatorBiomass, evilSwarmDrone, artilleryBiomass, acidMosquito; // the mass units btw
+        minerDroneT1, minerDroneT2, logisticsDrone,
+        evilDraug, evilDagger, evilWraith, explosiveBiomass, FlyingExplosiveBiomass, evilTanky, exterminatorBiomass, evilSwarmDrone, artilleryBiomass, acidMosquito; // the mass units btw
 
     @Override
     public void load(){
@@ -467,7 +467,7 @@ public class UnitTypes implements ContentList{
             rtsAIControllable = false;
         }};
         // The Mass Units
-        /*
+
         evilDagger = new UnitType("evil-dagger", BiomassGroundUnit.class, BiomassGroundUnit::new){{
             maxVelocity = 1.1f;
             speed = 0.2f;
@@ -645,7 +645,7 @@ public class UnitTypes implements ContentList{
             public boolean isHidden() {
                 return true;
             }
-        };*/
+        };
     }
 
     @Override

@@ -19,8 +19,8 @@ public class CraftingBlocks extends BlockList implements ContentList{
     public static Block smelter, arcsmelter, denseAlloyKiln, arcscrapsmelter, siliconsmelter, siliconcrucible, plastaniumCompressor, phaseWeaver, alloySmelter, surgeAlloyCrucible,
             pyratiteMixer, blastMixer, coalcentrifuge,
             cryofluidmixer, melter, scrapmelter, slag_centrifuge,separator, centrifuge, biomatterCompressor, pulverizer, solidifier, incinerator,
-            blueMicrochipCrafter;
-            //biomassGenerator;
+            blueMicrochipCrafter,
+            biomassGenerator;
 
     @Override
     public void load(){
@@ -465,7 +465,7 @@ public class CraftingBlocks extends BlockList implements ContentList{
             consumes.power(0.65f);
         }};
 
-        /*biomassGenerator = new HiveCrafter("biomass-generator"){{
+        biomassGenerator = new HiveCrafter("biomass-generator"){{
             itemCapacity = 2;
             craftTime = Mathf.random(1290f , 1990f);
             hasItems = true;
@@ -487,6 +487,6 @@ public class CraftingBlocks extends BlockList implements ContentList{
 
                 Draw.rect(name(), tile.drawx(), tile.drawy(), pulse * size * 8f, pulse * size * 8f);
             }
-        };*/
+        };
     }
 }

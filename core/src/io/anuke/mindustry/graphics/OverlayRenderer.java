@@ -199,7 +199,7 @@ public class OverlayRenderer{
             }
         }
 
-        //MassAI.drawDebugOverlay();
+        MassAI.drawDebugOverlay();
     }
 
     void drawBar(Color color, float x, float y, float finion){

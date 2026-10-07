@@ -58,8 +58,7 @@ import static io.anuke.mindustry.Vars.unitGroups;
    done
 */
 public class MassAI {
-    // delete this for re using ->
-    /*public static boolean debug = false;
+    public static boolean debug = false;
     private static ObjectSet<Tile> initializedCores = new ObjectSet<>();
     private static Array<BuildingLine> activeLines = new Array<>();
     private static Array<SubSection> activeSubsections = new Array<>();
@@ -273,7 +272,6 @@ public class MassAI {
             nextInfectionTime = Mathf.random(5f, 40f) * 60f * 60f;
             System.out.println("Timer time is " + nextInfectionTime);
         }*/
-        /*  // delete this for re using
         // Remove tracking for destroyed cores
         ObjectSet.ObjectSetIterator<Tile> it = initializedCores.iterator();
         while (it.hasNext) {
@@ -1650,7 +1648,6 @@ public class MassAI {
         /*boolean isAtLimit() { // useless
             return tiles.size >= 100 || (divisions < 3 && (tiles.size >= targetLength || isBlocked()));
         }*/
-        /*  // delete this for re using
         boolean isBlocked() { // for future use
             if (tiles.size == 0) return false;
             Tile last = tiles.peek().tile;
@@ -1913,5 +1910,5 @@ public class MassAI {
                 }
             }
         }
-    }*/  // delete this for re using
+    }
 }

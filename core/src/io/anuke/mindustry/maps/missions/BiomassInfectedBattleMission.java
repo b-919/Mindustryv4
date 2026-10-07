@@ -3,6 +3,7 @@ package io.anuke.mindustry.maps.missions;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.ai.MassAI;
 import io.anuke.mindustry.content.blocks.StorageBlocks;
 import io.anuke.mindustry.game.GameMode;
 import io.anuke.mindustry.game.Team;
@@ -79,7 +80,7 @@ public class BiomassInfectedBattleMission extends MissionWithStartingCore{
     @Override
     public void update(){
         if(!hiveSpawned && Timers.time() >= hiveSpawnTime){
-            //MassAI.spawnInitialHive();
+            MassAI.spawnInitialHive();
             hiveSpawned = true;
         }
     }

@@ -18,8 +18,8 @@ public class UnitBlocks extends BlockList implements ContentList{
             novaFactory,
             crawlerFactory, bombdroneFactory,
         reconstructor, highTierFactory, repairPoint, commandCenter,
-            trainCrafter;
-            //hiveSpawner, airHiveSpawner, heavyHiveSpawner;
+            trainCrafter,
+            hiveSpawner, airHiveSpawner, heavyHiveSpawner;
 
     @Override
     public void load(){
@@ -282,7 +282,7 @@ public class UnitBlocks extends BlockList implements ContentList{
             consumes.power(0.25f);
             consumes.items(new ItemStack(Items.densealloy, 20), new ItemStack(Items.silicon, 30), new ItemStack(Items.titanium, 25));
         }};
-        /*hiveSpawner = new UnitHiveSpawner("hive-spawner"){{
+        hiveSpawner = new UnitHiveSpawner("hive-spawner"){{
             size = 2;
             living = true;
             consumerStacks = new ItemStack[][]{
@@ -375,6 +375,6 @@ public class UnitBlocks extends BlockList implements ContentList{
                     6
             };
             shadow = "heavy-hive-spawnershadow";
-        }};*/
+        }};
     }
 }

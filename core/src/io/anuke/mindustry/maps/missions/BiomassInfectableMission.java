@@ -69,7 +69,7 @@ public class BiomassInfectableMission extends MissionWithStartingCore{
     public void update(){
         timer += Timers.delta();
         if(!hiveSpawned && timer >= hiveSpawnTime){
-            //MassAI.spawnInitialHive();
+            MassAI.spawnInitialHive();
             hiveSpawned = true;
         }
 

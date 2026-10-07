@@ -233,7 +233,7 @@ public class SettingsMenuDialog extends SettingsDialog{
         graphics.sliderPref("bloomblur", "Bloom Blur", 2, 1, 16, s -> s + "x");
         graphics.sliderPref("bloomthreshold", "Bloom Threshold", 15, 5, 80, i -> (i / 100f) + "");
 
-        //developer.checkPref("massai-debug", false, MassAI::setDebug);
+        developer.checkPref("massai-debug", false, MassAI::setDebug);
         developer.checkPref("massai-path-debug", false);
         developer.checkPref("path-preview", false);
         developer.checkPref("showperformance", false);
