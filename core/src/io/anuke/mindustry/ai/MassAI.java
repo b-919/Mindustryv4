@@ -4,13 +4,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.Vars;
-import io.anuke.mindustry.ai.mass.MassBuilder;
-import io.anuke.mindustry.ai.mass.MassDefense;
-import io.anuke.mindustry.ai.mass.MassEconomy;
-import io.anuke.mindustry.ai.mass.MassInfection;
-import io.anuke.mindustry.ai.mass.MassSave;
-import io.anuke.mindustry.ai.mass.MassSquads;
-import io.anuke.mindustry.ai.mass.MassUtil;
+import io.anuke.mindustry.ai.mass.*;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.game.EventType.WorldLoadEvent;
 import io.anuke.mindustry.game.Team;
@@ -42,6 +36,8 @@ public class MassAI{
             MassBuilder.reset();
             MassEconomy.reset();
             MassDefense.reset();
+            MassAdrenaline.reset();
+            MassIntel.reset();
             MassSquads.reset();
             MassUtil.invalidate();
         });
@@ -65,6 +61,8 @@ public class MassAI{
         ObjectSet<Tile> cores = Vars.state.teams.get(Team.themass).cores;
 
         cores = MassInfection.update(cores);
+        MassAdrenaline.update(cores);
+        MassIntel.update();
         MassBuilder.update(cores);
         MassDefense.update();
         MassEconomy.update(cores);
@@ -81,6 +79,7 @@ public class MassAI{
 
     public static void onDamage(float x, float y, Entity attacker){
         MassInfection.onDamage();
+        MassIntel.recordDamage(x, y);
         MassSquads.notifyAttack(x, y, attacker);
     }
 

@@ -3,10 +3,13 @@ package io.anuke.mindustry.world.blocks.units;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.ai.mass.MassAdrenaline;
+import io.anuke.mindustry.ai.mass.MassAIConfig;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.entities.units.UnitType;
+import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.graphics.Layer;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.ItemStack;
@@ -169,7 +172,11 @@ public class UnitHiveSpawner extends Block {
             return;
         }
 
-        entity.progress += entity.delta();
+        float spawnSpeed = Vars.state.difficulty == null ? 1f : Vars.state.difficulty.massScaling;
+        if(tile.getTeam() == Team.themass && MassAdrenaline.isBonusActiveAt(tile)){
+            spawnSpeed *= MassAIConfig.ADRENALINE_FACTORY_SPEED;
+        }
+        entity.progress += entity.delta() * spawnSpeed;
 
         if (entity.progress >= produceTime) {
             entity.progress = 0f;

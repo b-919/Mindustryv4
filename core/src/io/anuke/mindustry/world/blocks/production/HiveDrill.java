@@ -1,5 +1,7 @@
 package io.anuke.mindustry.world.blocks.production;
 
+import io.anuke.mindustry.ai.mass.MassAdrenaline;
+import io.anuke.mindustry.ai.mass.MassAIConfig;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.storage.HiveBlock;
@@ -65,6 +67,7 @@ public class HiveDrill extends Drill{
             float evoSpeed = HiveBlock.getEvolutionSpeedMultiplier(evo);
             speed *= evoSpeed;
 
+            if(MassAdrenaline.isBonusActiveAt(tile)) speed *= MassAIConfig.ADRENALINE_BIO_SPEED;
             entity.warmup = Mathf.lerpDelta(entity.warmup, speed, warmupSpeed);
             entity.progress += entity.delta()
             * entity.dominantItems * speed * entity.warmup;

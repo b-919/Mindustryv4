@@ -50,6 +50,14 @@ protected Weapon weapon;
     protected int movePathRepath = 0;
     protected float movePathTargetX, movePathTargetY;
 
+    //reused A* scratch so per-unit repaths do not allocate a fresh set of maps every time
+    private final LongArray astarOpen = new LongArray();
+    private final LongMap<Long> astarCameFrom = new LongMap<>();
+    private final LongMap<Integer> astarGScore = new LongMap<>();
+    private final LongMap<Integer> astarFScore = new LongMap<>();
+    private final LongMap<Integer> astarClosed = new LongMap<>();
+    private final LongArray astarRev = new LongArray();
+
     public final UnitState
 
     attack = new UnitState(){
@@ -363,11 +371,16 @@ protected Weapon weapon;
 
         if(start == goal) return;
 
-        LongArray open = new LongArray();
-        LongMap<Long> cameFrom = new LongMap<Long>();
-        LongMap<Integer> gScore = new LongMap<Integer>();
-        LongMap<Integer> fScore = new LongMap<Integer>();
-        LongMap<Integer> closed = new LongMap<Integer>();
+        LongArray open = astarOpen;
+        LongMap<Long> cameFrom = astarCameFrom;
+        LongMap<Integer> gScore = astarGScore;
+        LongMap<Integer> fScore = astarFScore;
+        LongMap<Integer> closed = astarClosed;
+        open.clear();
+        cameFrom.clear();
+        gScore.clear();
+        fScore.clear();
+        closed.clear();
 
         long startPos = start.packedPosition();
         long goalPos = goal.packedPosition();
@@ -445,7 +458,8 @@ protected Weapon weapon;
     }
 
     protected void reconstructMovePath(LongMap<Long> cameFrom, long current, long startPos){
-        LongArray rev = new LongArray();
+        LongArray rev = astarRev;
+        rev.clear();
         rev.add(current);
 
         while(cameFrom.containsKey(current)){
@@ -541,11 +555,16 @@ protected Weapon weapon;
             return;
         }
 
-        LongArray open = new LongArray();
-        LongMap<Long> cameFrom = new LongMap<Long>();
-        LongMap<Integer> gScore = new LongMap<Integer>();
-        LongMap<Integer> fScore = new LongMap<Integer>();
-        LongMap<Integer> closed = new LongMap<Integer>();
+        LongArray open = astarOpen;
+        LongMap<Long> cameFrom = astarCameFrom;
+        LongMap<Integer> gScore = astarGScore;
+        LongMap<Integer> fScore = astarFScore;
+        LongMap<Integer> closed = astarClosed;
+        open.clear();
+        cameFrom.clear();
+        gScore.clear();
+        fScore.clear();
+        closed.clear();
 
         long startPos = start.packedPosition();
         long goalPos = goal.packedPosition();
@@ -623,7 +642,8 @@ protected Weapon weapon;
     }
 
     protected void reconstructOrderPath(LongMap<Long> cameFrom, long current, long startPos){
-        LongArray rev = new LongArray();
+        LongArray rev = astarRev;
+        rev.clear();
         rev.add(current);
 
         while(cameFrom.containsKey(current)){

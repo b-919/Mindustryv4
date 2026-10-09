@@ -313,6 +313,8 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         return null;
     }
 
+    private final transient LongArray refineScratch = new LongArray();
+    private static final int REFINE_MAX_WAYPOINTS = 600;
     protected transient LongArray chunkPath;
     protected transient int chunkPathIndex;
     protected transient float chunkPathGoalX, chunkPathGoalY;
@@ -326,6 +328,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     protected transient float chunkStuckProg = Float.NaN;
     protected transient int chunkStuck = 0;
     protected transient int chunkSpliceFail = 0;
+    protected transient int chunkStuckRetries = 0;
     protected transient boolean chunkPathFine = false;
     private final transient Translator chunkVec = new Translator();
     private static final float[] avoidOffsets = {40f, -40f, 80f, -80f, 120f, -120f, 160f, -160f};
@@ -431,7 +434,8 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
      * stuck logic then still stands in until a later re-query manages to refine.
      */
     private LongArray refineChunkCorridor(LongArray coarse, float gx, float gy){
-        LongArray out = new LongArray();
+        LongArray out = refineScratch;
+        out.clear();
         float curX = x, curY = y;
         for(int i = 0; i < coarse.size; i++){
             long wp = coarse.items[i];
@@ -443,6 +447,8 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
                 if(leg.items[j] == wp) continue;
                 out.add(leg.items[j]);
             }
+            //pathological long corridors: keep the coarse route instead of A*ing every single door
+            if(out.size > REFINE_MAX_WAYPOINTS) return null;
             long last = leg.peek();
             curX = (int)(last >> 32) * tilesize + tilesize / 2f;
             curY = (int)last * tilesize + tilesize / 2f;
@@ -572,6 +578,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             chunkStuckProg = Float.NaN;
             chunkStuck = 0;
             chunkSpliceFail = 0;
+            chunkStuckRetries = 0;
         }
 
         if(Float.isNaN(chunkStuckProg) || chunkStuckProg - wayDist > tilesize * 0.15f){
@@ -595,6 +602,15 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
                     chunkPathIndex++;
                     resetChunkSteer();
                     return true;
+                }
+                //end of a fine path that still cannot be consumed: stop re-throwing the same dead end
+                if(++chunkStuckRetries > 3){
+                    chunkStuckRetries = 0;
+                    chunkPath = null;
+                    chunkPathIndex = 0;
+                    chunkPathCooldown = 30;
+                    resetChunkSteer();
+                    return false;
                 }
                 chunkPath = null;
                 chunkPathIndex = 0;
@@ -643,6 +659,14 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
                 chunkPathCooldown = 20;
                 resetChunkSteer();
                 return true;
+            }
+            if(++chunkStuckRetries > 3){
+                chunkStuckRetries = 0;
+                chunkPath = null;
+                chunkPathIndex = 0;
+                chunkPathCooldown = 30;
+                resetChunkSteer();
+                return false;
             }
             chunkPath = null;
             chunkPathIndex = 0;
