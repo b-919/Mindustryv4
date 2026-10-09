@@ -143,6 +143,8 @@ public class ProductionBlocks extends BlockList implements ContentList{
             updateEffect = BlockFx.biomassSmoke;
             drillEffect = BlockFx.biomassSpore;
             shadow = "biomass-bulbshadow";
+            spreadsInfection = true;
+            infectionRadius = 7f;
         }
         @Override
             public TextureRegion[] getIcon(){

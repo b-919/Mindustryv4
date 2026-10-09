@@ -199,7 +199,7 @@ public class TileEntity extends BaseEntity implements TargetTrait, HealthTrait{
             }
 
            if(tile.getTeam() == Team.themass && !Net.client()){
-                MassAI.onDamage();
+                MassAI.onDamage(tile.worldx(), tile.worldy(), lastDamager);
 
                 if(Mathf.chance(0.4)){
                     boolean air = lastDamager instanceof Unit && ((Unit) lastDamager).isFlying();

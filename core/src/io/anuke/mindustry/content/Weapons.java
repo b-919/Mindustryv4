@@ -374,18 +374,19 @@ public class Weapons implements ContentList{
         }};
 
         evilDaggerWeapon = new Weapon("evil-dagger-weapon"){{
-            length = 1.5f;
+            shootY = 1.5f;
+            x = 3f;
             reload = 28f;
-            roundrobin = true;
+            alternate = true;
             ejectEffect = ShootFx.shellEjectSmall;
             ammo = AmmoTypes.bulletCopper;
         }};
 
         evilTankyWeapon = new Weapon("evil-tanky-weapon"){{
-            length = 4f;
+            shootY = 4f;
             reload = 14f;
-            width = 10f;
-            roundrobin = true;
+            x = 15f;
+            alternate = true;
             recoil = 1f;
             ejectEffect = Fx.none;
             ammo = AmmoTypes.flamerThermite;

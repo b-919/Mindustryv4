@@ -51,6 +51,8 @@ public class StorageBlocks extends BlockList implements ContentList{
             shadow = "hive-shadow";
             living = true;
             defenseDroneType = UnitTypes.evilSwarmDrone;
+            spreadsInfection = true;
+            infectionRadius = 50f;
         }};
     }
 }

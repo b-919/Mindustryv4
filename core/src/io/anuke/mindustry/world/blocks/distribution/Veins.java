@@ -3,7 +3,6 @@ package io.anuke.mindustry.world.blocks.distribution;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import io.anuke.mindustry.entities.Unit;
-import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
@@ -27,6 +26,8 @@ public class Veins extends Conveyor{//Conveinsyors now exist
         setAmbientSound(null);
         maxSpawnTimer = 15f;
         minSpawnTimer = 5f;
+        spreadsInfection = true;
+        infectionRadius = 7f;
     }
 
     @Override
@@ -84,12 +85,5 @@ public class Veins extends Conveyor{//Conveinsyors now exist
 
     @Override
     public void unitOn(Tile tile, Unit unit) {
-    }
-
-    @Override
-    public void update(Tile tile) {
-        super.update(tile);
-        if(Net.client()) return;
-        tile.infect();
     }
 }

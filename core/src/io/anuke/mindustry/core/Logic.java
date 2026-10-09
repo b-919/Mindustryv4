@@ -103,8 +103,8 @@ public class Logic extends Module{
 
         if (state.startWithBiomass) {
             MassAI.spawnInitialHive();
-        } else if (state.allowMassInfection && (MassAI.nextInfectionTime <= 0)){
-            MassAI.nextInfectionTime = Mathf.random(5f, 40f) * 60f * 60f;
+        } else if (state.allowMassInfection && (MassAI.getInfectionTime() <= 0)){
+            MassAI.setInfectionTime(Mathf.random(5f, 40f) * 60f * 60f);
         }
     }
 

@@ -475,6 +475,8 @@ public class CraftingBlocks extends BlockList implements ContentList{
             craftEffect = BlockFx.biomassSmoke;
             updateEffect = BlockFx.biomassSpore;
             setAmbientSound("none");
+            spreadsInfection = true;
+            infectionRadius = 6f;
         }
             @Override
             public boolean canPlaceOn(Tile tile) {

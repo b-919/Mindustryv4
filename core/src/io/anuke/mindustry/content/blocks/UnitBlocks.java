@@ -301,7 +301,7 @@ public class UnitBlocks extends BlockList implements ContentList{
                     UnitTypes.evilTanky,
                     UnitTypes.explosiveBiomass
             };
-            evoUnlock = new int[]{0, 1, 2};
+            evoUnlock = new int[]{0, 2, 1};
             producerTimes = new float[]{
                     60f * 8,
                     60f * 15,
@@ -313,6 +313,8 @@ public class UnitBlocks extends BlockList implements ContentList{
                     10
             };
             shadow = "hive-spawner-shadow";
+            spreadsInfection = true;
+            infectionRadius = 8f;
         }};
         airHiveSpawner = new UnitHiveSpawner("air-hive-spawner"){{
             size = 2;
@@ -347,6 +349,8 @@ public class UnitBlocks extends BlockList implements ContentList{
                     6
             };
             shadow = "air-hive-spawnershadow";
+            spreadsInfection = true;
+            infectionRadius = 8f;
         }};
         heavyHiveSpawner = new UnitHiveSpawner("heavy-hive-spawner"){{
             size = 3;
@@ -365,7 +369,7 @@ public class UnitBlocks extends BlockList implements ContentList{
                     UnitTypes.exterminatorBiomass,
                     UnitTypes.artilleryBiomass
             };
-            evoUnlock = new int[]{2, 3};
+            evoUnlock = new int[]{3, 2};
             producerTimes = new float[]{
                     60f * 30,
                     60f * 25
@@ -375,6 +379,8 @@ public class UnitBlocks extends BlockList implements ContentList{
                     6
             };
             shadow = "heavy-hive-spawnershadow";
+            spreadsInfection = true;
+            infectionRadius = 12f;
         }};
     }
 }

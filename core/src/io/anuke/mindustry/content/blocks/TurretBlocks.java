@@ -347,6 +347,8 @@ public class TurretBlocks extends BlockList implements ContentList{
             inaccuracy = 2f;
             rotatespeed = 10f;
             living = true;
+            spreadsInfection = true;
+            infectionRadius = 5f;
         }};
 
         evilScatter = new BurstTurret("evil-scatter"){{
@@ -366,6 +368,8 @@ public class TurretBlocks extends BlockList implements ContentList{
             shootCone = 35f;
             health = 200 * size * size;
             living = true;
+            spreadsInfection = true;
+            infectionRadius = 9f;
         }};
         evilSalvo = new BurstTurret("evil-salvo"){{
             size = 2;
@@ -383,6 +387,8 @@ public class TurretBlocks extends BlockList implements ContentList{
             setShootSound("shootSalvo");
             health = 360;
             living = true;
+            spreadsInfection = true;
+            infectionRadius = 12f;
             }};
         evilRipple = new ArtilleryTurret("evil-ripple"){{
             ammoTypes = new AmmoType[]{AmmoTypes.artilleryDense, AmmoTypes.artilleryHoming, AmmoTypes.artilleryIncindiary, AmmoTypes.artilleryExplosive, AmmoTypes.artilleryPlastic};
@@ -402,6 +408,8 @@ public class TurretBlocks extends BlockList implements ContentList{
             targetAir = false;
             health = 550;
             living = true;
+            spreadsInfection = true;
+            infectionRadius = 30f;
         }};
 
         evilCyclone = new ItemTurret("evil-cyclone"){{
@@ -417,6 +425,8 @@ public class TurretBlocks extends BlockList implements ContentList{
             shootCone = 30f;
             living = true;
             health = 145 * size * size;
+            spreadsInfection = true;
+            infectionRadius = 17f;
         }};
 
         evilFuse = new ItemTurret("evil-fuse"){{
@@ -430,6 +440,8 @@ public class TurretBlocks extends BlockList implements ContentList{
             size = 3;
             living = true;
             health = 155 * size * size;
+            spreadsInfection = true;
+            infectionRadius = 10f;
         }};
 
 

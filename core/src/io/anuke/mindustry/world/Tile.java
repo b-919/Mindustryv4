@@ -61,6 +61,9 @@ public class Tile implements PosTrait, TargetTrait{
         t.floor = floorType;
         t.wall = wallType;
         t.elevation = elevation;
+        if(wallType.spreadsInfection && Vars.infection != null){
+            Vars.infection.register(t);
+        }
         return t;
     }
 
@@ -457,6 +460,10 @@ public class Tile implements PosTrait, TargetTrait{
         updateOcclusion();
 
         world.notifyChanged(this);
+
+        if(block.spreadsInfection && Vars.infection != null){
+            Vars.infection.register(this);
+        }
     }
 
     /** Rebuilds the tile entity without calling changed(). Used when loading from disk. */

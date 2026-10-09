@@ -6,7 +6,7 @@ import io.anuke.mindustry.entities.units.FlyingUnit;
 import io.anuke.mindustry.entities.units.UnitCommand;
 import io.anuke.mindustry.entities.units.UnitState;
 import io.anuke.mindustry.gen.Call;
-import io.anuke.mindustry.graphics.Palette;
+
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.logic.MiningPost;
@@ -19,7 +19,7 @@ public class MiningPostDrone extends FlyingUnit implements MinerTrait {
 
     @Override
     public boolean canShootWeapons(){
-        return !isMining();
+        return false;
     }
 
     public final UnitState 
@@ -52,8 +52,7 @@ public class MiningPostDrone extends FlyingUnit implements MinerTrait {
                     target = Vars.world.indexer.findClosestOre(x, y, targetItem);
                 });
 
-                if (target instanceof Tile) {
-                    Tile tile = (Tile) target;
+                if (target instanceof Tile tile) {
                     moveTo(mineDistance * 0.8f);
                     if (distanceTo(tile.worldx(), tile.worldy()) < mineDistance) {
                         setMineTile(tile);

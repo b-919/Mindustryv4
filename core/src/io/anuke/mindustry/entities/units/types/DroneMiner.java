@@ -27,7 +27,7 @@ public class DroneMiner extends FlyingUnit implements MinerTrait {
 
     @Override
     public boolean canShootWeapons(){
-        return !isMining();
+        return !state.is(mine);
     }
 
     protected Item targetItem;

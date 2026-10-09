@@ -228,6 +228,7 @@ public class SettingsMenuDialog extends SettingsDialog{
         graphics.checkPref("minimap", !mobile); //minimap is disabled by default on mobile devices
 
         graphics.sliderPref("renderer", "Render Scale", 100, 50, 100, i -> i + "%");
+        graphics.checkPref("lod", true);
         graphics.checkPref("bloom", "Bloom", true);
         graphics.sliderPref("bloomintensity", "Bloom Intensity", 10, 5, 40, i -> (i / 10f) + "x");
         graphics.sliderPref("bloomblur", "Bloom Blur", 2, 1, 16, s -> s + "x");

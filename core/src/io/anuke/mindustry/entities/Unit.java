@@ -139,7 +139,7 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
         hitTime = hitDuration;
 
         if (team == Team.themass) {
-            MassAI.onDamage();
+            MassAI.onDamage(this.x, this.y, null);
         }
     }
 

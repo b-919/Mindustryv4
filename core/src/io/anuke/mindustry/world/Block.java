@@ -124,6 +124,10 @@ public class Block extends BaseBlock {
     public boolean turretIcon = false;
     /**Whether the block is living.*/
     public boolean living = false;
+    /**Whether this block spreads infection to tiles within {@link #infectionRadius}.*/
+    public boolean spreadsInfection = false;
+    /**Radius, in tiles, that infection may reach from this block. Only used when {@link #spreadsInfection} is true.*/
+    public float infectionRadius = 10f;
     /**Whether units target this block.*/
     public boolean targetable = true;
     /**Whether the overdrive core has any effect on this block.*/
