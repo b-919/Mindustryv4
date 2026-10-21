@@ -466,7 +466,7 @@ public class CraftingBlocks extends BlockList implements ContentList{
         }};
 
         biomassGenerator = new HiveCrafter("biomass-generator"){{
-            itemCapacity = 2;
+            itemCapacity = 6;
             craftTime = Mathf.random(1290f , 1990f);
             hasItems = true;
             output = Items.corruptedbiomatter;

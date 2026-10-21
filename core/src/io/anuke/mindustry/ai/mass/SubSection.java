@@ -27,6 +27,8 @@ class SubSection{
     int progress = 0;
     float timer = 0;
     float stuckTimer = 0;
+    float checkTimer = 0;
+    float lostTimer = 0;
     boolean drillPlaced = false;
     boolean failed = false;
     boolean destroying = false;
@@ -72,17 +74,7 @@ class SubSection{
                 stuckTimer += Timers.delta();
                 if(stuckTimer >= MassAIConfig.DRILL_STUCK_TIME){ // 15 minutes
                     // try to reconnect
-                    Array<Tile> newPath = MassBuilder.findPathToAnyLine(targetTile);
-                    if(newPath != null && newPath.size > 1){
-                        this.startTile = newPath.get(0);
-                        path.clear();
-                        for(int k = 1; k < newPath.size; k++){
-                            path.add(newPath.get(k));
-                        }
-                        progress = 0;
-                        drillPlaced = false;
-                        stuckTimer = 0;
-                    }else{
+                    if(!tryReconnect()){
                         // FAILED to reconnect -> destroy
                         destroying = true;
                         if(targetOre != null) MassEconomy.boostOre(targetOre);
@@ -90,6 +82,21 @@ class SubSection{
                 }
             }else{
                 stuckTimer = 0;
+                checkTimer += Timers.delta();
+                if(checkTimer >= MassAIConfig.SUBSECTION_CONNCHECK_INTERVAL){
+                    checkTimer = 0;
+                    if(connected()){
+                        lostTimer = 0;
+                    }else{
+                        lostTimer += MassAIConfig.SUBSECTION_CONNCHECK_INTERVAL;
+                        if(tryReconnect()){
+                            lostTimer = 0;
+                        }else if(lostTimer >= MassAIConfig.DRILL_STUCK_TIME){
+                            destroying = true;
+                            if(targetOre != null) MassEconomy.boostOre(targetOre);
+                        }
+                    }
+                }
             }
             return;
         }
@@ -110,6 +117,8 @@ class SubSection{
                     next.setBlock(DistributionBlocks.veins, Team.themass, rotation);
                     MassBuilder.markLineTile(next);
                     progress++;
+                }else if(next == targetTile && next.block() == targetBlock && next.getTeam() == Team.themass){
+                    progress++;
                 }else{
                     failed = true;
                 }
@@ -124,11 +133,34 @@ class SubSection{
                         failed = true;
                     }
                 }else{
-                    Vars.world.setBlock(targetTile, targetBlock, Team.themass);
-                    drillPlaced = true;
+                    if(targetTile.block() == targetBlock && targetTile.getTeam() == Team.themass){
+                        drillPlaced = true; // reconnect the generator
+                    }else{
+                        Vars.world.setBlock(targetTile, targetBlock, Team.themass);
+                        drillPlaced = true;
+                    }
                 }
             }
         }
+    }
+
+    boolean connected(){
+        Array<Tile> probe = MassBuilder.findPathToAnyLine(targetTile);
+        return probe != null && probe.size > 1;
+    }
+    boolean tryReconnect(){
+        Array<Tile> newPath = MassBuilder.findPathToAnyLine(targetTile);
+        if(newPath == null || newPath.size <= 1) return false;
+        this.startTile = newPath.get(0);
+        path.clear();
+        for(int k = 1; k < newPath.size; k++){
+            path.add(newPath.get(k));
+        }
+        progress = 0;
+        drillPlaced = false;
+        stuckTimer = 0;
+        checkTimer = 0;
+        return true;
     }
 
     void write(DataOutputStream stream) throws IOException{
@@ -143,6 +175,8 @@ class SubSection{
         stream.writeInt(progress);
         stream.writeFloat(timer);
         stream.writeFloat(stuckTimer);
+        stream.writeFloat(checkTimer);
+        stream.writeFloat(lostTimer);
         stream.writeBoolean(drillPlaced);
         stream.writeBoolean(failed);
         stream.writeBoolean(destroying);
@@ -164,6 +198,8 @@ class SubSection{
         sub.progress = stream.readInt();
         sub.timer = stream.readFloat();
         sub.stuckTimer = stream.readFloat();
+        sub.checkTimer = stream.readFloat();
+        sub.lostTimer = stream.readFloat();
         sub.drillPlaced = stream.readBoolean();
         sub.failed = stream.readBoolean();
         sub.destroying = stream.readBoolean();

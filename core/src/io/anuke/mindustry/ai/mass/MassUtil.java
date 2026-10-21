@@ -2,6 +2,7 @@ package io.anuke.mindustry.ai.mass;
 
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.LongSet;
 import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.blocks.Blocks;
@@ -135,6 +136,68 @@ public final class MassUtil{
             if(ore != null && Mathf.dst(tile.x - ore.x, tile.y - ore.y) < radius) return true;
         }
         return false;
+    }
+
+    static boolean isTargetOreFloor(Tile tile){
+        if(tile == null || tile.floor() == null || tile.floor().drops == null) return false;
+        Item drop = tile.floor().drops.item;
+        for(Item item : MassAIConfig.TARGET_ORES){
+            if(item == drop) return true;
+        }
+        return false;
+    }
+
+    static Tile closestOreAnchor(Tile from){
+        Tile best = null;
+        float bestD = Float.MAX_VALUE;
+        int perOre = Math.max(1, MassAIConfig.VEIN_ATTRACT_MAX_ANCHORS / MassAIConfig.TARGET_ORES.length);
+        for(Item item : MassAIConfig.TARGET_ORES){
+            int scanned = 0;
+            for(Tile t : Vars.world.indexer.getOrePositions(item)){
+                if(scanned++ >= perOre) break;
+                float d = Mathf.dst(t.x - from.x, t.y - from.y);
+                if(d < bestD){
+                    bestD = d;
+                    best = t;
+                }
+            }
+        }
+        return best;
+    }
+
+    static Tile sampleInfectedNear(Tile from, int max){
+        LongSet queue = Vars.infection.getInfectedQueue();
+        if(queue.size == 0) return null;
+        Tile best = null;
+        float bestD = Float.MAX_VALUE;
+        int scanned = 0;
+        LongSet.LongSetIterator it = queue.iterator();
+        while(it.hasNext && scanned < max){
+            scanned++;
+            Tile t = world.tile(it.next());
+            if(t == null) continue;
+            float d = Mathf.dst(t.x - from.x, t.y - from.y);
+            if(d < bestD){
+                bestD = d;
+                best = t;
+            }
+        }
+        return best;
+    }
+
+    static Tile nearestEnemyCoreTile(Tile from){
+        refreshEnemyCores();
+        Tile best = null;
+        float bestD = Float.MAX_VALUE;
+        for(int i = 0; i < enemyCores.size; i++){
+            Tile core = enemyCores.get(i);
+            float d = Mathf.dst(core.x - from.x, core.y - from.y);
+            if(d < bestD){
+                bestD = d;
+                best = core;
+            }
+        }
+        return best;
     }
 
     static boolean isPassable(Tile tile){

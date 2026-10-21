@@ -25,6 +25,8 @@ public class MassDefense{
     static float nextTurretTime = 0;
     static float damageTurretTimer = 0;
     static float nextDamageTurretTime = 0;
+    static float responseTimer = 0;
+    static float nextResponseTime = 0;
     static Array<PendingBuild> pendingBuilds = new Array<>();
 
     private static final Block[] airTurrets = {TurretBlocks.evilCyclone, TurretBlocks.evilScatter};
@@ -38,9 +40,10 @@ public class MassDefense{
     private static int turretCountGround = 0;
     private static float turretCountTime = -1f;
 
-    public static void update(){
+public static void update(){
         turretTimer += Timers.delta();
         damageTurretTimer += Timers.delta();
+        responseTimer += Timers.delta();
 
         for(int i = pendingBuilds.size - 1; i >= 0; i--){
             PendingBuild build = pendingBuilds.get(i);
@@ -65,6 +68,21 @@ public class MassDefense{
             }
             if(MassAI.debug) Log.info("[MassAI] periodic turret attempt targetAir={0} enemyCount={1} hotspot={2}", targetAir, MassIntel.enemyCount(), targeted);
             trySpawnTurret(false, targetAir, targetX, targetY);
+        }
+
+        if(responseTimer >= nextResponseTime){
+            responseTimer = 0;
+            nextResponseTime = Mathf.random(MassAIConfig.RESPONSE_MIN, MassAIConfig.RESPONSE_MAX);
+            if(MassIntel.enemyCount() > 0){
+                boolean targetAir = Mathf.chance(MassIntel.enemyAirRatio());
+                float rx = 0f, ry = 0f;
+                if(MassIntel.hotspot(hotspotScratch)){
+                    rx = hotspotScratch[0];
+                    ry = hotspotScratch[1];
+                }
+                if(MassAI.debug) Log.info("[MassAI] threat response turret attempt targetAir={0} enemyCount={1} hotspot={2}", targetAir, MassIntel.enemyCount(), rx != 0f || ry != 0f);
+                trySpawnTurret(false, targetAir, rx, ry);
+            }
         }
     }
 
@@ -170,7 +188,7 @@ public class MassDefense{
             int offset = 2 + (size / 2);
             Tile target = world.tile(base.x + Geometry.d4[rotation].x * offset, base.y + Geometry.d4[rotation].y * offset);
 
-            if(target != null && MassBuilder.isAreaClear(target, size) && !MassUtil.isNearEnemyCore(target)){
+            if(target != null && MassBuilder.isTurretClear(target, size) && !MassUtil.isNearEnemyCore(target)){
                 if(fromDamage){
                     float dist = Mathf.dst(target.worldx() - targetX, target.worldy() - targetY);
                     if(dist > turretBlock.viewRange) continue;
@@ -229,6 +247,8 @@ public class MassDefense{
         nextTurretTime = Mathf.random(MassAIConfig.PERIODIC_TURRET_MIN, MassAIConfig.PERIODIC_TURRET_MAX);
         damageTurretTimer = 0;
         nextDamageTurretTime = 0;
+        responseTimer = 0;
+        nextResponseTime = Mathf.random(MassAIConfig.RESPONSE_MIN, MassAIConfig.RESPONSE_MAX);
         pendingBuilds.clear();
         invalidateTurretCount();
     }

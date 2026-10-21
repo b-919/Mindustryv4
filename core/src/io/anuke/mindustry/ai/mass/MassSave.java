@@ -12,9 +12,11 @@ import static io.anuke.mindustry.Vars.world;
 
 /** Serialization for the Mass AI */
 public class MassSave{
+    private static final int SAVE_VERSION = 4;
     private MassSave(){}
 
     public static void write(DataOutputStream stream) throws IOException{
+        stream.writeInt(SAVE_VERSION);
         stream.writeInt(MassBuilder.initializedCores.size);
         for(Tile core : MassBuilder.initializedCores){
             stream.writeLong(core.packedPosition());
@@ -35,6 +37,8 @@ public class MassSave{
         stream.writeFloat(MassDefense.nextTurretTime);
         stream.writeFloat(MassDefense.damageTurretTimer);
         stream.writeFloat(MassDefense.nextDamageTurretTime);
+        stream.writeFloat(MassDefense.responseTimer);
+        stream.writeFloat(MassDefense.nextResponseTime);
         stream.writeFloat(MassInfection.nextInfectionTime);
 
         stream.writeInt(MassDefense.pendingBuilds.size);
@@ -59,6 +63,7 @@ public class MassSave{
     }
 
     public static void read(DataInputStream stream) throws IOException{
+        stream.readInt();
         int coreCount = stream.readInt();
         MassBuilder.initializedCores.clear();
         for(int i = 0; i < coreCount; i++){
@@ -82,6 +87,8 @@ public class MassSave{
         MassDefense.nextTurretTime = stream.readFloat();
         MassDefense.damageTurretTimer = stream.readFloat();
         MassDefense.nextDamageTurretTime = stream.readFloat();
+        MassDefense.responseTimer = stream.readFloat();
+        MassDefense.nextResponseTime = stream.readFloat();
         MassInfection.nextInfectionTime = stream.readFloat();
         MassInfection.disableGrace = true;
 

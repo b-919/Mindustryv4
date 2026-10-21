@@ -196,6 +196,13 @@ public class MassSquads{
         return evo;
     }
 
+    static int evolutionLevel(){
+        if(rosterEvo < 0){
+            rosterEvo = getMaxEvolution(Vars.state.teams.get(Team.themass).cores);
+        }
+        return rosterEvo;
+    }
+
     private static void scanScenario(){
         float totalX = 0f, totalY = 0f;
         int count = 0;

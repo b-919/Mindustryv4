@@ -65,6 +65,10 @@ public class MassBuilder{
         if(t != null) lineOccupied.add(t);
     }
 
+    static boolean isMassVein(Tile tile){
+        return tile != null && lineOccupied.contains(tile);
+    }
+
     private static void unmarkLine(BuildingLine line){
         lineOccupied.remove(world.tile(line.startX, line.startY));
         for(PathTile pt : line.tiles){
@@ -82,6 +86,19 @@ public class MassBuilder{
 
                 // check if there is no line or building, THIS TO PREVENT TURRETS SPAWNING ON LINES AND CUTTING THE FULL FLOW OF RESOURCES
                 if(lineOccupied.contains(t)) return false;
+            }
+        }
+        return true;
+    }
+
+    static boolean isTurretClear(Tile center, int size){
+        int offset = -(size - 1) / 2;
+        for(int dx = 0; dx < size; dx++){
+            for(int dy = 0; dy < size; dy++){
+                Tile t = world.tile(center.x + offset + dx, center.y + offset + dy);
+                if(t == null || t.floor().isLiquid || !t.floor().placeableOn) return false;
+                if(t.getTeam() == Team.themass && t.block() == DistributionBlocks.veins) continue;
+                if(t.block() != Blocks.air) return false;
             }
         }
         return true;
@@ -126,24 +143,14 @@ public class MassBuilder{
         while(!queue.isEmpty()){
             Tile curr = queue.removeFirst();
 
-            if(curr.block() == DistributionBlocks.veins && curr.getTeam() == Team.themass){
-                boolean isLine = false;
-                for(BuildingLine line : activeLines){
-                    if(line.containsTile(curr)){
-                        isLine = true;
-                        break;
-                    }
+            if(curr.block() == DistributionBlocks.veins && curr.getTeam() == Team.themass && lineOccupied.contains(curr)){
+                Array<Tile> p = new Array<>();
+                Tile node = curr;
+                while(node != null){
+                    p.add(node);
+                    node = parents.get(node);
                 }
-
-                if(isLine){
-                    Array<Tile> p = new Array<>();
-                    Tile node = curr;
-                    while(node != null){
-                        p.add(node);
-                        node = parents.get(node);
-                    }
-                    return p;
-                }
+                return p;
             }
 
             for(int i = 0; i < 4; i++){

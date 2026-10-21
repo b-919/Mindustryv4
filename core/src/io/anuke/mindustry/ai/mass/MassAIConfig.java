@@ -14,6 +14,9 @@ public class MassAIConfig{
     public static final float PERIODIC_TURRET_MAX = 30f * 60f;
     public static final float DAMAGE_TURRET_MIN = 10f * 60f;
     public static final float DAMAGE_TURRET_MAX = 35f * 60f;
+    public static final float RESPONSE_MIN = 8f * 60f;
+    public static final float RESPONSE_MAX = 15f * 60f;
+    public static final float SUBSECTION_CONNCHECK_INTERVAL = 60f * 60f;
     public static final float INFECTION_MIN = 5f * 60f * 60f; //todo set
     public static final float INFECTION_MAX = 40f * 60f * 60f; //todo set
     public static final float LINE_ACTION_INTERVAL = 60f;
@@ -92,8 +95,22 @@ public class MassAIConfig{
     public static final int LINE_REBUILD_ATTEMPTS = 5;
     public static final int LINE_DIVISIONS = 20;
     public static final int MIN_DIVISIONS_FOR_BRANCH = 3;
-    public static final float LINE_BRANCH_CHANCE = 0.1f;
-    public static final float LINE_SUBDIVIDE_CHANCE = 0.2f;
+
+    //vein growth
+    public static final int VEIN_BRANCH_AFTER = 5;
+    public static final int VEIN_BRANCH_COST = 3;
+    public static final float VEIN_BRANCH_CHANCE = 0.3f;
+    public static final float VEIN_MERGE_CHANCE = 0.4f;
+    public static final float VEIN_TURN_PENALTY = 1.1f;
+    public static final float VEIN_SPACING_PENALTY = 2.2f;
+    public static final float VEIN_ORE_AVOID_PENALTY = 8f;
+    public static final int VEIN_STRAIGHT_ATTEMPT = 6;
+    public static final float VEIN_STRAIGHT_PENALTY = 2.2f;
+    public static final float VEIN_ATTRACT_WEIGHT = 0.75f;
+    public static final float VEIN_NOISE = 0.4f;
+    public static final int VEIN_ATTRACT_REFRESH = 4;
+    public static final int VEIN_ATTRACT_MAX_ANCHORS = 300;
+    public static final int VEIN_MAX_BLOCKED_TURNS = 3;
 
     //pathfinding
     public static final int BFS_MAX_NODES = 2000;
