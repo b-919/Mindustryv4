@@ -119,6 +119,11 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         this.team = team;
         this.isPlayerControllable = type.playerControllable;
         this.isRTSAIControllable = type.rtsAIControllable;
+        applyController();
+    }
+
+    private void applyController(){
+        controller = type.controller == null ? null : type.controller.get(this);
     }
 
     public boolean isCommanded(){
@@ -1016,6 +1021,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         this.spawner = stream.readLong();
 
         this.type = content.getByID(ContentType.unit, type & 0xFF);
+        applyController();
         add();
     }
 
@@ -1030,6 +1036,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         float lastx = x, lasty = y, lastrot = rotation;
         super.readSave(data);
         this.type = content.getByID(ContentType.unit, data.readByte() & 0xFF);
+        applyController();
 
         interpolator.read(lastx, lasty, x, y, time, rotation);
         rotation = lastrot;

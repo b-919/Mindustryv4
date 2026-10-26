@@ -12,6 +12,8 @@ import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.StatusEffect;
 import io.anuke.mindustry.type.Weapon;
 import io.anuke.mindustry.ui.ContentDisplay;
+import io.anuke.mindustry.entities.units.ai.AIController;
+import io.anuke.ucore.function.Function;
 import io.anuke.ucore.function.Supplier;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.scene.ui.layout.Table;
@@ -24,6 +26,7 @@ public class UnitType extends UnlockableContent{
 
     public final String name;
     public final String description;
+    public Function<BaseUnit, AIController> controller;
     public float health = 60;
     public float hitsize = 7f;
     public float hitsizeTile = 4f;
