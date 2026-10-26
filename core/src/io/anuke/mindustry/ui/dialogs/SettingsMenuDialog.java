@@ -154,13 +154,14 @@ public class SettingsMenuDialog extends SettingsDialog{
         game.checkPref("fogofwar", true);
         if(mobile){
             game.checkPref("autotarget", true);
+        }else{
+            game.checkPref("smoothcamera", false);
+            game.checkPref("detach-camera", false);
+            game.sliderPref("minzoomingamemultiplier", 100, 100, 300, 25, i -> (i / 100f) + "x");
+            game.sliderPref("maxzoomingamemultiplier", 100, 100, 200, 25, i -> (i / 100f) + "x");
         }
         game.sliderPref("saveinterval", 120, 10, 5 * 120, i -> Bundles.format("setting.seconds", i));
         game.checkPref("planet3d", true);
-        game.checkPref("smoothcamera", false);
-        game.checkPref("detach-camera", false);
-        game.sliderPref("minzoomingamemultiplier", 100, 100, 300, 25, i -> (i / 100f) + "x");
-        game.sliderPref("maxzoomingamemultiplier", 100, 100, 200, 25, i -> (i / 100f) + "x");
 
         game.pref(new SettingsTable.Setting(){
             @Override
