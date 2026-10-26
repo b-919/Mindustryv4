@@ -46,7 +46,7 @@ public class MobileInput extends InputHandler implements GestureListener{
 
     //gesture data
     private Vector2 vector = new Vector2();
-    private boolean canPan;
+    private boolean down;
     private boolean zoomed = false;
     /** Camera scale the current pinch gesture started from, so the zoom is relative to it. */
     private float pinchStartScale = 1f;
@@ -638,6 +638,10 @@ public class MobileInput extends InputHandler implements GestureListener{
             }
         }
         draggingSchematic = false;
+
+        if(!Gdx.input.isTouched()){
+            down = false;
+        }
         return false;
     }
 
@@ -721,6 +725,10 @@ public class MobileInput extends InputHandler implements GestureListener{
         //mobile pans by dragging, so the camera is never 'detached' from following the player;
         //this also clears the flag if the input handler was swapped out for a desktop one
         renderer.detached = false;
+
+        if(!Gdx.input.isTouched()){
+            down = false;
+        }
 
         if(state.is(State.menu) || player.isDead()){
             selection.clear();
@@ -814,7 +822,7 @@ public class MobileInput extends InputHandler implements GestureListener{
 
     @Override
     public boolean pan(float x, float y, float deltaX, float deltaY){
-        if(!canPan) return false;
+        if(!down || state.is(State.menu) || player.isDead() || ui.hasDialog()) return false;
 
         //can't pan in line mode with one finger or while dropping items!
         if((lineMode && !Gdx.input.isTouched(1)) || droppingItem){
@@ -880,7 +888,7 @@ public class MobileInput extends InputHandler implements GestureListener{
 
     @Override
     public boolean touchDown(float x, float y, int pointer, int button){
-        canPan = !ui.hasMouse();
+        down = true;
         return false;
     }
 

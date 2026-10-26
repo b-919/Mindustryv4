@@ -281,6 +281,8 @@ public class Renderer extends RendererModule{
                 clampCamera(0f, 0f, world.width() * tilesize, world.height() * tilesize);
             }
 
+            float baseX = camera.position.x, baseY = camera.position.y;
+
             //shake is applied as an offset that is removed again after drawing, so it can never
             //drift the real camera position
             updateShakeOffset();
@@ -295,8 +297,7 @@ public class Renderer extends RendererModule{
                 draw();
             }finally{
                 //a frame that throws must not leave the offset baked into the camera position
-                camera.position.x -= camShakeOffset.x;
-                camera.position.y -= camShakeOffset.y;
+                camera.position.set(baseX, baseY, 0f);
             }
         }
 
@@ -1378,6 +1379,7 @@ public class Renderer extends RendererModule{
     }
 
     private static float zoomLimit(String name){
+        if(mobile) return 1f;
         return Math.max(1, Settings.getInt(name, 100)) / 100f;
     }
 
