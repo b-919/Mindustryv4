@@ -7,6 +7,7 @@ import io.anuke.mindustry.content.Liquids;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.ItemStack;
+import io.anuke.mindustry.type.Liquid;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.production.GenericCrafter.GenericCrafterEntity;
@@ -40,6 +41,7 @@ public class Separator extends Block{
         solid = true;
         hasItems = true;
         hasLiquids = true;
+        hasLiquidLayer = true;
 
         consumes.item(Items.stone);
         consumes.liquid(Liquids.water, 0.1f);
@@ -70,14 +72,24 @@ public class Separator extends Block{
 
         GenericCrafterEntity entity = tile.entity();
 
-        Draw.color(tile.entity.liquids.current().color);
-        Draw.alpha(tile.entity.liquids.total() / liquidCapacity);
-        Draw.rect(liquidRegion, tile.drawx(), tile.drawy());
-
         Draw.color(color);
         Lines.stroke(spinnerThickness);
         Lines.spikes(tile.drawx(), tile.drawy(), spinnerRadius, spinnerLength, 3, entity.totalProgress * spinnerSpeed);
         Draw.reset();
+    }
+
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
+
+        Draw.color(liquid.color);
+        Draw.alpha(tile.entity.liquids.total() / liquidCapacity);
+        Draw.rect(liquidRegion, tile.drawx(), tile.drawy());
+        Draw.color();
     }
 
     @Override

@@ -16,6 +16,7 @@ import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.entities.traits.SaveTrait;
 import io.anuke.mindustry.entities.traits.SyncTrait;
 import io.anuke.mindustry.gen.Call;
+import io.anuke.mindustry.graphics.Shaders;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.Liquid;
 import io.anuke.mindustry.world.Tile;
@@ -251,15 +252,72 @@ public class Puddle extends SolidEntity implements SaveTrait, Poolable, DrawTrai
     }
 
     public void drawBloom(){
-        if(liquid != null && liquid.emitLight){
-            float f = Mathf.clamp(amount / (maxLiquid / 1.5f));
-            if(f > 0.01f){
-                Draw.color(liquid.color);
-                Draw.alpha(f * 0.25f);
-                Draw.rect("circle", x, y, f * 24f, f * 24f);
-                Draw.color();
-            }
-        }
+        if(liquid == null || !liquid.emitLight) return;
+
+        float f = Mathf.clamp(amount / (maxLiquid / 1.5f));
+        if(f <= 0.01f) return;
+
+        seeds = id;
+        boolean onLiquid = tile.floor().isLiquid;
+        float smag = onLiquid ? 0.8f : 0f;
+        float sscl = 20f;
+
+        Draw.color(liquid.color);
+        Draw.alpha(f * 0.3f);
+        Fill.circle(x + Mathf.sin(Timers.time() + seeds * 532, sscl, smag),
+                y + Mathf.sin(Timers.time() + seeds * 53, sscl, smag), f * 8f);
+
+        Angles.randLenVectors(id, 3, f * 6f, (ex, ey) -> {
+            Fill.circle(x + ex + Mathf.sin(Timers.time() + seeds * 532, sscl, smag),
+                    y + ey + Mathf.sin(Timers.time() + seeds * 53, sscl, smag), f * 5f);
+            seeds++;
+        });
+
+        Draw.color();
+    }
+
+    //draws this puddle's light
+    public void drawLight(){
+        if(liquid == null || !liquid.emitLight) return;
+
+        float f = Mathf.clamp(amount / (maxLiquid / 1.5f));
+        if(f <= 0.01f) return;
+
+        seeds = id;
+        boolean onLiquid = tile.floor().isLiquid;
+        float smag = onLiquid ? 0.8f : 0f;
+        float sscl = 20f;
+
+        Shaders.light.region = Draw.region("circle");
+        Draw.color(liquid.color);
+
+        float scale = liquid.lightScale;
+        float cx = x + Mathf.sin(Timers.time() + seeds * 532, sscl, smag);
+        float cy = y + Mathf.sin(Timers.time() + seeds * 53, sscl, smag);
+        drawLightBlob(cx, cy, f * 8f, f, scale);
+
+        Angles.randLenVectors(id, 3, f * 6f, (ex, ey) -> {
+            float px = x + ex + Mathf.sin(Timers.time() + seeds * 532, sscl, smag);
+            float py = y + ey + Mathf.sin(Timers.time() + seeds * 53, sscl, smag);
+            drawLightBlob(px, py, f * 5f, f, scale);
+            seeds++;
+        });
+
+        Draw.color();
+    }
+
+    private void drawLightBlob(float x, float y, float radius, float f, float scale){
+        Draw.alpha(f * 0.3f);
+        Draw.rect("circle", x, y, radius * scale * 2f, radius * scale * 2f);
+        Draw.alpha(f * 0.15f);
+        Draw.rect("circle", x, y, radius * scale * 2f, radius * scale * 2f);
+    }
+
+    public float lightRadius(){
+        if(liquid == null) return 0f;
+
+        float f = Mathf.clamp(amount / (maxLiquid / 1.5f));
+        return f * 14f * liquid.lightScale;
     }
 
     @Override

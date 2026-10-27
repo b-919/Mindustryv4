@@ -56,6 +56,7 @@ public class NuclearReactor extends PowerGenerator{
         powerCapacity = 80f;
         hasItems = true;
         hasLiquids = true;
+        hasLiquidLayer = true;
         setAmbientSound("loopThoriumReactor", 0.03f, 4);
         consumes.item(Items.thorium);
     }
@@ -199,9 +200,7 @@ public class NuclearReactor extends PowerGenerator{
         Draw.color(coolColor, hotColor, entity.heat);
         Draw.rect("white", tile.drawx(), tile.drawy(), size * tilesize, size * tilesize);
 
-        Draw.color(entity.liquids.current().color);
-        Draw.alpha(entity.liquids.currentAmount() / liquidCapacity);
-        Draw.rect(topRegion, tile.drawx(), tile.drawy());
+        drawLiquid(tile);
 
         if(entity.heat > flashThreshold){
             float flash = 1f + ((entity.heat - flashThreshold) / (1f - flashThreshold)) * 5.4f;
@@ -212,6 +211,20 @@ public class NuclearReactor extends PowerGenerator{
         }
 
         Draw.reset();
+    }
+
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
+
+        Draw.color(liquid.color);
+        Draw.alpha(tile.entity.liquids.currentAmount() / liquidCapacity);
+        Draw.rect(topRegion, tile.drawx(), tile.drawy());
+        Draw.color();
     }
 
     @Override

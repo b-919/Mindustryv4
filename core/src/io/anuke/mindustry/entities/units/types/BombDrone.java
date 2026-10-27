@@ -42,8 +42,4 @@ public class BombDrone extends FlyingUnit {
         Draw.alpha(0f);
         Draw.rect(type.name + "-propeller", wx, wy, spin);
     }
-    @Override
-    public void drawOver(){
-        trail.draw(Color.BLACK, 0f);
-    }
 }

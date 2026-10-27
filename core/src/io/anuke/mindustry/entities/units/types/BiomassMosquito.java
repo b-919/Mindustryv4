@@ -127,10 +127,9 @@ public class BiomassMosquito extends BiomassAirUnit {
                 y + Angles.trnsy(rotation, back, side)
         );
     }
+
     @Override
-    public void drawOver(){
-        trail.draw(Color.BLACK, 0f);
-    }
+    public void drawOver(){}
 
     @Override
     public void write(DataOutput data) throws IOException {

@@ -39,6 +39,7 @@ public class Liquids implements ContentList{
                 tier = 2;
                 effect = StatusEffects.melting;
                 emitLight = true;
+                lightScale = 1.7f;
             }
         };
 
@@ -49,6 +50,7 @@ public class Liquids implements ContentList{
                 tier = 2;
                 effect = StatusEffects.melting;
                 emitLight = true;
+                lightScale = 2.1f;
             }
         };
 
@@ -70,6 +72,7 @@ public class Liquids implements ContentList{
                 tier = 1;
                 effect = StatusEffects.freezing;
                 emitLight = true;
+                lightScale = 1.6f;
             }
         };
 

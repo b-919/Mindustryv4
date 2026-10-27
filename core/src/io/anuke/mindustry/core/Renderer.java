@@ -29,27 +29,24 @@ import io.anuke.mindustry.entities.effect.Puddle;
 import io.anuke.mindustry.entities.traits.BelowLiquidTrait;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.entities.units.FlyingUnit;
-import io.anuke.mindustry.entities.traits.MinerTrait;
 import io.anuke.mindustry.entities.traits.BuilderTrait;
 import io.anuke.mindustry.game.EventType.WorldLoadGraphicsEvent;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.graphics.*;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
+import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.mindustry.world.blocks.production.*;
-import io.anuke.ucore.util.Tmp;
 import io.anuke.mindustry.world.blocks.defense.ForceProjector.ShieldEntity;
 import io.anuke.ucore.core.*;
 import io.anuke.ucore.entities.EntityDraw;
 import io.anuke.ucore.entities.EntityGroup;
 import io.anuke.ucore.entities.impl.EffectEntity;
 import io.anuke.ucore.entities.trait.DrawTrait;
-import io.anuke.ucore.entities.trait.PosTrait;
 import io.anuke.ucore.entities.trait.Entity;
 import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.function.Predicate;
 import io.anuke.ucore.graphics.Draw;
-import io.anuke.ucore.graphics.Hue;
 import io.anuke.ucore.graphics.Lines;
 import io.anuke.ucore.graphics.Surface;
 import io.anuke.ucore.modules.RendererModule;
@@ -71,6 +68,7 @@ public class Renderer extends RendererModule{
     public final Surface reflectSurface;
     /** Emission buffer for selective bloom: only bloom-contributing objects are drawn here. */
     public final Surface bloomSurface;
+    public final Surface lavaBloomSurface;
     public final BlockRenderer blocks = new BlockRenderer();
     public final MinimapRenderer minimap = new MinimapRenderer();
     public final OverlayRenderer overlays = new OverlayRenderer();
@@ -218,6 +216,7 @@ public class Renderer extends RendererModule{
         lightSurface = Graphics.createSurface(renderScale());
         reflectSurface = Graphics.createSurface(renderScale());
         bloomSurface = Graphics.createSurface(renderScale());
+        lavaBloomSurface = Graphics.createSurface(renderScale());
 
         //the surfaces were just built at this scale, so the first update must not rebuild them
         lastSurfaceScale = renderScale();
@@ -415,6 +414,9 @@ public class Renderer extends RendererModule{
     public void draw(){
         PerfCounter.render.begin();
 
+        //lights are queued while effects draw this frame, so the previous frame's queue is dead
+        Effects.clearLights();
+
         camera.update();
         if(Float.isNaN(Core.camera.position.x) || Float.isNaN(Core.camera.position.y)){
             Core.camera.position.set(players[0].x, players[0].y, 0f);
@@ -601,28 +603,35 @@ public class Renderer extends RendererModule{
                 Tile tile = world.peekTile(x, y);
                 if(tile != null && tile.block() != Blocks.air){
                     Block block = tile.block();
-                    float radius = Math.max(block.lightRadius() * tilesize, block.layerLightRadius * tilesize) + tilesize * 2f;
+                    float radius = Math.max(block.lightRadius(tile) * tilesize, block.layerLightRadius * tilesize) + tilesize * 2f;
                     if(lightVisible(tile.drawx(), tile.drawy(), radius)){
                         block.drawLight(tile);
                         block.drawLayerLight(tile);
+                        block.drawLiquidLight(tile);
                     }
                 }
                 // liquid floor light emission (lava, slag, cryofluid)
-                if(tile != null && tile.block() == Blocks.air
-                    && tile.floor().liquidDrop != null && tile.floor().liquidDrop.emitLight
-                    && lightVisible(tile.drawx(), tile.drawy(), tilesize * 3f)){
-                    Draw.color(tile.floor().liquidDrop.color);
-                    Shaders.light.region = Draw.region("circle");
-                    Draw.alpha(0.35f);
-                    Draw.rect("circle", tile.drawx(), tile.drawy(), tilesize * 4f, tilesize * 4f);
-                    Draw.alpha(0.18f);
-                    Draw.rect("circle", tile.drawx(), tile.drawy(), tilesize * 4f, tilesize * 4f);
+                if(tile != null && tile.block() == Blocks.air){
+                    Floor floor = tile.floor();
+
+                    if(floor.liquidDrop != null && floor.liquidDrop.emitLight){
+                        float scale = floor.lightScale;
+
+                        if(lightVisible(tile.drawx(), tile.drawy(), tilesize * 3f * scale)){
+                            Draw.color(floor.liquidDrop.color);
+                            Shaders.light.region = Draw.region("circle");
+                            Draw.alpha(0.35f);
+                            Draw.rect("circle", tile.drawx(), tile.drawy(), tilesize * 4f * scale, tilesize * 4f * scale);
+                            Draw.alpha(0.18f);
+                            Draw.rect("circle", tile.drawx(), tile.drawy(), tilesize * 4f * scale, tilesize * 4f * scale);
+                        }
+                    }
                 }
             }
         }
 
         //Bullets
-        for(Entity entity : bulletGroup.all()){
+        for(Object entity : bulletGroup.allRaw()){
             if(entity instanceof Bullet){
                 Bullet bullet = (Bullet) entity;
                 BulletType type = bullet.getBulletType();
@@ -698,31 +707,35 @@ public class Renderer extends RendererModule{
         }
 
         //Effects
-        for(Entity entity : effectGroup.all()){
+        for(Object entity : effectGroup.allRaw()){
             if(entity instanceof EffectEntity){
                 drawEffectLight((EffectEntity) entity);
             }
         }
-        for(DrawTrait entity : groundEffectGroup.all()){
+        for(Object entity : groundEffectGroup.allRaw()){
             if(entity instanceof EffectEntity){
                 drawEffectLight((EffectEntity) entity);
             }
         }
 
+        //per-particle lights queued by effect renderers via Drawf.light()
+        for(Effects.Light effectLight : Effects.lights()){
+            if(!lightVisible(effectLight.x, effectLight.y, effectLight.radius)) continue;
+            Draw.color(effectLight.color);
+            Shaders.light.region = Draw.region("circle");
+            Draw.alpha(effectLight.opacity);
+            Draw.rect("circle", effectLight.x, effectLight.y, effectLight.radius * 2f, effectLight.radius * 2f);
+            Draw.alpha(effectLight.opacity * 0.5f);
+            Draw.rect("circle", effectLight.x, effectLight.y, effectLight.radius * 2f, effectLight.radius * 2f);
+        }
+        Effects.clearLights();
+
         //puddles with light-emitting liquids
-        for(Entity entity : puddleGroup.all()){
+        for(Object entity : puddleGroup.allRaw()){
             if(entity instanceof Puddle){
                 Puddle p = (Puddle) entity;
-                if(p.getLiquid() != null && p.getLiquid().emitLight && lightVisible(p.x, p.y, 14f)){
-                    float f = Mathf.clamp(p.getAmount() / 46f);
-                    if(f > 0.01f){
-                        Draw.color(p.getLiquid().color);
-                        Shaders.light.region = Draw.region("circle");
-                        Draw.alpha(f * 0.3f);
-                        Draw.rect("circle", p.x, p.y, f * 28f, f * 28f);
-                        Draw.alpha(f * 0.15f);
-                        Draw.rect("circle", p.x, p.y, f * 28f, f * 28f);
-                    }
+                if(p.getLiquid() != null && p.getLiquid().emitLight && lightVisible(p.x, p.y, p.lightRadius())){
+                    p.drawLight();
                 }
             }
         }
@@ -749,6 +762,8 @@ public class Renderer extends RendererModule{
         Color color = entity.lightColor != null ? entity.lightColor : effect.lightColor;
 
         if(!emit) return;
+        //particle-based effects queue their own lights at the particle positions
+        if(effect.particleLight) return;
 
         float fin = entity.fin();
         float fade;
@@ -772,8 +787,9 @@ public class Renderer extends RendererModule{
         }
     }
 
-    /** Renders bloom-contributing objects (additive glow, effects, bullets, shields, unit flares,
-     *  block bloom parts, liquid glow) into {@code bloomSurface} for the selective bloom pass. */
+    /** Binds the emission surface and draws every registered {@link BloomLayer}.
+     *  Bloom sources live in {@link BloomLayers}, so adding or excluding one never requires
+     *  editing the renderer. */
     private void drawBloomSources(){
         Graphics.surface(bloomSurface, false, false);
         Gdx.gl.glClearColor(0, 0, 0, 0);
@@ -782,171 +798,12 @@ public class Renderer extends RendererModule{
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
         Graphics.shader();
 
-        int avgx = Mathf.scl(camera.position.x, tilesize);
-        int avgy = Mathf.scl(camera.position.y, tilesize);
-        int rangex = (int)(camera.viewportWidth / tilesize / 2) + 2;
-        int rangey = (int)(camera.viewportHeight / tilesize / 2) + 2;
-
-        int minx, miny, maxx, maxy;
-        if(world.isOpenWorld()){
-            minx = avgx - rangex;
-            miny = avgy - rangey;
-            maxx = avgx + rangex;
-            maxy = avgy + rangey;
-        }else{
-            minx = Math.max(avgx - rangex, 0);
-            miny = Math.max(avgy - rangey, 0);
-            maxx = Math.min(world.width() - 1, avgx + rangex);
-            maxy = Math.min(world.height() - 1, avgy + rangey);
-        }
-
-        // block bloom + liquid floor glow (single tile loop)
-        for(int x = minx; x <= maxx; x++){
-            for(int y = miny; y <= maxy; y++){
-                Tile tile = world.peekTile(x, y);
-                if(tile == null) continue;
-
-                Block block = tile.block();
-                if(block.hasBloom){
-                    block.drawBloom(tile);
-                }
-
-                // liquid floor glow
-                if(block == Blocks.air && tile.floor().liquidDrop != null && tile.floor().liquidDrop.emitLight){
-                    Draw.color(tile.floor().liquidDrop.color);
-                    Draw.alpha(0.15f);
-                    Draw.rect("circle", tile.drawx(), tile.drawy(), tilesize * 3f, tilesize * 3f);
-                    Draw.color();
-                }
-            }
-        }
-
-        // effects that emit light (merged effectGroup + groundEffectGroup)
-        for(Entity entity : effectGroup.all()){
-            if(entity instanceof EffectEntity){
-                drawEffectBloom((EffectEntity) entity);
-            }
-        }
-        for(DrawTrait entity : groundEffectGroup.all()){
-            if(entity instanceof EffectEntity){
-                drawEffectBloom((EffectEntity) entity);
-            }
-        }
-
-        // bullets with bloom enabled
-        for(Entity entity : bulletGroup.all()){
-            if(entity instanceof Bullet){
-                Bullet bullet = (Bullet) entity;
-                BulletType type = bullet.getBulletType();
-                if(type.bloom){
-                    type.drawBloom(bullet);
-                }
-            }else if(entity instanceof Lightning){
-                Lightning l = (Lightning) entity;
-                float fade = l.fout();
-                if(fade > 0.01f){
-                    Draw.color(l.color, Color.WHITE, fade);
-                    Lines.stroke(fade * 6f);
-                    Draw.alpha(0.4f);
-                    float lx = l.x, ly = l.y;
-                    for(int i = 0; i < l.lines.size; i++){
-                        PosTrait v = l.lines.get(i);
-                        Lines.line(lx, ly, v.getX(), v.getY());
-                        lx = v.getX();
-                        ly = v.getY();
-                    }
-                    Draw.reset();
-                }
-            }
-        }
-
-        // units mining laser + trail (merged into single iteration)
-        for(EntityGroup<? extends BaseUnit> group : unitGroups){
-            for(BaseUnit unit : group.all()){
-                if(unit.isDead()) continue;
-
-                // mining laser bloom
-                if(unit instanceof MinerTrait){
-                    MinerTrait miner = (MinerTrait) unit;
-                    if(miner.isMining()){
-                        miner.drawMining(unit);
-                    }
-                }
-                if(unit instanceof BuilderTrait){
-                    BuilderTrait builder = (BuilderTrait) unit;
-                    if(builder.getMineTile() != null){
-                        builder.drawMining(unit);
-                    }
-                }
-
-                // flying unit trail bloom (skip biomass)
-                if(unit instanceof FlyingUnit
-                    && !unit.getClass().getSimpleName().startsWith("Biomass")){
-                    FlyingUnit fu = (FlyingUnit) unit;
-                    if(fu.type != null){
-                        fu.trail.draw(fu.type.trailColor, fu.type.engineSize);
-                        if(fu.type.engineMirror){
-                            fu.trail2.draw(fu.type.trailColor, fu.type.engineSize);
-                        }
-                    }
-                }
-            }
-        }
-
-        // players mining + trail + mech bloom
-        for(Player player : playerGroup.all()){
-            if(player.isDead()) continue;
-
-            // mining laser bloom
-            if(player instanceof BuilderTrait){
-                BuilderTrait builder = (BuilderTrait) player;
-                if(builder.getMineTile() != null){
-                    builder.drawMining(player);
-                }
-            }
-
-            // trail bloom
-            if(player.mech.flying || player.boostHeat > 0.001f){
-                player.trail.draw(
-                    Hue.mix(player.mech.trailColor, player.mech.trailColorTo, player.mech.flying ? 0f : player.boostHeat, Tmp.c1),
-                    5f * (player.isFlying() ? 1f : player.boostHeat));
-            }
-
-            // mech bloom
-            player.mech.drawBloom(player);
-        }
-
-        // puddle bloom for light-emitting liquids
-        for(Entity entity : puddleGroup.all()){
-            if(entity instanceof Puddle){
-                ((Puddle) entity).drawBloom();
-            }
-        }
-
-        // shield bloom
-        for(ShieldEntity shield : shieldGroup.all()){
-            shield.drawBloom();
-        }
+        BloomLayers.draw();
 
         // restore
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         Graphics.shader();
         Graphics.surface();
-    }
-
-    private void drawEffectBloom(EffectEntity ee){
-        Effects.Effect effect = ee.effect;
-        if(effect != null && effect.emitLight){
-            float fin = ee.fin();
-            float fade = Mathf.clamp(fin < 0.2f ? fin / 0.2f : (1f - fin) / 0.8f, 0f, 1f);
-            if(fade > 0.001f){
-                Draw.color(ee.color);
-                Draw.alpha(fade * 0.3f);
-                float sz = effect.size * 0.5f * fade;
-                Draw.rect("circle", ee.x, ee.y, sz, sz);
-                Draw.color();
-            }
-        }
     }
 
     // multiplies the scene (pixelSurface) by the lightmap (lightSurface): scene * (ambient + light)
@@ -1006,6 +863,8 @@ public class Renderer extends RendererModule{
 
         Matrix4 mat = batch.getTransformMatrix();
         captureReflections = true;
+        //reflections re-render effects; those must not queue a second set of lights
+        Drawf.setCollecting(false);
 
         try{
             int blockCount = 0, layeredBlocks = 0;
@@ -1116,6 +975,7 @@ public class Renderer extends RendererModule{
             }
         }finally{
             captureReflections = false;
+            Drawf.setCollecting(true);
 
             mat.idt();
             batch.setTransformMatrix(mat);
@@ -1266,6 +1126,7 @@ public class Renderer extends RendererModule{
         lightSurface.onResize();
         reflectSurface.onResize();
         bloomSurface.onResize();
+        lavaBloomSurface.onResize();
 
         rebuildPost();
     }
@@ -1278,6 +1139,7 @@ public class Renderer extends RendererModule{
         lightSurface.dispose();
         reflectSurface.dispose();
         bloomSurface.dispose();
+        lavaBloomSurface.dispose();
         if(bloom != null) bloom.dispose();
     }
 

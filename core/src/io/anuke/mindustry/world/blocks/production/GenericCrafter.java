@@ -88,6 +88,7 @@ public class GenericCrafter extends Block{
     public GenericCrafter(String name){
         super(name);
         hasBloom = true;
+        hasLiquidLayer = true;
         setAmbientSound("loopMachine", 0.09f);
         update = true;
         solid = true;
@@ -202,7 +203,20 @@ public class GenericCrafter extends Block{
 
         if(!hasLiquids) return;
 
-        Draw.color(tile.entity.liquids.current().color);
+        drawLiquid(tile);
+    }
+
+    @Override
+    public void drawLiquid(Tile tile){
+        if(!hasLiquids || tile.entity == null || tile.entity.liquids == null) return;
+
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
+
+        Draw.color(liquid.color);
         Draw.alpha(tile.entity.liquids.total() / liquidCapacity);
         Draw.rect("blank", tile.drawx(), tile.drawy(), 2, 2);
         Draw.color();

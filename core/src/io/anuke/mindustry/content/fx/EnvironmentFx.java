@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.content.Liquids;
 import io.anuke.mindustry.game.ContentList;
 import io.anuke.mindustry.graphics.Palette;
+import io.anuke.mindustry.graphics.Drawf;
 import io.anuke.mindustry.type.Item;
 import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Effects.Effect;
@@ -33,11 +34,13 @@ public class EnvironmentFx extends FxList implements ContentList{
 
             Angles.randLenVectors(e.id, 2, 2f + e.fin() * 7f, (x, y) -> {
                 Fill.circle(e.x + x, e.y + y, 0.2f + e.fslope() * 1.5f);
+                Drawf.light(e.x + x, e.y + y, 4f + e.fslope() * 4f, 0.35f * e.fslope());
             });
 
             Draw.color();
         });
         fire.emitLight = true;
+        fire.particleLight = true;
         fire.lightRadius = 30f;
         fire.lightOpacity = 0.35f;
         fire.lightColor = Palette.lightFlame;

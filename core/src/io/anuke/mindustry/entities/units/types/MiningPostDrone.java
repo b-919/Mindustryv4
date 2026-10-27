@@ -117,8 +117,15 @@ public class MiningPostDrone extends FlyingUnit implements MinerTrait {
     }
 
     @Override
+    public void drawEngine(){
+        if(type != null && type.drawEngine){
+            trail.draw(this.getTeam().color, 3f);
+        }
+    }
+
+    @Override
     public void drawOver(){
-        trail.draw(this.getTeam().color, 3f);
+        drawEngine();
         drawMining(this);
     }
     @Override

@@ -98,6 +98,7 @@ public class Blocks extends BlockList implements ContentList{
             variants = 0;
             liquidDrop = Liquids.lava;
             isLiquid = true;
+            lightScale = 1.85f;
             cacheLayer = CacheLayer.lava;
             minimapColor = Color.valueOf("ed5334");
         }};

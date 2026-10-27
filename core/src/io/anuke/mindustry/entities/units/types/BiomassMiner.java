@@ -24,9 +24,18 @@ public class BiomassMiner extends DroneMiner{
         Draw.color();
     }
     @Override
+    public void drawEngine(){
+        if(type != null && type.drawEngine){
+            trail.draw(type.trailColor, type.engineSize);
+            if(type.engineMirror){
+                trail2.draw(type.trailColor, type.engineSize);
+            }
+        }
+    }
+
+    @Override
     public void drawOver(){
-        trail.draw(Color.valueOf("871e1e"), 3f);
-        drawMining(this);
+        drawEngine();
     }
 
     @Override

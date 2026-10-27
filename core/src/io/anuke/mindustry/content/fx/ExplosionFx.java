@@ -2,6 +2,7 @@ package io.anuke.mindustry.content.fx;
 
 import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.graphics.Palette;
+import io.anuke.mindustry.graphics.Drawf;
 import io.anuke.mindustry.game.ContentList;
 import io.anuke.ucore.core.Effects.Effect;
 import io.anuke.ucore.graphics.Draw;
@@ -59,6 +60,7 @@ public class ExplosionFx extends FxList implements ContentList{
             e.scaled(7, i -> {
                 Lines.stroke(3f * i.fout());
                 Lines.circle(e.x, e.y, 3f + i.fin() * 10f);
+                Drawf.light(e.x, e.y, 12f * i.fout() + 2f, Palette.lightOrange, 0.5f * i.fout());
             });
 
             Draw.color(Color.GRAY);
@@ -73,11 +75,13 @@ public class ExplosionFx extends FxList implements ContentList{
 
             Angles.randLenVectors(e.id + 1, 8, 1f + 23f * e.finpow(), (x, y) -> {
                 Lines.lineAngle(e.x + x, e.y + y, Mathf.atan2(x, y), 1f + e.fout() * 3f);
+                Drawf.light(e.x + x, e.y + y, 6f * e.fout() + 1.5f, 0.5f * e.fout());
             });
 
             Draw.reset();
         });
         explosion.emitLight = true;
+        explosion.particleLight = true;
         explosion.lightRadius = 45f;
         explosion.lightOpacity = 0.6f;
         explosion.lightColor = Palette.lightOrange;
@@ -86,6 +90,7 @@ public class ExplosionFx extends FxList implements ContentList{
             e.scaled(7, i -> {
                 Lines.stroke(3.1f * i.fout());
                 Lines.circle(e.x, e.y, 3f + i.fin() * 14f);
+                Drawf.light(e.x, e.y, 14f * i.fout() + 2f, Palette.lightOrange, 0.5f * i.fout());
             });
 
             Draw.color(Color.GRAY);
@@ -100,11 +105,13 @@ public class ExplosionFx extends FxList implements ContentList{
 
             Angles.randLenVectors(e.id + 1, 9, 1f + 23f * e.finpow(), (x, y) -> {
                 Lines.lineAngle(e.x + x, e.y + y, Mathf.atan2(x, y), 1f + e.fout() * 3f);
+                Drawf.light(e.x + x, e.y + y, 6f * e.fout() + 1.5f, 0.5f * e.fout());
             });
 
             Draw.reset();
         });
         blockExplosion.emitLight = true;
+        blockExplosion.particleLight = true;
         blockExplosion.lightRadius = 45f;
         blockExplosion.lightOpacity = 0.6f;
         blockExplosion.lightColor = Palette.lightOrange;

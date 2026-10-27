@@ -136,6 +136,9 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         return type;
     }
 
+    public void drawEngine(){
+    }
+
     public void setDirectTarget(TargetTrait target){
         this.target = target;
     }

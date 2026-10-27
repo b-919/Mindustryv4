@@ -41,6 +41,7 @@ public abstract class ItemLiquidGenerator extends ItemGenerator{
     public ItemLiquidGenerator(String name){
         super(name);
         hasLiquids = true;
+        hasLiquidLayer = true;
         liquidCapacity = 10f;
 
         consumes.add(new ConsumeLiquidFilter(liquid -> getLiquidEfficiency(liquid) >= minLiquidEfficiency, 0.001f, true)).update(false).optional(true);
@@ -131,11 +132,19 @@ public abstract class ItemLiquidGenerator extends ItemGenerator{
     @Override
     public void draw(Tile tile){
         super.draw(tile);
+        drawLiquid(tile);
+    }
 
-        TileEntity entity = tile.entity();
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
 
-        Draw.color(entity.liquids.current().color);
-        Draw.alpha(entity.liquids.currentAmount() / liquidCapacity);
+        Draw.color(liquid.color);
+        Draw.alpha(tile.entity.liquids.currentAmount() / liquidCapacity);
         drawLiquidCenter(tile);
         Draw.color();
     }

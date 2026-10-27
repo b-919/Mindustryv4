@@ -195,20 +195,22 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
             wobble();
         }
 
-        if(type.engineMirror){
-            trail.update(
-                x + Angles.trnsx(rotation, type.engineOffsetY, -type.engineOffsetX) + Mathf.range(wobblyness),
-                y + Angles.trnsy(rotation, type.engineOffsetY, -type.engineOffsetX) + Mathf.range(wobblyness)
-            );
-            trail2.update(
-                x + Angles.trnsx(rotation, type.engineOffsetY, type.engineOffsetX) + Mathf.range(wobblyness),
-                y + Angles.trnsy(rotation, type.engineOffsetY, type.engineOffsetX) + Mathf.range(wobblyness)
-            );
-        }else{
-            trail.update(
-                x + Angles.trnsx(rotation, type.engineOffsetY, type.engineOffsetX) + Mathf.range(wobblyness),
-                y + Angles.trnsy(rotation, type.engineOffsetY, type.engineOffsetX) + Mathf.range(wobblyness)
-            );
+        if(type.drawEngine){
+            if(type.engineMirror){
+                trail.update(
+                    x + Angles.trnsx(rotation, type.engineOffsetY, -type.engineOffsetX) + Mathf.range(wobblyness),
+                    y + Angles.trnsy(rotation, type.engineOffsetY, -type.engineOffsetX) + Mathf.range(wobblyness)
+                );
+                trail2.update(
+                    x + Angles.trnsx(rotation, type.engineOffsetY, type.engineOffsetX) + Mathf.range(wobblyness),
+                    y + Angles.trnsy(rotation, type.engineOffsetY, type.engineOffsetX) + Mathf.range(wobblyness)
+                );
+            }else{
+                trail.update(
+                    x + Angles.trnsx(rotation, type.engineOffsetY, type.engineOffsetX) + Mathf.range(wobblyness),
+                    y + Angles.trnsy(rotation, type.engineOffsetY, type.engineOffsetX) + Mathf.range(wobblyness)
+                );
+            }
         }
     }
 
@@ -319,11 +321,18 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
     }
 
     @Override
-    public void drawOver(){
+    public void drawEngine(){
+        if(type == null || !type.drawEngine) return;
+
         trail.draw(type.trailColor, type.engineSize);
         if(type.engineMirror){
             trail2.draw(type.trailColor, type.engineSize);
         }
+    }
+
+    @Override
+    public void drawOver(){
+        drawEngine();
     }
 
     @Override

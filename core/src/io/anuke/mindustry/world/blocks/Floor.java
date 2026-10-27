@@ -54,6 +54,8 @@ public class Floor extends Block{
     public boolean hasOres = false;
     /** whether this block can be drowned in */
     public boolean isLiquid;
+    /** Hardcoded multiplier for the light emitted by this floor's liquid. Does not affect bloom size. */
+    public float lightScale = 1f;
     /** if true, this block cannot be mined by players. useful for annoying things like stone. */
     public boolean playerUnmineable = false;
 
@@ -70,6 +72,7 @@ public class Floor extends Block{
     public Floor(String name){
         super(name);
         variants = 3;
+        bloomFromDraw = true;
     }
 
     @Override

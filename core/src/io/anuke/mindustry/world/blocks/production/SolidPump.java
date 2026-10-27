@@ -47,10 +47,7 @@ public class SolidPump extends Pump{
         SolidPumpEntity entity = tile.entity();
 
         Draw.rect(region, tile.drawx(), tile.drawy());
-        Draw.color(tile.entity.liquids.current().color);
-        Draw.alpha(tile.entity.liquids.total() / liquidCapacity);
-        Draw.rect(liquidRegion, tile.drawx(), tile.drawy());
-        Draw.color();
+        drawLiquid(tile);
         Draw.rect(name + "-rotator", tile.drawx(), tile.drawy(), entity.pumpTime * rotateSpeed);
         Draw.rect(name + "-top", tile.drawx(), tile.drawy());
     }

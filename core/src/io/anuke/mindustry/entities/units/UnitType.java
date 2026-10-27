@@ -61,6 +61,8 @@ public class UnitType extends UnlockableContent{
     public float engineOffsetY = -6f;
     public boolean engineMirror = false;
     public float engineSize = 5f;
+    /** Whether this unit's engine flare is drawn. Set false for units with no engine, or whose trail should not appear. */
+    public boolean drawEngine = true;
     public boolean emitLight = true;
     public float lightRadius = 60f;
     public Color lightColor = Color.WHITE;
