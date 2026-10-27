@@ -436,6 +436,8 @@ public class Renderer extends RendererModule{
 
         Graphics.clear(clearColor);
 
+        drawReflections();
+
         blocks.drawFloor();
 
         weatherRenderer.drawUnder();
@@ -505,8 +507,6 @@ public class Renderer extends RendererModule{
         Draw.color();
 
         overlays.drawTop();
-
-        drawReflections();
 
         // render bloom sources into the emission buffer for selective bloom
         if(bloom != null && Settings.getBool("bloom")){
