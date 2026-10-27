@@ -47,11 +47,7 @@ public class Pump extends LiquidBlock{
     @Override
     public void draw(Tile tile){
         Draw.rect(name(), tile.drawx(), tile.drawy());
-
-        Draw.color(tile.entity.liquids.current().color);
-        Draw.alpha(tile.entity.liquids.total() / liquidCapacity);
-        Draw.rect(liquidRegion, tile.drawx(), tile.drawy());
-        Draw.color();
+        drawLiquid(tile);
     }
 
     @Override

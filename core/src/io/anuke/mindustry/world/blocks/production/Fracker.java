@@ -3,6 +3,7 @@ package io.anuke.mindustry.world.blocks.production;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.type.Item;
+import io.anuke.mindustry.type.Liquid;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.consumers.ConsumeItem;
 import io.anuke.ucore.graphics.Draw;
@@ -37,14 +38,29 @@ public class Fracker extends SolidPump{
         FrackerEntity entity = tile.entity();
 
         Draw.rect(region, tile.drawx(), tile.drawy());
+        drawLiquid(tile);
+        Draw.rect(rotatorRegion, tile.drawx(), tile.drawy(), entity.pumpTime);
+        Draw.rect(topRegion, tile.drawx(), tile.drawy());
+    }
 
-        Draw.color(result.color);
+    @Override
+    public Liquid liquidFor(Tile tile){
+        if(tile.entity == null || tile.entity.liquids == null) return null;
+        return tile.entity.liquids.get(result) > 0.001f ? result : null;
+    }
+
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
+
+        Draw.color(liquid.color);
         Draw.alpha(tile.entity.liquids.get(result) / liquidCapacity);
         Draw.rect(liquidRegion, tile.drawx(), tile.drawy());
         Draw.color();
-
-        Draw.rect(rotatorRegion, tile.drawx(), tile.drawy(), entity.pumpTime);
-        Draw.rect(topRegion, tile.drawx(), tile.drawy());
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.production.GenericCrafter.GenericCrafterEntity;
+import io.anuke.mindustry.type.Liquid;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Mathf;
 
@@ -14,6 +15,7 @@ public class Compressor extends GenericCrafter{
     public Compressor(String name){
         super(name);
         hasLiquids = true;
+        hasLiquidLayer = true;
         hasPower = true;
         hasItems = true;
     }
@@ -37,10 +39,21 @@ public class Compressor extends GenericCrafter{
 
         Draw.rect(region, tile.drawx(), tile.drawy());
         Draw.rect(frameRegions[(int) Mathf.absin(entity.totalProgress, 5f, 2.999f)], tile.drawx(), tile.drawy());
-        Draw.color(Color.CLEAR, tile.entity.liquids.current().color, tile.entity.liquids.total() / liquidCapacity);
+        drawLiquid(tile);
+        Draw.rect(topRegion, tile.drawx(), tile.drawy());
+    }
+
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
+
+        Draw.color(Color.CLEAR, liquid.color, tile.entity.liquids.total() / liquidCapacity);
         Draw.rect(liquidRegion, tile.drawx(), tile.drawy());
         Draw.color();
-        Draw.rect(topRegion, tile.drawx(), tile.drawy());
     }
 
     @Override

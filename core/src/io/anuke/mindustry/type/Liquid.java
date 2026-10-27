@@ -32,6 +32,8 @@ public class Liquid extends UnlockableContent{
     public int tier;
     /** Whether this liquid should glow when rendered. */
     public boolean emitLight = false;
+    /** Multiplier for the light radius emitted by this liquid. Only used when {@link #emitLight} is true. */
+    public float lightScale = 1f;
     /** Displayed icon. */
     public TextureRegion iconRegion;
 

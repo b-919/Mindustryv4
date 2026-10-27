@@ -74,20 +74,31 @@ public class LiquidMixer extends LiquidBlock{
 
     @Override
     public void draw(Tile tile){
-        LiquidModule mod = tile.entity.liquids;
-
         int rotation = rotate ? tile.getRotation() * 90 : 0;
 
         Draw.rect(bottomRegion, tile.drawx(), tile.drawy(), rotation);
+        drawLiquid(tile);
+        Draw.rect(topRegion, tile.drawx(), tile.drawy(), rotation);
+    }
 
-        if(mod.total() > 0.001f){
-            Draw.color(outputLiquid.color);
-            Draw.alpha(mod.get(outputLiquid) / liquidCapacity);
-            Draw.rect(liquidRegion, tile.drawx(), tile.drawy(), rotation);
+    @Override
+    public Liquid liquidFor(Tile tile){
+        if(tile.entity == null || tile.entity.liquids == null) return null;
+        return tile.entity.liquids.get(outputLiquid) > 0.001f ? outputLiquid : null;
+    }
+
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
             Draw.color();
+            return;
         }
 
-        Draw.rect(topRegion, tile.drawx(), tile.drawy(), rotation);
+        Draw.color(liquid.color);
+        Draw.alpha(tile.entity.liquids.get(outputLiquid) / liquidCapacity);
+        Draw.rect(liquidRegion, tile.drawx(), tile.drawy());
+        Draw.color();
     }
 
     @Override

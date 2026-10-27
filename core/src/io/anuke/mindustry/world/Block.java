@@ -27,6 +27,7 @@ import io.anuke.mindustry.sounds.Sounds;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.ItemStack;
+import io.anuke.mindustry.type.Liquid;
 import io.anuke.mindustry.world.meta.*;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.core.Core;
@@ -152,14 +153,33 @@ public class Block extends BaseBlock {
         return size * lightAmplification;
     }
 
+    /** Radius of light emitted by this block for culling, including its stored liquid. */
+    public float lightRadius(Tile tile){
+        float radius = lightRadius();
+
+        if(hasLiquidLayer){
+            Liquid liquid = liquidFor(tile);
+            if(liquid != null && liquid.emitLight){
+                radius = Math.max(radius, size * 0.8f * liquid.lightScale);
+            }
+        }
+
+        return radius;
+    }
+
     /** Whether this block's layer texture emits light. The light is drawn in addition to the layer, not instead of it. */
     public boolean layerLight = false;
     /** Radius of the light emitted by this block's layer, in tiles. */
     public float layerLightRadius = 4f;
     /** Opacity of the light emitted by this block's layer. */
     public float layerLightOpacity = 0.5f;
-    /** Whether this block overrides drawBloom(). Used to skip virtual dispatch in the bloom pass. */
+    /** Whether this block participates in the bloom pass. */
     public boolean hasBloom = false;
+    /** Whether this block renders a visible liquid layer from its stored liquids. */
+    public boolean hasLiquidLayer = false;
+    /** When true, bloom is taken from this block's actual tile draw instead of drawBloom().
+     *  Floors set this to true; regular blocks keep using drawBloom(). */
+    public boolean bloomFromDraw = false;
     /** Color of the light emitted by this block's layer. */
     public Color layerLightColor = Color.WHITE;
 
@@ -786,6 +806,39 @@ public class Block extends BaseBlock {
     /** Draws bloom-only visuals for this block (additive glow, heat overlays, etc.) into the emission buffer.
      *  Override in subclasses that have bloom sources. Default is empty. */
     public void drawBloom(Tile tile){
+    }
+
+    /** The liquid represented by this block's liquid layer, or null if there is none. */
+    public Liquid liquidFor(Tile tile){
+        if(tile == null || tile.entity == null || tile.entity.liquids == null) return null;
+        return tile.entity.liquids.total() > 0.001f ? tile.entity.liquids.current() : null;
+    }
+
+    /** Draws only this block's liquid layer. Override in blocks with {@link #hasLiquidLayer}. */
+    public void drawLiquid(Tile tile){
+    }
+
+    /** Draws the light emitted by this block's stored liquid. */
+    public void drawLiquidLight(Tile tile){
+        if(!hasLiquidLayer) return;
+
+        Liquid liquid = liquidFor(tile);
+        if(liquid != null && liquid.emitLight){
+            drawLight(tile.drawx(), tile.drawy(), size * tilesize * 0.8f * liquid.lightScale, 0.45f, liquid.color);
+        }
+    }
+
+    /** Renders this block's normal tile visuals into the bloom emission buffer. Used by floors via {@link #bloomFromDraw}. */
+    public void drawBloomFromDraw(Tile tile){
+        draw(tile);
+
+        if(layer != null && isLayer(tile)){
+            drawLayer(tile);
+        }
+
+        if(layer2 != null && isLayer2(tile)){
+            drawLayer2(tile);
+        }
     }
 
     /** Draws the radial light emitted by this block. */

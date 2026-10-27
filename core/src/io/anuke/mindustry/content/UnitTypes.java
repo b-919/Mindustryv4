@@ -172,6 +172,7 @@ public class UnitTypes implements ContentList{
 
         bombDrone = new UnitType("bomb_drone", BombDrone.class, BombDrone::new){{
             isFlying = true;
+            drawEngine = false;
             weapon = Weapons.kamikazeDrone;
             maxVelocity = 1.25f;
             speed = 0.308f;
@@ -457,6 +458,7 @@ public class UnitTypes implements ContentList{
 
         logisticsDrone = new UnitType("logistics-drone", LogisticsDrone.class, LogisticsDrone::new){{
             isFlying = true;
+            drawEngine = false;
             drag = 0.01f;
             speed = 0.5f;
             maxVelocity = 1.5f;
@@ -595,6 +597,7 @@ public class UnitTypes implements ContentList{
         evilSwarmDrone = new UnitType("evil-swarm-drone", BiomassSwarm.class, BiomassSwarm::new){
             {
                 isFlying = true;
+                drawEngine = false;
                 drag = 0.005f;
                 speed = 0.6f;
                 maxVelocity = 1.7f;
@@ -630,6 +633,7 @@ public class UnitTypes implements ContentList{
 
         acidMosquito = new UnitType("acid-mosquito", BiomassMosquito.class, BiomassMosquito::new){{
             isFlying = true;
+            drawEngine = false;
             health = 100;
             hitsize = 4f;
             mass = 0.1f;

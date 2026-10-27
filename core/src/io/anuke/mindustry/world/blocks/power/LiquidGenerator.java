@@ -22,6 +22,7 @@ public abstract class LiquidGenerator extends PowerGenerator{
         super(name);
         liquidCapacity = 30f;
         hasLiquids = true;
+        hasLiquidLayer = true;
     }
 
     @Override
@@ -33,11 +34,19 @@ public abstract class LiquidGenerator extends PowerGenerator{
     @Override
     public void draw(Tile tile){
         super.draw(tile);
+        drawLiquid(tile);
+    }
 
-        TileEntity entity = tile.entity();
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
 
-        Draw.color(entity.liquids.current().color);
-        Draw.alpha(entity.liquids.total() / liquidCapacity);
+        Draw.color(liquid.color);
+        Draw.alpha(tile.entity.liquids.total() / liquidCapacity);
         drawLiquidCenter(tile);
         Draw.color();
     }

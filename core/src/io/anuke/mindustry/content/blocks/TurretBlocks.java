@@ -107,11 +107,7 @@ public class TurretBlocks extends BlockList implements ContentList{
 
             drawer = (tile, entity) -> {
                 Draw.rect(region, tile.drawx() + tr2.x, tile.drawy() + tr2.y, entity.rotation - 90);
-
-                Draw.color(entity.liquids.current().color);
-                Draw.alpha(entity.liquids.total() / liquidCapacity);
-                Draw.rect(name + "-liquid", tile.drawx() + tr2.x, tile.drawy() + tr2.y, entity.rotation - 90);
-                Draw.color();
+                drawLiquid(tile);
             };
         }};
 

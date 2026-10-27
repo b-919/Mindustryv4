@@ -1,5 +1,6 @@
 package io.anuke.mindustry.world.blocks.defense.turrets;
 
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.ObjectMap;
 import io.anuke.mindustry.entities.effect.Fire;
 import io.anuke.mindustry.type.AmmoType;
@@ -11,6 +12,7 @@ import io.anuke.mindustry.world.meta.BlockBar;
 import io.anuke.mindustry.world.meta.BlockStat;
 import io.anuke.mindustry.world.meta.values.LiquidFilterValue;
 import io.anuke.ucore.core.Effects;
+import io.anuke.ucore.graphics.Draw;
 
 import static io.anuke.mindustry.Vars.tilesize;
 import static io.anuke.mindustry.Vars.world;
@@ -18,10 +20,46 @@ import static io.anuke.mindustry.Vars.world;
 public abstract class LiquidTurret extends Turret{
     protected AmmoType[] ammoTypes;
     protected ObjectMap<Liquid, AmmoType> liquidAmmoMap = new ObjectMap<>();
+    protected TextureRegion liquidRegion;
 
     public LiquidTurret(String name){
         super(name);
         hasLiquids = true;
+        hasLiquidLayer = true;
+    }
+
+    @Override
+    public void load(){
+        super.load();
+        liquidRegion = Draw.region(name + "-liquid");
+    }
+
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
+
+        TurretEntity entity = tile.entity();
+        tr2.trns(entity.rotation, -entity.recoil);
+
+        Draw.color(liquid.color);
+        Draw.alpha(tile.entity.liquids.total() / liquidCapacity);
+        Draw.rect(liquidRegion, tile.drawx() + tr2.x, tile.drawy() + tr2.y, entity.rotation - 90);
+        Draw.color();
+    }
+
+    @Override
+    public void drawLiquidLight(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null || !liquid.emitLight) return;
+
+        TurretEntity entity = tile.entity();
+        tr2.trns(entity.rotation, -entity.recoil);
+
+        drawLight(tile.drawx() + tr2.x, tile.drawy() + tr2.y, size * tilesize * 0.8f * liquid.lightScale, 0.45f, liquid.color);
     }
 
     @Override

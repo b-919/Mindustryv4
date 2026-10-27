@@ -260,18 +260,30 @@ public class Conduit extends LiquidBlock implements Autotiler{
     @Override
     public void draw(Tile tile){
         ConduitEntity entity = tile.entity();
-        LiquidModule mod = tile.entity.liquids;
         int rotation = tile.getRotation() * 90;
 
         Draw.colorl(0.34f);
         Draw.rect(botRegions[entity.blendbits], tile.drawx(), tile.drawy(), rotation);
 
-        Draw.color(mod.current().color);
-        Draw.alpha(entity.smoothLiquid);
-        Draw.rect(botRegions[entity.blendbits], tile.drawx(), tile.drawy(), rotation);
-        Draw.color();
+        drawLiquid(tile);
 
         Draw.rect(topRegions[entity.blendbits], tile.drawx(), tile.drawy(), rotation);
+    }
+
+    @Override
+    public void drawLiquid(Tile tile){
+        Liquid liquid = liquidFor(tile);
+        if(liquid == null){
+            Draw.color();
+            return;
+        }
+
+        ConduitEntity entity = tile.entity();
+
+        Draw.color(liquid.color);
+        Draw.alpha(entity.smoothLiquid);
+        Draw.rect(botRegions[entity.blendbits], tile.drawx(), tile.drawy(), tile.getRotation() * 90);
+        Draw.color();
     }
 
     @Override

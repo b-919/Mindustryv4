@@ -3,6 +3,7 @@ package io.anuke.mindustry.content.fx;
 import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.entities.effect.GroundEffectEntity.GroundEffect;
 import io.anuke.mindustry.graphics.DrawPseudo3D;
+import io.anuke.mindustry.graphics.Drawf;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.game.ContentList;
 import io.anuke.ucore.core.Effects.Effect;
@@ -49,11 +50,13 @@ public class BlockFx extends FxList implements ContentList{
                 float size = e.fout() * 14f;
                 Draw.color(Color.valueOf("bf92f9"), Color.GRAY, e.fin());
                 Draw.rect("circle", e.x + x, e.y + y, size, size);
+                Drawf.light(e.x + x, e.y + y, size * 2.5f, 0.5f * e.fout());
                 Draw.reset();
             });
 
         });
         nuclearcloud.emitLight = true;
+        nuclearcloud.particleLight = true;
         nuclearcloud.lightRadius = 100f;
         nuclearcloud.lightOpacity = 0.8f;
         nuclearcloud.lightColor = Color.valueOf("bf92f9");
@@ -63,10 +66,12 @@ public class BlockFx extends FxList implements ContentList{
                 float size = e.fout() * 28f;
                 Draw.color(Color.valueOf("ffd969"), Color.GRAY, e.fin());
                 Draw.rect("circle", e.x + x, e.y + y, size, size);
+                Drawf.light(e.x + x, e.y + y, size * 2.5f, 0.4f * e.fout());
                 Draw.reset();
             });
         });
         fissionCloud.emitLight = true;
+        fissionCloud.particleLight = true;
         fissionCloud.lightRadius = 150f;
         fissionCloud.lightOpacity = 0.6f;
         fissionCloud.lightColor = Color.valueOf("ffd969");

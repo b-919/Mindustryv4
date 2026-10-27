@@ -15,6 +15,10 @@ import io.anuke.ucore.util.Angles;
 import static io.anuke.ucore.core.Timers.delta;
 
 public class LogisticsDrone extends FlyingUnit {
+    @Override
+    public boolean canShootWeapons() {
+        return false;
+    }
     float propRot;
 
     @Override
@@ -48,10 +52,6 @@ public class LogisticsDrone extends FlyingUnit {
         Draw.color();
         Draw.alpha(0f);
         Draw.rect(type.name + "-propeller", wx, wy, spin);
-    }
-    @Override
-    public void drawOver(){
-        trail.draw(Color.BLACK, 0f);
     }
 
         public final UnitState

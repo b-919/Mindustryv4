@@ -408,8 +408,15 @@ public class Drone extends FlyingUnit implements BuilderTrait{
     }
 
     @Override
+    public void drawEngine(){
+        if(type != null && type.drawEngine){
+            trail.draw(Palette.lightTrail, 3f);
+        }
+    }
+
+    @Override
     public void drawOver(){
-        trail.draw(Palette.lightTrail, 3f);
+        drawEngine();
         drawBuilding(this);
     }
 

@@ -196,8 +196,15 @@ public class DroneMiner extends FlyingUnit implements MinerTrait {
     }
 
     @Override
+    public void drawEngine(){
+        if(type != null && type.drawEngine){
+            trail.draw(Palette.lightFlame, 3f);
+        }
+    }
+
+    @Override
     public void drawOver(){
-        trail.draw(Palette.lightFlame, 3f);
+        drawEngine();
         drawMining(this);
     }
     @Override
