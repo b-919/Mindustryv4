@@ -87,6 +87,8 @@ public class TileBloomLayer implements BloomLayer{
     }
 
     private void drawLavaFloorBloom(int minx, int miny, int maxx, int maxy){
+        if(!renderer.blocks.isLayerVisible(CacheLayer.lava)) return;
+
         Surface lavaSurface = renderer.lavaBloomSurface;
         boolean any = false;
 

@@ -25,6 +25,7 @@ import io.anuke.ucore.entities.trait.DamageTrait;
 import io.anuke.ucore.entities.trait.DrawTrait;
 import io.anuke.ucore.entities.trait.Entity;
 import io.anuke.ucore.entities.trait.SolidTrait;
+import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;
 import io.anuke.ucore.util.Geometry;
@@ -47,6 +48,8 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
 
     private static final Rectangle queryRect = new Rectangle();
     private static final Vector2 moveVector = new Vector2();
+    /** Reused separation callback; allocating this lambda once per unit per frame is avoidable. */
+    private final Consumer<Unit> avoidConsumer = this::avoidOther;
 
     public final UnitInventory inventory = new UnitInventory(this);
     public Boolean emitLight = null;
@@ -245,12 +248,23 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
         getHitbox(queryRect);
         queryRect.setSize(queryRect.getWidth() * scaling);
 
-        Units.getNearby(queryRect, t -> {
-            if(t == this || t.getCarrier() == this || getCarrier() == t || t.isFlying() != isFlying()) return;
-            float dst = distanceTo(t);
-            moveVector.set(x, y).sub(t.getX(), t.getY()).setLength(1f * (1f - (dst / queryRect.getWidth())));
-            applyImpulse(moveVector.x, moveVector.y);
-        });
+        Units.getNearby(queryRect, avoidConsumer);
+    }
+
+    /** Applies the separation impulse for one nearby unit; see {@link #avoidOthers(float)}. */
+    private void avoidOther(Unit t){
+        if(t == this || t.getCarrier() == this || getCarrier() == t || t.isFlying() != isFlying()) return;
+
+        float dx = x - t.getX(), dy = y - t.getY();
+        float dstSq = dx * dx + dy * dy;
+        float size = queryRect.getWidth();
+
+        //the tree returns false positives; skip them (and exact overlaps) before the sqrt
+        if(dstSq >= size * size || dstSq < 0.0001f) return;
+
+        float dst = (float)Math.sqrt(dstSq);
+        moveVector.set(dx, dy).setLength(1f - (dst / size));
+        applyImpulse(moveVector.x, moveVector.y);
     }
 
     public TileEntity getClosestCore(){
@@ -276,15 +290,15 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
 
     /**Updates velocity and status effects.*/
     public void updateVelocityStatus(){
-        Floor floor = getFloorOn();
-
         if(isCarried()){ //carried units do not take into account velocity normally
             set(carrier.getX(), carrier.getY());
             velocity.set(carrier.getVelocity());
             return;
         }
 
+        //one tile lookup for both the floor and the block underneath
         Tile tile = world.tileWorld(x, y);
+        Floor floor = tile == null ? (Floor) Blocks.air : tile.floor();
 
         status.update(this);
 

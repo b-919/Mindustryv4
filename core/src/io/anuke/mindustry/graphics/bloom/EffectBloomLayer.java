@@ -3,6 +3,7 @@ package io.anuke.mindustry.graphics.bloom;
 import io.anuke.mindustry.graphics.BloomLayer;
 import io.anuke.mindustry.graphics.BloomLayers;
 import io.anuke.mindustry.graphics.Drawf;
+import io.anuke.mindustry.core.Renderer;
 import io.anuke.ucore.entities.impl.EffectEntity;
 
 import static io.anuke.mindustry.Vars.*;
@@ -40,7 +41,8 @@ public class EffectBloomLayer implements BloomLayer{
     }
 
     private void drawBloom(EffectEntity entity){
-        if(entity.effect != null && entity.effect.emitLight){
+        if(entity.effect != null && entity.effect.emitLight
+                && renderer.isVisible(entity.x, entity.y, Renderer.bloomCullMargin)){
             entity.draw();
         }
     }

@@ -5,11 +5,13 @@ import com.badlogic.gdx.math.WindowedMean;
 import com.badlogic.gdx.utils.TimeUtils;
 
 public enum PerfCounter{
-    frame, update, other, stateUpdate, entityMisc, entityUpdate, buildingUpdate, powerUpdate, unitUpdate, bulletUpdate, ui, render;
+    frame, update, other, stateUpdate, entityMisc, entityUpdate, buildingUpdate, powerUpdate, unitUpdate, bulletUpdate, ui, render,
+    blocks, reflections, bloom, lights;
 
     public static final PerfCounter[] all = values();
     public static final PerfCounter[] displayedCounters = {
-        powerUpdate, buildingUpdate, entityMisc, bulletUpdate, unitUpdate, render, ui, stateUpdate, other
+        powerUpdate, buildingUpdate, entityMisc, bulletUpdate, unitUpdate,
+        render, blocks, reflections, bloom, lights, ui, stateUpdate, other
     };
 
     public final WindowedMean mean = new WindowedMean(meanWindow);

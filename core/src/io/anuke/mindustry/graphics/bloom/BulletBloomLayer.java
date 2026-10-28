@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.entities.bullet.Bullet;
 import io.anuke.mindustry.entities.bullet.BulletType;
 import io.anuke.mindustry.entities.effect.Lightning;
+import io.anuke.mindustry.core.Renderer;
 import io.anuke.mindustry.graphics.BloomLayer;
 import io.anuke.mindustry.graphics.BloomLayers;
 import io.anuke.ucore.entities.trait.PosTrait;
@@ -30,7 +31,8 @@ public class BulletBloomLayer implements BloomLayer{
         for(Object entity : bulletGroup.allRaw()){
             if(entity instanceof Bullet bullet){
                 BulletType type = bullet.getBulletType();
-                if(type.bloom){
+                //skip the (usually numerous) off-screen bullets before touching the sprite
+                if(type.bloom && renderer.isVisible(bullet.x, bullet.y, Renderer.bloomCullMargin)){
                     type.drawBloom(bullet);
                 }
             }else if(entity instanceof Lightning l){

@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.BufferUtils;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.TimeUtils;
@@ -109,6 +110,23 @@ public class Renderer extends RendererModule{
     private Rectangle rect = new Rectangle(), rect2 = new Rectangle();
     private Vector2 avgPosition = new Translator();
     private Color ambient = new Color();
+    /** Reused projection for the lightmap composite; allocating a Matrix4 per frame is pure GC churn. */
+    private final Matrix4 lightmapMatrix = new Matrix4();
+    /** Cached 'circle' region used by every radial light; Draw.region() is an atlas hash lookup per light otherwise. */
+    private TextureRegion circleRegion;
+    /** World-space rectangle the current frame may draw into, padded by {@link #cullPadding}. */
+    private final Rectangle cullRect = new Rectangle();
+    /** Slack added to the cull rectangle so sprites/trails whose origin is just off-screen still draw. */
+    private static final float cullPadding = 24f;
+    /** Reused collections for the flyer shadow pass, so it can bail out before binding its surface. */
+    private final Array<BaseUnit> airborneUnits = new Array<>();
+    private final Array<Player> airbornePlayers = new Array<>();
+    /** Visible unit counts per team for the current flyer/ground pass, so the pass can skip teams
+     *  with nothing on screen instead of paying a full-screen outline framebuffer for them. */
+    private final int[] visibleCounts = new int[Team.all.length];
+    /** Margin used when culling bloom sources; generous because bloom is a blurred view of the scene.
+     *  Bullets and effects are the numerous entities, and this keeps their trails/beams from popping. */
+    public static final float bloomCullMargin = 128f;
 
     /**
      * Water reflection sprites re-drawn mirrored, then washed toward the tint configured on
@@ -428,6 +446,7 @@ public class Renderer extends RendererModule{
         if(Float.isNaN(Core.camera.position.x) || Float.isNaN(Core.camera.position.y)){
             Core.camera.position.set(players[0].x, players[0].y, 0f);
         }
+        updateCullRect();
 
         if(bloom != null){
             bloom.setBloomIntensity(Settings.getInt("bloomintensity") / 10f);
@@ -443,9 +462,13 @@ public class Renderer extends RendererModule{
 
         Graphics.clear(clearColor);
 
+        PerfCounter.reflections.begin();
         drawReflections();
+        PerfCounter.reflections.end();
 
+        PerfCounter.blocks.begin();
         blocks.drawFloor();
+        PerfCounter.blocks.end();
 
         weatherRenderer.drawUnder();
 
@@ -519,14 +542,18 @@ public class Renderer extends RendererModule{
 
         // render bloom sources into the emission buffer for selective bloom
         if(bloom != null && Settings.getBool("bloom")){
+            PerfCounter.bloom.begin();
             drawBloomSources();
+            PerfCounter.bloom.end();
         }
 
         boolean postActive = bloom != null && Settings.getBool("bloom");
 
         if((weather.isDayNight() ? weather.cycleDarkness() : state.darkness) > 0.01f){
+            PerfCounter.lights.begin();
             drawLights();
             drawLightmap();
+            PerfCounter.lights.end();
             Graphics.surface();
             batch.end();
             // fog must run before bloom so pixelSurface contains the fogged scene
@@ -564,6 +591,35 @@ public class Renderer extends RendererModule{
         Draw.color();
 
         PerfCounter.render.end();
+    }
+
+    /** Recomputes the world-space rectangle auxiliary passes may draw from. Called once per frame
+     *  before any drawing, so every pass culls against exactly the same view. */
+    private void updateCullRect(){
+        cullRect.set(camera.position.x - camera.viewportWidth / 2f - cullPadding,
+                camera.position.y - camera.viewportHeight / 2f - cullPadding,
+                camera.viewportWidth + cullPadding * 2f,
+                camera.viewportHeight + cullPadding * 2f);
+    }
+
+    /** @return whether a point with the given world-space margin can still reach the visible scene. */
+    public boolean isVisible(float x, float y, float margin){
+        return x + margin >= cullRect.x && x - margin <= cullRect.x + cullRect.width &&
+                y + margin >= cullRect.y && y - margin <= cullRect.y + cullRect.height;
+    }
+
+    /** The shared 'circle' light region, resolved once instead of once per light. */
+    public TextureRegion circleRegion(){
+        if(circleRegion == null){
+            circleRegion = Draw.region("circle");
+        }
+        return circleRegion;
+    }
+
+    /** Whether this tile's entity adds a light override on top of its block's own light. */
+    private boolean hasEntityLight(Tile tile){
+        TileEntity entity = tile.entity;
+        return entity != null && (entity.emitLight != null || entity.layerLight != null);
     }
 
     public void drawLights(){
@@ -610,17 +666,23 @@ public class Renderer extends RendererModule{
         for(int x = minx; x <= maxx; x++){
             for(int y = miny; y <= maxy; y++){
                 Tile tile = world.peekTile(x, y);
-                if(tile != null && tile.block() != Blocks.air){
-                    Block block = tile.block();
-                    float radius = Math.max(block.lightRadius(tile) * tilesize, block.layerLightRadius * tilesize) + tilesize * 2f;
-                    if(lightVisible(tile.drawx(), tile.drawy(), radius)){
-                        block.drawLight(tile);
-                        block.drawLayerLight(tile);
-                        block.drawLiquidLight(tile);
+                if(tile == null) continue;
+
+                Block block = tile.block();
+
+                if(block != Blocks.air){
+                    //most blocks emit nothing at all; skip the radius calculation and three virtual
+                    //light draws for them before they ever reach the culler
+                    if(block.canEmitLight() || hasEntityLight(tile)){
+                        float radius = Math.max(block.lightRadius(tile) * tilesize, block.layerLightRadius * tilesize) + tilesize * 2f;
+                        if(lightVisible(tile.drawx(), tile.drawy(), radius)){
+                            block.drawLight(tile);
+                            block.drawLayerLight(tile);
+                            block.drawLiquidLight(tile);
+                        }
                     }
-                }
-                // liquid floor light emission (lava, slag, cryofluid)
-                if(tile != null && tile.block() == Blocks.air){
+                }else{
+                    // liquid floor light emission (lava, slag, cryofluid)
                     Floor floor = tile.floor();
 
                     if(floor.liquidDrop != null && floor.liquidDrop.emitLight){
@@ -628,11 +690,11 @@ public class Renderer extends RendererModule{
 
                         if(lightVisible(tile.drawx(), tile.drawy(), tilesize * 3f * scale)){
                             Draw.color(floor.liquidDrop.color);
-                            Shaders.light.region = Draw.region("circle");
+                            Shaders.light.region = circleRegion();
                             Draw.alpha(0.35f);
-                            Draw.rect("circle", tile.drawx(), tile.drawy(), tilesize * 4f * scale, tilesize * 4f * scale);
+                            Draw.rect(circleRegion(), tile.drawx(), tile.drawy(), tilesize * 4f * scale, tilesize * 4f * scale);
                             Draw.alpha(0.18f);
-                            Draw.rect("circle", tile.drawx(), tile.drawy(), tilesize * 4f * scale, tilesize * 4f * scale);
+                            Draw.rect(circleRegion(), tile.drawx(), tile.drawy(), tilesize * 4f * scale, tilesize * 4f * scale);
                         }
                     }
                 }
@@ -652,11 +714,11 @@ public class Renderer extends RendererModule{
                 float fade = l.fout();
                 if(fade > 0.01f && lightVisible(l.x, l.y, 30f * fade)){
                     Draw.color(l.color);
-                    Shaders.light.region = Draw.region("circle");
+                    Shaders.light.region = circleRegion();
                     Draw.alpha(fade * 0.5f);
-                    Draw.rect("circle", l.x, l.y, 60f * fade, 60f * fade);
+                    Draw.rect(circleRegion(), l.x, l.y, 60f * fade, 60f * fade);
                     Draw.alpha(fade * 0.25f);
-                    Draw.rect("circle", l.x, l.y, 60f * fade, 60f * fade);
+                    Draw.rect(circleRegion(), l.x, l.y, 60f * fade, 60f * fade);
                 }
             }
         }
@@ -687,11 +749,11 @@ public class Renderer extends RendererModule{
                         float tx = mineTile.worldx(), ty = mineTile.worldy();
                         if(lightVisible(tx, ty, 12f)){
                             Draw.color(Palette.accent);
-                            Shaders.light.region = Draw.region("circle");
+                            Shaders.light.region = circleRegion();
                             Draw.alpha(0.4f);
-                            Draw.rect("circle", tx, ty, 24f, 24f);
+                            Draw.rect(circleRegion(), tx, ty, 24f, 24f);
                             Draw.alpha(0.2f);
-                            Draw.rect("circle", tx, ty, 24f, 24f);
+                            Draw.rect(circleRegion(), tx, ty, 24f, 24f);
                         }
                     }
                 }
@@ -705,11 +767,11 @@ public class Renderer extends RendererModule{
                     float tx = mineTile.worldx(), ty = mineTile.worldy();
                     if(lightVisible(tx, ty, 12f)){
                         Draw.color(Palette.accent);
-                        Shaders.light.region = Draw.region("circle");
+                        Shaders.light.region = circleRegion();
                         Draw.alpha(0.4f);
-                        Draw.rect("circle", tx, ty, 24f, 24f);
+                        Draw.rect(circleRegion(), tx, ty, 24f, 24f);
                         Draw.alpha(0.2f);
-                        Draw.rect("circle", tx, ty, 24f, 24f);
+                        Draw.rect(circleRegion(), tx, ty, 24f, 24f);
                     }
                 }
             }
@@ -731,11 +793,11 @@ public class Renderer extends RendererModule{
         for(Effects.Light effectLight : Effects.lights()){
             if(!lightVisible(effectLight.x, effectLight.y, effectLight.radius)) continue;
             Draw.color(effectLight.color);
-            Shaders.light.region = Draw.region("circle");
+            Shaders.light.region = circleRegion();
             Draw.alpha(effectLight.opacity);
-            Draw.rect("circle", effectLight.x, effectLight.y, effectLight.radius * 2f, effectLight.radius * 2f);
+            Draw.rect(circleRegion(), effectLight.x, effectLight.y, effectLight.radius * 2f, effectLight.radius * 2f);
             Draw.alpha(effectLight.opacity * 0.5f);
-            Draw.rect("circle", effectLight.x, effectLight.y, effectLight.radius * 2f, effectLight.radius * 2f);
+            Draw.rect(circleRegion(), effectLight.x, effectLight.y, effectLight.radius * 2f, effectLight.radius * 2f);
         }
         Effects.clearLights();
 
@@ -788,11 +850,11 @@ public class Renderer extends RendererModule{
         if(radius > 0.001f && opacity > 0.001f){
             if(!lightVisible(entity.x, entity.y, radius)) return;
             Draw.color(color);
-            Shaders.light.region = Draw.region("circle");
+            Shaders.light.region = circleRegion();
             Draw.alpha(opacity);
-            Draw.rect("circle", entity.x, entity.y, radius * 2, radius * 2);
+            Draw.rect(circleRegion(), entity.x, entity.y, radius * 2, radius * 2);
             Draw.alpha(opacity * 0.5f);
-            Draw.rect("circle", entity.x, entity.y, radius * 2, radius * 2);
+            Draw.rect(circleRegion(), entity.x, entity.y, radius * 2, radius * 2);
         }
     }
 
@@ -819,7 +881,7 @@ public class Renderer extends RendererModule{
     private void drawLightmap(){
         batch.flush();
         batch.setBlendFunction(GL20.GL_DST_COLOR, GL20.GL_ZERO);
-        batch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, pixelSurface.width(), pixelSurface.height()));
+        batch.setProjectionMatrix(lightmapMatrix.setToOrtho2D(0, 0, pixelSurface.width(), pixelSurface.height()));
         batch.draw(lightSurface.texture(), 0, 0, pixelSurface.width(), pixelSurface.height(), 0, 0, 1, 1);
         batch.flush();
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
@@ -860,6 +922,10 @@ public class Renderer extends RendererModule{
      * Each object is drawn in isolation so a single bad draw can never corrupt the rest
      * of the capture or leave the surface/transform stack unbalanced. */
     private void drawReflections(){
+        //the buffer is only sampled by the water shader, so there is nothing to capture when no
+        //water is on screen; skipping it saves a complete second scene pass over the viewport
+        if(!blocks.isLayerVisible(CacheLayer.water)) return;
+
         int avgx = Mathf.scl(camera.position.x, tilesize);
         int avgy = Mathf.scl(camera.position.y, tilesize);
         int rangex = (int)(camera.viewportWidth / tilesize / 2) + 2;
@@ -1087,18 +1153,36 @@ public class Renderer extends RendererModule{
     }
 
     private void drawFlyerShadows(){
+        //collect shadows first: binding and clearing a full-screen surface for nothing is pure cost
+        airborneUnits.clear();
+        airbornePlayers.clear();
+
+        for(EntityGroup<? extends BaseUnit> group : unitGroups){
+            for(BaseUnit unit : group.all()){
+                if(unit.isFlying() && !unit.isDead() && isVisible(unit.x, unit.y, unit.drawSize() + 24f)){
+                    airborneUnits.add(unit);
+                }
+            }
+        }
+
+        for(Player player : playerGroup.all()){
+            if(player.isFlying() && !player.isDead() && isVisible(player.x, player.y, player.drawSize() + 24f)){
+                airbornePlayers.add(player);
+            }
+        }
+
+        if(airborneUnits.size == 0 && airbornePlayers.size == 0) return;
+
         Graphics.surface(effectSurface, true, false);
 
         float trnsX = -12, trnsY = -13;
 
-        for(EntityGroup<? extends BaseUnit> group : unitGroups){
-            if(!group.isEmpty()){
-                drawAndInterpolate(group, unit -> unit.isFlying() && !unit.isDead(), baseUnit -> baseUnit.drawShadow(trnsX, trnsY));
-            }
+        for(BaseUnit unit : airborneUnits){
+            unit.drawShadow(trnsX, trnsY);
         }
 
-        if(!playerGroup.isEmpty()){
-            drawAndInterpolate(playerGroup, unit -> unit.isFlying() && !unit.isDead(), player -> player.drawShadow(trnsX, trnsY));
+        for(Player player : airbornePlayers){
+            player.drawShadow(trnsX, trnsY);
         }
 
         Draw.color(0, 0, 0, 0.15f);
@@ -1108,18 +1192,19 @@ public class Renderer extends RendererModule{
 
     private void drawAllTeams(boolean flying){
         currentFlying = flying;
+        countVisibleUnits(flying);
 
         for(Team team : Team.all){
             EntityGroup<BaseUnit> group = unitGroups[team.ordinal()];
+            int visible = visibleCounts[team.ordinal()];
 
-            if(group.isEmpty() && playerGroup.count(p -> (p.isFlying() || p.highAltitude) == flying && p.getTeam() == team) == 0) continue;
-
-            if(flying && group.count(p -> p.isFlying() || p.highAltitude) == 0 &&
-                    playerGroup.count(p -> (p.isFlying() || p.highAltitude) && p.getTeam() == team) == 0) continue;
+            //skip teams with nothing of theirs on screen: this avoids both the entity passes and,
+            //far more importantly, a full-screen outline framebuffer round-trip per team
+            if(visible == 0 && !blocks.isTeamShown(team)) continue;
 
             currentTeam = team;
 
-            drawAndInterpolate(unitGroups[team.ordinal()], unitFlyingFilter, Unit::drawUnder);
+            drawAndInterpolate(group, unitFlyingFilter, Unit::drawUnder);
             drawAndInterpolate(playerGroup, playerFlyingFilter, Unit::drawUnder);
 
             Shaders.outline.color.set(team.color);
@@ -1127,14 +1212,38 @@ public class Renderer extends RendererModule{
 
             Graphics.beginShaders(Shaders.outline);
             Graphics.shader(Shaders.mix, true);
-            drawAndInterpolate(unitGroups[team.ordinal()], unitFlyingFilter, Unit::drawAll);
+            drawAndInterpolate(group, unitFlyingFilter, Unit::drawAll);
             drawAndInterpolate(playerGroup, playerFlyingFilter, Unit::drawAll);
             Graphics.shader();
             blocks.drawTeamBlocks(Layer.turret, team);
             Graphics.endShaders();
 
-            drawAndInterpolate(unitGroups[team.ordinal()], unitFlyingFilter, Unit::drawOver);
+            drawAndInterpolate(group, unitFlyingFilter, Unit::drawOver);
             drawAndInterpolate(playerGroup, playerFlyingFilter, Unit::drawOver);
+        }
+    }
+
+    /** Counts how many units of each team are visible for this pass. Replaces the per-team
+     *  {@code count(predicate)} scans with a single traversal per pass. */
+    private void countVisibleUnits(boolean flying){
+        java.util.Arrays.fill(visibleCounts, 0);
+
+        for(Team team : Team.all){
+            for(BaseUnit unit : unitGroups[team.ordinal()].all()){
+                if(unit.isDead()) continue;
+                if((unit.isFlying() || unit.highAltitude) != flying) continue;
+                if(isVisible(unit.x, unit.y, unit.drawSize() + 16f)){
+                    visibleCounts[team.ordinal()]++;
+                }
+            }
+        }
+
+        for(Player player : playerGroup.all()){
+            if(player.isDead()) continue;
+            if((player.isFlying() || player.highAltitude) != flying) continue;
+            if(isVisible(player.x, player.y, player.drawSize() + 16f)){
+                visibleCounts[player.getTeam().ordinal()]++;
+            }
         }
     }
 

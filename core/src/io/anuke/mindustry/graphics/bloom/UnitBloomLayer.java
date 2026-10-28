@@ -3,6 +3,7 @@ package io.anuke.mindustry.graphics.bloom;
 import io.anuke.mindustry.entities.traits.BuilderTrait;
 import io.anuke.mindustry.entities.traits.MinerTrait;
 import io.anuke.mindustry.entities.units.BaseUnit;
+import io.anuke.mindustry.core.Renderer;
 import io.anuke.mindustry.graphics.BloomLayer;
 import io.anuke.mindustry.graphics.BloomLayers;
 import io.anuke.ucore.entities.EntityGroup;
@@ -39,7 +40,9 @@ public class UnitBloomLayer implements BloomLayer{
                 }
 
                 // engine flare bloom: the type decides whether the unit has one
-                unit.drawEngine();
+                if(renderer.isVisible(unit.x, unit.y, 64f)){
+                    unit.drawEngine();
+                }
             }
         }
     }

@@ -25,6 +25,7 @@ import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.entities.EntityGroup;
 import io.anuke.ucore.entities.impl.SolidEntity;
 import io.anuke.ucore.entities.trait.DrawTrait;
+import io.anuke.ucore.function.PositionConsumer;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;
 import io.anuke.ucore.graphics.Hue;
@@ -57,6 +58,18 @@ public class Puddle extends SolidEntity implements SaveTrait, Poolable, DrawTrai
     private float amount, targetAmount;
     private float accepting;
     private byte generation;
+    private transient float blobScl, blobMag, blobScale;
+    private final PositionConsumer drawBlob = (ex, ey) -> {
+        Fill.circle(x + ex + Mathf.sin(Timers.time() + seeds * 532, 20f, blobMag),
+                y + ey + Mathf.sin(Timers.time() + seeds * 53, 20f, blobMag), blobScl * 5f);
+        seeds++;
+    };
+    private final PositionConsumer drawLightParticle = (ex, ey) -> {
+        float px = x + ex + Mathf.sin(Timers.time() + seeds * 532, 20f, blobMag);
+        float py = y + ey + Mathf.sin(Timers.time() + seeds * 53, 20f, blobMag);
+        drawLightBlob(px, py, blobScl * 5f, blobScl, blobScale);
+        seeds++;
+    };
 
     /**Deserialization use only!*/
     public Puddle(){
@@ -236,18 +249,13 @@ public class Puddle extends SolidEntity implements SaveTrait, Poolable, DrawTrai
     @Override
     public void draw(){
         seeds = id;
-        boolean onLiquid = tile.floor().isLiquid;
         float f = Mathf.clamp(amount / (maxLiquid / 1.5f));
-        float smag = onLiquid ? 0.8f : 0f;
-        float sscl = 20f;
+        blobScl = f;
+        blobMag = tile.floor().isLiquid ? 0.8f : 0f;
 
         Draw.color(Hue.shift(tmp.set(liquid.color), 2, -0.05f));
-        Fill.circle(x + Mathf.sin(Timers.time() + seeds * 532, sscl, smag), y + Mathf.sin(Timers.time() + seeds * 53, sscl, smag), f * 8f);
-        Angles.randLenVectors(id, 3, f * 6f, (ex, ey) -> {
-            Fill.circle(x + ex + Mathf.sin(Timers.time() + seeds * 532, sscl, smag),
-                    y + ey + Mathf.sin(Timers.time() + seeds * 53, sscl, smag), f * 5f);
-            seeds++;
-        });
+        Fill.circle(x + Mathf.sin(Timers.time() + seeds * 532, 20f, blobMag), y + Mathf.sin(Timers.time() + seeds * 53, 20f, blobMag), f * 8f);
+        Angles.randLenVectors(id, 3, f * 6f, drawBlob);
         Draw.color();
     }
 
@@ -258,20 +266,15 @@ public class Puddle extends SolidEntity implements SaveTrait, Poolable, DrawTrai
         if(f <= 0.01f) return;
 
         seeds = id;
-        boolean onLiquid = tile.floor().isLiquid;
-        float smag = onLiquid ? 0.8f : 0f;
-        float sscl = 20f;
+        blobScl = f;
+        blobMag = tile.floor().isLiquid ? 0.8f : 0f;
 
         Draw.color(liquid.color);
         Draw.alpha(f * 0.3f);
-        Fill.circle(x + Mathf.sin(Timers.time() + seeds * 532, sscl, smag),
-                y + Mathf.sin(Timers.time() + seeds * 53, sscl, smag), f * 8f);
+        Fill.circle(x + Mathf.sin(Timers.time() + seeds * 532, 20f, blobMag),
+                y + Mathf.sin(Timers.time() + seeds * 53, 20f, blobMag), f * 8f);
 
-        Angles.randLenVectors(id, 3, f * 6f, (ex, ey) -> {
-            Fill.circle(x + ex + Mathf.sin(Timers.time() + seeds * 532, sscl, smag),
-                    y + ey + Mathf.sin(Timers.time() + seeds * 53, sscl, smag), f * 5f);
-            seeds++;
-        });
+        Angles.randLenVectors(id, 3, f * 6f, drawBlob);
 
         Draw.color();
     }
@@ -284,33 +287,27 @@ public class Puddle extends SolidEntity implements SaveTrait, Poolable, DrawTrai
         if(f <= 0.01f) return;
 
         seeds = id;
-        boolean onLiquid = tile.floor().isLiquid;
-        float smag = onLiquid ? 0.8f : 0f;
-        float sscl = 20f;
+        blobScl = f;
+        blobMag = tile.floor().isLiquid ? 0.8f : 0f;
+        blobScale = liquid.lightScale;
 
-        Shaders.light.region = Draw.region("circle");
+        Shaders.light.region = renderer.circleRegion();
         Draw.color(liquid.color);
 
-        float scale = liquid.lightScale;
-        float cx = x + Mathf.sin(Timers.time() + seeds * 532, sscl, smag);
-        float cy = y + Mathf.sin(Timers.time() + seeds * 53, sscl, smag);
-        drawLightBlob(cx, cy, f * 8f, f, scale);
+        float cx = x + Mathf.sin(Timers.time() + seeds * 532, 20f, blobMag);
+        float cy = y + Mathf.sin(Timers.time() + seeds * 53, 20f, blobMag);
+        drawLightBlob(cx, cy, f * 8f, f, blobScale);
 
-        Angles.randLenVectors(id, 3, f * 6f, (ex, ey) -> {
-            float px = x + ex + Mathf.sin(Timers.time() + seeds * 532, sscl, smag);
-            float py = y + ey + Mathf.sin(Timers.time() + seeds * 53, sscl, smag);
-            drawLightBlob(px, py, f * 5f, f, scale);
-            seeds++;
-        });
+        Angles.randLenVectors(id, 3, f * 6f, drawLightParticle);
 
         Draw.color();
     }
 
     private void drawLightBlob(float x, float y, float radius, float f, float scale){
         Draw.alpha(f * 0.3f);
-        Draw.rect("circle", x, y, radius * scale * 2f, radius * scale * 2f);
+        Draw.rect(renderer.circleRegion(), x, y, radius * scale * 2f, radius * scale * 2f);
         Draw.alpha(f * 0.15f);
-        Draw.rect("circle", x, y, radius * scale * 2f, radius * scale * 2f);
+        Draw.rect(renderer.circleRegion(), x, y, radius * scale * 2f, radius * scale * 2f);
     }
 
     public float lightRadius(){

@@ -27,7 +27,8 @@ import static io.anuke.mindustry.Vars.world;
 
 public class FloorRenderer{
     private final static int chunksize = 30;
-    private static final int numLayers = CacheLayer.values().length;
+    private static final CacheLayer[] layers = CacheLayer.values();
+    private static final int numLayers = layers.length;
 
     private Chunk[][] cache;
     private boolean[][] dirty;
@@ -83,8 +84,6 @@ public class FloorRenderer{
         int maxx = Math.min(Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize)), chunksx);
         int maxy = Math.min(Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize)), chunksy);
 
-        CacheLayer[] layers = CacheLayer.values();
-
         Graphics.end();
 
         boolean anyDirty = false;
@@ -118,6 +117,10 @@ public class FloorRenderer{
         for(int i = 0; i < numLayers; i++){
             CacheLayer layer = layers[i];
 
+            //layers with nothing cached in view (no water on the map, etc.) still cost a full
+            //framebuffer clear and composite; skip them entirely
+            if(!isLayerVisible(layer)) continue;
+
             layer.begin();
 
             for(int x = minx; x < maxx; x++){
@@ -144,8 +147,6 @@ public class FloorRenderer{
         int miny = (int)Math.floor((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize));
         int maxx = Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize));
         int maxy = Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize));
-
-        CacheLayer[] layers = CacheLayer.values();
 
         Graphics.end();
 
@@ -207,6 +208,8 @@ public class FloorRenderer{
 
         for(int i = 0; i < numLayers; i++){
             CacheLayer layer = layers[i];
+
+            if(!isLayerVisible(layer)) continue;
 
             layer.begin();
 
@@ -299,6 +302,9 @@ public class FloorRenderer{
 
     private boolean cacheChunkOpenWorld(int cx, int cy, Chunk chunk){
         java.util.Arrays.fill(usedLayers, false);
+        //unused layers must be marked empty: a fresh Chunk's arrays default to 0, which is a valid
+        //cache id, and would otherwise be drawn as spurious floor content
+        java.util.Arrays.fill(chunk.caches, -1);
 
         int startX = cx * chunksize;
         int startY = cy * chunksize;
@@ -319,7 +325,6 @@ public class FloorRenderer{
             }
         }
 
-        CacheLayer[] layers = CacheLayer.values();
         for(int i = 0; i < numLayers; i++){
             if(usedLayers[i]){
                 cacheChunkLayerOpenWorld(cx, cy, chunk, layers[i]);
@@ -364,6 +369,46 @@ public class FloorRenderer{
         for(Chunk chunk : openWorldCache.values()){
             chunk.allDirty = true;
         }
+    }
+
+    public boolean isLayerVisible(CacheLayer layer){
+        if(cbatch == null) return true;
+        if(layer == CacheLayer.normal) return true;
+
+        OrthographicCamera camera = Core.camera;
+        int ord = layer.ordinal();
+
+        if(world.isOpenWorld()){
+            int minx = (int)Math.floor((camera.position.x - camera.viewportWidth / 2f) / (chunksize * tilesize));
+            int miny = (int)Math.floor((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize));
+            int maxx = Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize));
+            int maxy = Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize));
+
+            for(int x = minx; x <= maxx; x++){
+                for(int y = miny; y <= maxy; y++){
+                    Chunk chunk = openWorldCache.get(ChunkManager.packKey(x, y));
+                    if(chunk == null) return true;
+                    if(chunk.caches[ord] != -1) return true;
+                }
+            }
+            return false;
+        }
+
+        if(cache == null) return true;
+
+        int minx = Math.max((int)((camera.position.x - camera.viewportWidth / 2f) / (chunksize * tilesize)), 0);
+        int miny = Math.max((int)((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize)), 0);
+        int maxx = Math.min(Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize)), chunksx);
+        int maxy = Math.min(Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize)), chunksy);
+
+        for(int x = minx; x < maxx; x++){
+            for(int y = miny; y < maxy; y++){
+                Chunk chunk = cache[x][y];
+                if(chunk == null) return true;
+                if(chunk.caches[ord] != -1) return true;
+            }
+        }
+        return false;
     }
 
     public void beginDraw(){
@@ -441,7 +486,6 @@ public class FloorRenderer{
             }
         }
 
-        CacheLayer[] layers = CacheLayer.values();
         for(int i = 0; i < numLayers; i++){
             if(usedLayers[i]){
                 cacheChunkLayer(cx, cy, chunk, layers[i]);

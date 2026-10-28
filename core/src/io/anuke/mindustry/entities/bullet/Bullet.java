@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Vector2;
 import io.anuke.annotations.Annotations.Loc;
 import io.anuke.annotations.Annotations.Remote;
+import io.anuke.mindustry.core.World;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.effect.Lightning;
 import io.anuke.mindustry.entities.traits.AbsorbTrait;
@@ -35,6 +36,7 @@ public class Bullet extends BulletEntity<BulletType> implements TeamTrait, SyncT
     private Object data;
     public float damage;
     private boolean supressCollision, supressOnce, initialized;
+    private final TileRaycaster tileRaycaster = new TileRaycaster();
 
     /**Light overrides for this bullet; null/negative values use the bullet type's values instead.*/
     public Boolean emitLight = null;
@@ -212,27 +214,7 @@ public class Bullet extends BulletEntity<BulletType> implements TeamTrait, SyncT
         super.update();
 
         if(type.hitTiles && collidesTiles() && !supressCollision && initialized){
-            world.raycastEach(world.toTile(lastPosition().x), world.toTile(lastPosition().y), world.toTile(x), world.toTile(y), (x, y) -> {
-
-                Tile tile = world.tile(x, y);
-                if(tile == null) return false;
-                tile = tile.target();
-
-                if(tile.entity != null && tile.entity.collide(this) && type.collides(this, tile) && !tile.entity.isDead() && (type.collidesTeam || tile.getTeam() != team)){
-                    if(tile.getTeam() != team){
-                        tile.entity.collision(this);
-                    }
-
-                    if(!supressCollision){
-                        type.hitTile(this, tile);
-                        remove();
-                    }
-
-                    return true;
-                }
-
-                return false;
-            });
+            world.raycastEach(world.toTile(lastPosition().x), world.toTile(lastPosition().y), world.toTile(x), world.toTile(y), tileRaycaster);
         }
 
         if(supressOnce){
@@ -241,6 +223,31 @@ public class Bullet extends BulletEntity<BulletType> implements TeamTrait, SyncT
         }
 
         initialized = true;
+    }
+
+    /** Tile collision callback for {@link #update()}; see {@link World#raycastEach}. */
+    private class TileRaycaster implements World.Raycaster{
+        @Override
+        public boolean accept(int tx, int ty){
+            Tile tile = world.tile(tx, ty);
+            if(tile == null) return false;
+            tile = tile.target();
+
+            if(tile.entity != null && tile.entity.collide(Bullet.this) && type.collides(Bullet.this, tile) && !tile.entity.isDead() && (type.collidesTeam || tile.getTeam() != team)){
+                if(tile.getTeam() != team){
+                    tile.entity.collision(Bullet.this);
+                }
+
+                if(!supressCollision){
+                    type.hitTile(Bullet.this, tile);
+                    remove();
+                }
+
+                return true;
+            }
+
+            return false;
+        }
     }
 
     @Override

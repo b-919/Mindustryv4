@@ -2,7 +2,6 @@ package io.anuke.mindustry.graphics;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.Sort;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.game.EventType.TileChangeEvent;
 import io.anuke.mindustry.game.EventType.WorldLoadGraphicsEvent;
@@ -23,6 +22,7 @@ public class BlockRenderer{
     private final static int initialRequests = 32 * 32;
     private final static int expandr = 6;
     private static final int teamCount = Team.all.length;
+    private static final int layerCount = Layer.values().length;
 
     private FloorRenderer floorRenderer;
 
@@ -32,7 +32,14 @@ public class BlockRenderer{
     private Layer lastLayer;
     private int requestidx = 0;
     private int iterateidx = 0;
+    /** Stable counting-sort scratch space, one bucket per layer. */
+    private final int[] layerCounts = new int[layerCount];
+    private final int[] layerStarts = new int[layerCount];
+    private final int[] layerPositions = new int[layerCount];
+    private BlockRequest[] sortedRequests = new BlockRequest[initialRequests];
     private Surface shadows = Graphics.createSurface().setSize(2, 2);
+    /** Currently allocated shadow surface size; may exceed the required size to avoid reallocating per zoom step. */
+    private int shadowAllocW = 2, shadowAllocH = 2;
     /** World position the shadow FBO content was last rendered with; must match the projection origin exactly. */
     private float shadowOriginX, shadowOriginY;
     private Array<Tile> visibleTiles = new Array<>();
@@ -128,15 +135,19 @@ public class BlockRenderer{
         int shadowH = (rawH + 127) / 128 * 128;
 
         Graphics.end();
-        if(shadows.width() != shadowW || shadows.height() != shadowH){
-            shadows.setSize(shadowW, shadowH);
+        //grow the shadow surface with slack and only shrink when it is far too large: recreating a
+        //framebuffer on every zoom step is a driver-level hitch
+        if(shadows.width() < shadowW || shadows.height() < shadowH || shadowW * 3 / 2 < shadowAllocW || shadowH * 3 / 2 < shadowAllocH){
+            shadowAllocW = Math.max(shadowW, 128);
+            shadowAllocH = Math.max(shadowH, 128);
+            shadows.setSize(shadowAllocW, shadowAllocH);
         }
         shadowOriginX = (boxMinX + boxMaxX) / 2f;
         shadowOriginY = (boxMinY + boxMaxY) / 2f;
         Core.batch.getProjectionMatrix().setToOrtho2D(
-            shadowOriginX - shadowW / 2f,
-            shadowOriginY - shadowH / 2f,
-            shadowW, shadowH);
+            shadowOriginX - shadowAllocW / 2f,
+            shadowOriginY - shadowAllocH / 2f,
+            shadowAllocW, shadowAllocH);
         Graphics.surface(shadows);
 
         for(int x = minx; x <= maxx; x++){
@@ -179,7 +190,7 @@ public class BlockRenderer{
         Core.batch.setProjectionMatrix(camera.combined);
         Graphics.begin();
 
-        Sort.instance().sort(requests.items, 0, requestidx);
+        sortRequests();
 
         lastCamX = avgx;
         lastCamY = avgy;
@@ -187,19 +198,62 @@ public class BlockRenderer{
         lastRangeY = rangey;
     }
 
+    /** Stable counting sort by layer ordinal: there are only a handful of layers, so this is O(n)
+     *  and avoids object comparisons (and TimSort overhead) on every camera tile step. */
+    private void sortRequests(){
+        java.util.Arrays.fill(layerCounts, 0);
+
+        BlockRequest[] items = requests.items;
+
+        for(int i = 0; i < requestidx; i++){
+            layerCounts[items[i].layer.ordinal()]++;
+        }
+
+        int sum = 0;
+        for(int i = 0; i < layerCount; i++){
+            layerStarts[i] = sum;
+            layerPositions[i] = sum;
+            sum += layerCounts[i];
+        }
+
+        if(sortedRequests.length < requestidx){
+            sortedRequests = new BlockRequest[Math.max(requestidx, requests.size)];
+        }
+
+        for(int i = 0; i < requestidx; i++){
+            BlockRequest req = items[i];
+            sortedRequests[layerPositions[req.layer.ordinal()]++] = req;
+        }
+
+        System.arraycopy(sortedRequests, 0, items, 0, requestidx);
+    }
+
+    /** @return the index just past the last request that belongs to this layer or a lower one. */
+    private int layerEnd(int ordinal){
+        int end = 0;
+        for(int i = 0; i <= ordinal; i++){
+            end = layerStarts[i] + layerCounts[i];
+        }
+        return end;
+    }
+
+    /** Whether any visible floor chunk contains content for this cache layer. Unknown chunks
+     *  report true so nothing is skipped before the floor cache has been built. */
+    public boolean isLayerVisible(CacheLayer layer){
+        return floorRenderer.isLayerVisible(layer);
+    }
+
     public int getRequests(){
         return requestidx;
     }
 
     public void drawBlocks(Layer stopAt){
+        int end = layerEnd(stopAt.ordinal());
+        BlockRequest[] items = requests.items;
 
-        for(; iterateidx < requestidx; iterateidx++){
+        for(; iterateidx < end; iterateidx++){
 
-            if(iterateidx < requests.size && requests.get(iterateidx).layer.ordinal() > stopAt.ordinal()){
-                break;
-            }
-
-            BlockRequest req = requests.get(iterateidx);
+            BlockRequest req = items[iterateidx];
 
             if(req.layer != lastLayer){
                 if(lastLayer != null) layerEnds(lastLayer);
@@ -222,14 +276,12 @@ public class BlockRenderer{
 
     public void drawTeamBlocks(Layer layer, Team team){
         int index = this.iterateidx;
+        int end = layerEnd(layer.ordinal());
+        BlockRequest[] items = requests.items;
 
-        for(; index < requestidx; index++){
+        for(; index < end; index++){
 
-            if(index < requests.size && requests.get(index).layer.ordinal() > layer.ordinal()){
-                break;
-            }
-
-            BlockRequest req = requests.get(index);
+            BlockRequest req = items[index];
             if(req.tile.getTeam() != team) continue;
 
             Block block = req.tile.block();
@@ -246,11 +298,10 @@ public class BlockRenderer{
     }
 
     public void skipLayer(Layer stopAt){
+        int end = layerEnd(stopAt.ordinal());
 
-        for(; iterateidx < requestidx; iterateidx++){
-            if(iterateidx < requests.size && requests.get(iterateidx).layer.ordinal() > stopAt.ordinal()){
-                break;
-            }
+        if(iterateidx < end){
+            iterateidx = end;
         }
     }
 

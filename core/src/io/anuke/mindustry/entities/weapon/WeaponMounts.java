@@ -15,6 +15,9 @@ import java.util.ArrayList;
  */
 public interface WeaponMounts extends TargetTrait{
 
+    /** Shared empty weapon array, so implementations without mounts don't allocate per call. */
+    Weapon[] NO_WEAPONS = new Weapon[0];
+
     /**Mounts currently attached. Never null, but may be empty.*/
     WeaponMount[] getWeaponMounts();
 
@@ -24,12 +27,22 @@ public interface WeaponMounts extends TargetTrait{
     /**Body rotation in world space, in degrees, 0 = up.*/
     float getRotation();
 
+    /**World X used when drawing mounts. Owners that snap their sprite for stability can override this. */
+    default float getDrawX(){
+        return getX();
+    }
+
+    /**World Y used when drawing mounts. Owners that snap their sprite for stability can override this. */
+    default float getDrawY(){
+        return getY();
+    }
+
     /**
      * Every weapon this owner should be able to fire, in mount order. Mirrored weapons may be returned once; mount expansion
      * creates the second side. The default returns the legacy single weapon.
      */
     default Weapon[] getWeaponDefinitions(){
-        return new Weapon[0];
+        return NO_WEAPONS;
     }
 
     /**Reload multiplier applied to every mount of this owner.*/

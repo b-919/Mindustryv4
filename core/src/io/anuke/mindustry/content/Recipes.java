@@ -95,6 +95,7 @@ public class Recipes implements ContentList{
 
         new Recipe(effect, DefenseBlocks.shockMine, stack(Items.lead, 50), stack(Items.silicon, 25))
             .setDependencies(Items.blastCompound);
+        new Recipe(effect, PowerBlocks.illuminator, stack(Items.densealloy, 12), stack(Items.silicon, 8), stack(Items.lead, 8));
 
         //TURRETS
         new Recipe(turret, TurretBlocks.duo, stack(Items.copper, 40)).setAlwaysUnlocked(true);

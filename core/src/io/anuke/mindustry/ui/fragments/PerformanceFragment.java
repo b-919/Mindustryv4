@@ -38,6 +38,10 @@ public class PerformanceFragment extends Fragment{
         counterToColor.put(PerfCounter.bulletUpdate, Palette.redDust);
         counterToColor.put(PerfCounter.unitUpdate, Color.ROYAL);
         counterToColor.put(PerfCounter.render, Palette.portal);
+        counterToColor.put(PerfCounter.blocks, Palette.accent);
+        counterToColor.put(PerfCounter.reflections, Palette.lancerLaser);
+        counterToColor.put(PerfCounter.bloom, Palette.lightTrail);
+        counterToColor.put(PerfCounter.lights, Palette.powerLight);
         counterToColor.put(PerfCounter.ui, Palette.remove);
         counterToColor.put(PerfCounter.stateUpdate, Color.CYAN);
         counterToColor.put(PerfCounter.other, Color.PINK);

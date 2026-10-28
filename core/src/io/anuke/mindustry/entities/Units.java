@@ -23,9 +23,13 @@ public class Units{
     private static Rectangle rect = new Rectangle();
     private static Rectangle rectGraphics = new Rectangle();
     private static Rectangle hitrect = new Rectangle();
+    private static Rectangle anyRect = new Rectangle();
     private static Unit result;
     private static float cdist;
     private static boolean boolResult, boolResultGraphics;
+    private static Predicate<Unit> anyPredicate;
+    private static final Consumer<Unit> anyConsumer = Units::checkAny;
+    private static final Consumer<Unit> anyPredConsumer = Units::checkAnyPredicate;
 
     /**
      * Validates a target.
@@ -54,50 +58,54 @@ public class Units{
     /**Returns whether there are any entities on this tile.*/
     public static boolean anyEntities(Tile tile){
         Block type = tile.block();
-        rect.setSize(type.size * tilesize, type.size * tilesize);
-        rect.setCenter(tile.drawx(), tile.drawy());
+        anyRect.setSize(type.size * tilesize, type.size * tilesize);
+        anyRect.setCenter(tile.drawx(), tile.drawy());
 
-        return anyEntities(rect);
+        return anyEntities(anyRect);
     }
 
     /**Can be called from any thread.*/
     public static boolean anyEntities(Rectangle rect){
         boolResult = false;
+        anyRect.set(rect);
 
-        Units.getNearby(rect, unit -> {
-            if(boolResult) return;
-            if(!unit.isFlying()){
-                unit.getHitbox(hitrect);
-
-                if(hitrect.overlaps(rect)){
-                    boolResult = true;
-                }
-            }
-        });
+        Units.getNearby(anyRect, anyConsumer);
 
         return boolResult;
+    }
+
+    private static void checkAny(Unit unit){
+        if(boolResult || unit.isFlying()) return;
+
+        unit.getHitbox(hitrect);
+        if(hitrect.overlaps(anyRect)){
+            boolResult = true;
+        }
     }
 
     /**Returns whether there are any entities on this tile, with the hitbox expanded.*/
     public static boolean anyEntities(Tile tile, float expansion, Predicate<Unit> pred){
         Block type = tile.block();
-        rect.setSize(type.size * tilesize + expansion, type.size * tilesize + expansion);
-        rect.setCenter(tile.drawx(), tile.drawy());
+        anyRect.setSize(type.size * tilesize + expansion, type.size * tilesize + expansion);
+        anyRect.setCenter(tile.drawx(), tile.drawy());
 
-        boolean[] value = new boolean[1];
+        boolResult = false;
+        anyPredicate = pred;
+        Units.getNearby(anyRect, anyPredConsumer);
+        anyPredicate = null;
 
-        Units.getNearby(rect, unit -> {
-            if(value[0] || !pred.test(unit) || unit.isDead()) return;
-            if(!unit.isFlying()){
-                unit.getHitbox(hitrect);
+        return boolResult;
+    }
 
-                if(hitrect.overlaps(rect)){
-                    value[0] = true;
-                }
+    private static void checkAnyPredicate(Unit unit){
+        if(boolResult || anyPredicate == null || !anyPredicate.test(unit) || unit.isDead()) return;
+
+        if(!unit.isFlying()){
+            unit.getHitbox(hitrect);
+            if(hitrect.overlaps(anyRect)){
+                boolResult = true;
             }
-        });
-
-        return value[0];
+        }
     }
 
     /**Returns the neareset damaged tile.*/
@@ -160,17 +168,18 @@ public class Units{
         cdist = 0f;
 
         rect.setSize(range * 2f).setCenter(x, y);
+        final float rangeSq = range * range;
 
         getNearbyEnemies(team, rect, e -> {
             if(e.isDead() || !predicate.test(e))
                 return;
 
-            float dist = Vector2.dst(e.x, e.y, x, y);
-            if(dist < range){
-                if(result == null || dist < cdist){
-                    result = e;
-                    cdist = dist;
-                }
+            //squared distance no sqrt per candidate
+            float dx = e.x - x, dy = e.y - y;
+            float distSq = dx * dx + dy * dy;
+            if(distSq < rangeSq && (result == null || distSq < cdist)){
+                result = e;
+                cdist = distSq;
             }
         });
 
@@ -183,17 +192,17 @@ public class Units{
         cdist = 0f;
 
         rect.setSize(range * 2f).setCenter(x, y);
+        final float rangeSq = range * range;
 
         getNearby(team, rect, e -> {
             if(!predicate.test(e))
                 return;
 
-            float dist = Vector2.dst(e.x, e.y, x, y);
-            if(dist < range){
-                if(result == null || dist < cdist){
-                    result = e;
-                    cdist = dist;
-                }
+            float dx = e.x - x, dy = e.y - y;
+            float distSq = dx * dx + dy * dy;
+            if(distSq < rangeSq && (result == null || distSq < cdist)){
+                result = e;
+                cdist = distSq;
             }
         });
 

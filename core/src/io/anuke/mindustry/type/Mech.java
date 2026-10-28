@@ -40,6 +40,8 @@ public class Mech extends UnlockableContent{
     public Weapon weapon = Weapons.blaster;
     /**additional weapon mounts. {@link #weapon} stays the first mount, so existing code keeps working.*/
     public Weapon[] weapons = new Weapon[0];
+    /** Cached result of {@link #allWeapons(Weapon)} for the mech's own weapon, which is queried every frame. */
+    private Weapon[] cachedAllWeapons;
 
     public TextureRegion baseRegion, legRegion, region, iconRegion;
 
@@ -73,17 +75,27 @@ public class Mech extends UnlockableContent{
 
     /**Every weapon a player using this mech mounts when the weapon field is {@code override}.*/
     public Weapon[] allWeapons(Weapon override){
-        if(weapons.length == 0){
-            return new Weapon[]{override};
-        }
-        if(override == null){
-            return weapons;
+        if(override == weapon && cachedAllWeapons != null){
+            return cachedAllWeapons;
         }
 
-        Weapon[] combined = new Weapon[weapons.length + 1];
-        combined[0] = override;
-        System.arraycopy(weapons, 0, combined, 1, weapons.length);
-        return combined;
+        Weapon[] result;
+
+        if(weapons.length == 0){
+            result = new Weapon[]{override};
+        }else if(override == null){
+            result = weapons;
+        }else{
+            result = new Weapon[weapons.length + 1];
+            result[0] = override;
+            System.arraycopy(weapons, 0, result, 1, weapons.length);
+        }
+
+        if(override == weapon){
+            cachedAllWeapons = result;
+        }
+
+        return result;
     }
 
     public String localizedName(){

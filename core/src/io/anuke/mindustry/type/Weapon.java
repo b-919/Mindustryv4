@@ -373,10 +373,10 @@ public class Weapon extends Content{
         float weaponRotation = bodyRotation + mount.rotation;
         float offset = -mount.getRecoil();
 
-        float x = owner.getX()
+        float x = owner.getDrawX()
                 + Angles.trnsx(frame, lateral(owner, mount), mount.mountY() + owner.getMountOffsetY(mount))
                 + Angles.trnsx(weaponRotation - 90f, 0f, offset);
-        float y = owner.getY()
+        float y = owner.getDrawY()
                 + Angles.trnsy(frame, lateral(owner, mount), mount.mountY() + owner.getMountOffsetY(mount))
                 + Angles.trnsy(weaponRotation - 90f, 0f, offset);
 

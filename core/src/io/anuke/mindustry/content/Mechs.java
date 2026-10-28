@@ -187,8 +187,8 @@ public class Mechs implements ContentList{
 
             @Override
             public void drawOver(Player player){
-                float tx = player.x + Angles.trnsx(player.rotation - 90, healTurretOffsetX, healTurretOffsetY);
-                float ty = player.y + Angles.trnsy(player.rotation - 90, healTurretOffsetX, healTurretOffsetY);
+                float tx = player.snappedX() + Angles.trnsx(player.rotation - 90, healTurretOffsetX, healTurretOffsetY);
+                float ty = player.snappedY() + Angles.trnsy(player.rotation - 90, healTurretOffsetX, healTurretOffsetY);
 
                 Draw.rect(turretRegion, tx, ty, player.healRotation - 90);
 
@@ -335,7 +335,7 @@ public class Mechs implements ContentList{
                 if(scl < 0.01f) return;
                 Draw.color(Palette.lancerLaser);
                 Draw.alpha(scl * 0.6f);
-                Draw.rect(shield, player.x + Mathf.range(scl/2f), player.y + Mathf.range(scl/2f), player.rotation - 90);
+                Draw.rect(shield, player.snappedX() + Mathf.range(scl/2f), player.snappedY() + Mathf.range(scl/2f), player.rotation - 90);
                 Draw.color();
             }
 

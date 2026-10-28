@@ -15,6 +15,7 @@ import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.effect.ScorchDecal;
 import io.anuke.mindustry.entities.traits.*;
 import io.anuke.mindustry.entities.weapon.WeaponMount;
+import io.anuke.mindustry.entities.weapon.WeaponMounts;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Palette;
@@ -429,6 +430,18 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
         return snapCamera && isLocal ? (int) (y + 0.0001f) : y;
     }
 
+    /** Draw origin for this player: everything attached to the body (weapons, overlays) must use the
+     *  same snapped origin as the body itself, otherwise it drifts sub-world-unit as the player moves. */
+    @Override
+    public float getDrawX(){
+        return snappedX();
+    }
+
+    @Override
+    public float getDrawY(){
+        return snappedY();
+    }
+
     public void drawName(){
         GlyphLayout layout = Pooling.obtain(GlyphLayout.class, GlyphLayout::new);
 
@@ -691,7 +704,7 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
 
     @Override
     public Weapon[] getWeaponDefinitions(){
-        return mech == null ? new Weapon[0] : mech.allWeapons(mech.weapon);
+        return mech == null ? WeaponMounts.NO_WEAPONS : mech.allWeapons(mech.weapon);
     }
 
     /**Players aim freely, so mounts never refuse to fire over a shoot cone.*/

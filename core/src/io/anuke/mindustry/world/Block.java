@@ -153,6 +153,12 @@ public class Block extends BaseBlock {
         return size * lightAmplification;
     }
 
+    /** Whether this block can emit light at all, ignoring per-tile/per-entity overrides.
+     *  Lets the lighting pass skip the vast majority of blocks before doing any light work. */
+    public boolean canEmitLight(){
+        return emitLight || layerLight || hasLiquidLayer;
+    }
+
     /** Radius of light emitted by this block for culling, including its stored liquid. */
     public float lightRadius(Tile tile){
         float radius = lightRadius();
