@@ -25,7 +25,9 @@ import io.anuke.mindustry.net.NetConnection;
 import io.anuke.mindustry.sounds.Sounds;
 import io.anuke.mindustry.type.*;
 import io.anuke.mindustry.world.Block;
+import io.anuke.mindustry.world.Build;
 import io.anuke.mindustry.world.Tile;
+import io.anuke.mindustry.world.blocks.BuildBlock;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.mindustry.world.blocks.storage.CoreBlock.CoreEntity;
 import io.anuke.ucore.core.*;
@@ -457,48 +459,53 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
     /**Draw all current build requests. Does not draw the beam effect, only the positions.*/
     public void drawBuildRequests(){
         for(BuildRequest request : getPlaceQueue()){
-            if(getCurrentRequest() == request) continue;
+            if(!request.breaking && request.recipe == null) continue;
+
+            Tile tile = world.tile(request.x, request.y);
+            if(tile == null) continue;
+
+            if(!headless && Core.camera != null){
+                float cx = request.x * tilesize, cy = request.y * tilesize;
+                float range = Math.max(Core.camera.viewportWidth, Core.camera.viewportHeight) * 1.25f;
+                if(Vector2.dst(cx, cy, Core.camera.position.x, Core.camera.position.y) > range) continue;
+            }
+
+            Block block = request.breaking ? tile.target().block() : request.recipe.result;
+
+            //construction sites are already drawn by the BuildBlock itself
+            if(!request.breaking && tile.block() instanceof BuildBlock) continue;
+
+            float dx = request.x * tilesize + block.offset(), dy = request.y * tilesize + block.offset();
+            float rad = block.size * tilesize / 2f;
 
             if(request.breaking){
-                Block block = world.tile(request.x, request.y).target().block();
-
                 //draw removal request
                 Lines.stroke(2f);
 
                 Draw.color(Palette.removeBack);
-
-                float rad = Mathf.absin(Timers.time(), 7f, 1f) + block.size * tilesize / 2f - 1;
-
-                Lines.square(
-                        request.x * tilesize + block.offset(),
-                        request.y * tilesize + block.offset() - 1,
-                        rad);
-
+                Lines.square(dx, dy - 1, Mathf.absin(Timers.time(), 7f, 1f) + rad - 1);
                 Draw.color(Palette.remove);
-
-                Lines.square(
-                        request.x * tilesize + block.offset(),
-                        request.y * tilesize + block.offset(),
-                        rad);
+                Lines.square(dx, dy, Mathf.absin(Timers.time(), 7f, 1f) + rad - 1);
             }else{
-                //draw place request
+                boolean valid = Build.validPlace(getTeam(), request.x, request.y, block, request.rotation);
+
+                //draw the planned block as a ghost, including rotation
+                Draw.color(valid ? Palette.accent : Palette.remove);
+                Draw.alpha(0.55f);
+
+                for(TextureRegion region : block.getBlockIcon()){
+                    Draw.rect(region, dx, dy, region.getRegionWidth(), region.getRegionHeight(),
+                            block.rotate ? request.rotation * 90 : 0);
+                }
+
+                Draw.alpha(1f);
+                block.drawPlace(request.x, request.y, request.rotation, valid);
+
                 Lines.stroke(2f);
-
-                Draw.color(Palette.accentBack);
-
-                float rad = Mathf.absin(Timers.time(), 7f, 1f) - 2f + request.recipe.result.size * tilesize / 2f;
-
-                Lines.square(
-                        request.x * tilesize + request.recipe.result.offset(),
-                        request.y * tilesize + request.recipe.result.offset() - 1,
-                        rad);
-
-                Draw.color(Palette.accent);
-
-                Lines.square(
-                        request.x * tilesize + request.recipe.result.offset(),
-                        request.y * tilesize + request.recipe.result.offset(),
-                        rad);
+                Draw.color(valid ? Palette.accentBack : Palette.removeBack);
+                Lines.square(dx, dy - 1, rad);
+                Draw.color(valid ? Palette.accent : Palette.remove);
+                Lines.square(dx, dy, rad);
             }
         }
 

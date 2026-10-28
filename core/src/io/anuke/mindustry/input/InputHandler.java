@@ -17,6 +17,7 @@ import io.anuke.mindustry.entities.units.types.Drone;
 import io.anuke.mindustry.entities.effect.ItemTransfer;
 import io.anuke.mindustry.entities.traits.BuilderTrait.BuildRequest;
 import io.anuke.mindustry.game.Schematic;
+import io.anuke.mindustry.game.Teams.BlockPlan;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.net.ValidateException;
@@ -27,6 +28,7 @@ import io.anuke.mindustry.ui.fragments.OverlayFragment;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Build;
 import io.anuke.mindustry.world.Tile;
+import io.anuke.mindustry.world.blocks.BuildBlock;
 import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Graphics;
 import io.anuke.ucore.core.Inputs;
@@ -57,6 +59,8 @@ public abstract class InputHandler extends InputAdapter{
     public int selectX, selectY;
     public int rotation;
     public boolean droppingItem;
+    /** Whether this input is currently selecting an area of destroyed blocks to rebuild. */
+    public boolean rebuildSelecting;
 
     public InputHandler(Player player){
         this.player = player;
@@ -220,6 +224,16 @@ public abstract class InputHandler extends InputAdapter{
         return false;
     }
 
+    /** Whether this input is currently in the break/deconstruct mode. */
+    public boolean isBreaking(){
+        return mode == PlaceMode.breaking;
+    }
+
+    /** Whether this input is currently selecting destroyed blocks to rebuild. */
+    public boolean isRebuildSelecting(){
+        return rebuildSelecting;
+    }
+
     /**Handles tile tap events that are not platform specific.*/
     boolean tileTapped(Tile tile){
         tile = tile.target();
@@ -264,12 +278,6 @@ public abstract class InputHandler extends InputAdapter{
 
         if(!showedInventory){
             frag.inv.hide();
-        }
-
-        if(!consumed && player.isBuilding()){
-            player.clearBuilding();
-            recipe = null;
-            return true;
         }
 
         return consumed;
@@ -398,7 +406,19 @@ public abstract class InputHandler extends InputAdapter{
     }
 
     public void tryPlaceBlock(int x, int y, Recipe recipe, int rotation, Array<int[]> plans){
-        if(recipe != null && cursorNear()){
+        if(recipe == null) return;
+
+        //when targeting a construction site, always use its center tile so the plan is overridden cleanly
+        Tile target = world.tile(x, y);
+        if(target != null){
+            Tile center = target.target();
+            if(center.block() instanceof BuildBlock){
+                x = center.x;
+                y = center.y;
+            }
+        }
+
+        if(cursorNear()){
             Block replacement = recipe.result.getReplacement(x, y, rotation, plans);
             if(replacement != null && replacement != recipe.result){
                 Recipe replacementRecipe = Recipe.getByResult(replacement);
@@ -414,7 +434,11 @@ public abstract class InputHandler extends InputAdapter{
     }
 
     public void tryBreakBlock(int x, int y){
-        if(cursorNear() && validBreak(x, y)){
+        if(!cursorNear()) return;
+
+        player.removeBuildRequest(x, y, false);
+
+        if(validBreak(x, y)){
             breakBlock(x, y);
         }
     }
@@ -425,10 +449,11 @@ public abstract class InputHandler extends InputAdapter{
         Recipe target = Recipe.getByResult(type);
         if(target == null || !control.unlocks.isUnlocked(target)) return false;
 
+        //plans may be placed anywhere in core range; the player does not have to be near the
+        //placement, matching modern Mindustry. The plan is built once a builder gets close.
         for(Tile tile : state.teams.get(player.getTeam()).cores){
             if(tile.distanceTo(x * tilesize, y * tilesize) < coreBuildRange){
-                return Build.validPlace(player.getTeam(), x, y, type, rotation) &&
-                Vector2.dst(player.x, player.y, x * tilesize, y * tilesize) < Player.placeDistance;
+                return Build.validPlace(player.getTeam(), x, y, type, rotation);
             }
         }
 
@@ -436,7 +461,7 @@ public abstract class InputHandler extends InputAdapter{
     }
 
     public boolean validBreak(int x, int y){
-        return Build.validBreak(player.getTeam(), x, y) && Vector2.dst(player.x, player.y, x * tilesize, y * tilesize) < Player.placeDistance;
+        return Build.validBreak(player.getTeam(), x, y);
     }
 
     public void placeBlock(int x, int y, Recipe recipe, int rotation){
@@ -446,6 +471,50 @@ public abstract class InputHandler extends InputAdapter{
     public void breakBlock(int x, int y){
         Tile tile = world.tile(x, y).target();
         player.addBuildRequest(new BuildRequest(tile.x, tile.y));
+    }
+
+    /**
+     * Queues a rebuild request for a destroyed block, if it is still valid and unlocked.
+     */
+    public boolean addRebuildRequest(BlockPlan plan){
+        Recipe recipe = Recipe.getByResult(plan.block);
+        if(recipe == null || !control.unlocks.isUnlocked(recipe)) return false;
+        if(!validPlace(plan.x, plan.y, plan.block, plan.rotation)) return false;
+
+        if(plan.config != null){
+            schematics.queueConfig(plan.x, plan.y, plan.block, plan.config);
+        }
+
+        player.addBuildRequest(new BuildRequest(plan.x, plan.y, plan.rotation, recipe));
+        return true;
+    }
+
+    /** Queues rebuilds for all destroyed blocks in the given area. */
+    public void rebuildArea(int x1, int y1, int x2, int y2){
+        if(player.isDead()) return;
+
+        PlaceUtils.NormalizeResult result = PlaceUtils.normalizeArea(x1, y1, x2, y2, rotation, false, maxLength);
+
+        for(BlockPlan plan : state.teams.get(player.getTeam()).plans){
+            Block block = plan.block;
+            int offsetx = -(block.size - 1) / 2;
+            int offsety = -(block.size - 1) / 2;
+            boolean inArea = false;
+
+            for(int dx = 0; dx < block.size && !inArea; dx++){
+                for(int dy = 0; dy < block.size; dy++){
+                    int px = plan.x + dx + offsetx, py = plan.y + dy + offsety;
+                    if(px >= result.x && px <= result.x2 && py >= result.y && py <= result.y2){
+                        inArea = true;
+                        break;
+                    }
+                }
+            }
+
+            if(inArea){
+                addRebuildRequest(plan);
+            }
+        }
     }
 
 }

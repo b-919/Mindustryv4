@@ -258,6 +258,7 @@ public class OpenWorldStartDialog extends FloatingDialog{
             cm.rebuildAfterLoad();
 
             cm.getSaveManager().loadEntities(saveName);
+            cm.getSaveManager().loadPlans(saveName);
 
             // restore player position from meta
             if(meta.playerX != 0 || meta.playerY != 0){

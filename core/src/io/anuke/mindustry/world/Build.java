@@ -9,6 +9,7 @@ import io.anuke.mindustry.game.EventType.BlockBuildBeginEvent;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Recipe;
+import io.anuke.mindustry.world.blocks.BuildBlock;
 import io.anuke.mindustry.world.blocks.BuildBlock.BuildEntity;
 import io.anuke.mindustry.world.blocks.Prop;
 import io.anuke.mindustry.world.blocks.distribution.TrainRail;
@@ -72,6 +73,17 @@ public class Build{
         threads.runDelay(() -> Events.fire(new BlockBuildBeginEvent(ftile, team, true)));
     }
 
+    /** Whether this tile contains a construction site that can be overridden by a new plan. */
+    private static boolean isConstructionSite(Tile tile){
+        return tile != null && tile.block() instanceof BuildBlock && tile.entity instanceof BuildEntity
+                && !((BuildEntity) tile.entity).deconstructing;
+    }
+
+    /** Whether this tile is a construction site or one of its linked multiblock parts. */
+    private static boolean isConstructionSiteOrPart(Tile tile){
+        return isConstructionSite(tile) || (tile != null && tile.isLinked() && isConstructionSite(tile.target()));
+    }
+
     /**Places a BuildBlock at this location.*/
     public static void beginPlace(Team team, int x, int y, Recipe recipe, int rotation){
         if(!validPlace(team, x, y, recipe.result, rotation)){
@@ -85,6 +97,23 @@ public class Build{
 
         Block result = recipe.result;
         Block previous = tile.block();
+
+        //if this replaces an existing construction site, clear the old construction first
+        if(previous instanceof BuildBlock && tile.entity instanceof BuildEntity){
+            BuildEntity build = tile.entity();
+
+            if(build.deconstructing) return;
+
+            if(build == null || build.recipe == null || build.recipe.result != result || tile.getRotation() != rotation){
+                if(!isConstructionSite(tile)) return;
+                world.removeBlock(tile.target());
+                tile = world.tile(x, y);
+                if(tile == null) return;
+                previous = tile.block();
+            }else{
+                previous = build.previous != null ? build.previous : Blocks.air;
+            }
+        }
 
         Block sub = content.getByName(ContentType.block, "build" + result.size);
 
@@ -111,7 +140,8 @@ public class Build{
             }
         }
 
-        threads.runDelay(() -> Events.fire(new BlockBuildBeginEvent(tile, team, false)));
+        Tile ftile = tile;
+        threads.runDelay(() -> Events.fire(new BlockBuildBeginEvent(ftile, team, false)));
     }
 
     /**Returns whether a tile can be placed at this location by this team.*/
@@ -166,7 +196,7 @@ public class Build{
             for(int dx = 0; dx < type.size; dx++){
                 for(int dy = 0; dy < type.size; dy++){
                     Tile other = world.tile(x + dx + offsetx, y + dy + offsety);
-                    if(other == null || (other.block() != Blocks.air && !other.block().alwaysReplace)
+                    if(other == null || (other.block() != Blocks.air && !other.block().alwaysReplace && !isConstructionSiteOrPart(other))
                             || other.hasCliffs() || !other.floor().placeableOn ||
                             (other.floor().isLiquid && !type.floating)){
                         return false;
@@ -180,8 +210,8 @@ public class Build{
                     && (!tile.floor().isLiquid || type.floating)
                     && tile.floor().placeableOn && !tile.hasCliffs()
                     && ((type.canReplace(tile.block())
-                    && !(type == tile.block() && rotation == tile.getRotation() && type.rotate)) || tile.block().alwaysReplace || tile.block() == Blocks.air)
-                    && tile.block().isMultiblock() == type.isMultiblock() && type.canPlaceOn(tile);
+                    && !(type == tile.block() && rotation == tile.getRotation() && type.rotate)) || tile.block().alwaysReplace || tile.block() == Blocks.air || isConstructionSite(tile))
+                    && (isConstructionSite(tile) || tile.block().isMultiblock() == type.isMultiblock()) && type.canPlaceOn(tile);
         }
     }
 

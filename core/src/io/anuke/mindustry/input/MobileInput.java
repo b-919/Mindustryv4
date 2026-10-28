@@ -612,6 +612,9 @@ public class MobileInput extends InputHandler implements GestureListener{
 
                         tar = tar.target();
 
+                        //cancel any queued place plan here, then also break the real block if present
+                        player.removeBuildRequest(tar.x, tar.y, false);
+
                         if(!hasRequest(world.tile(tar.x, tar.y)) && validBreak(tar.x, tar.y)){
                             PlaceRequest request = new PlaceRequest(tar.worldx(), tar.worldy());
                             request.scale = 1f;
@@ -684,16 +687,32 @@ public class MobileInput extends InputHandler implements GestureListener{
 
         checkTargets(worldx, worldy);
 
-        //remove if request present
+        //remove if request present, unless a different block/rotation is selected (then replace it)
         if(hasRequest(cursor)){
-            removeRequest(getRequest(cursor));
+            PlaceRequest existing = getRequest(cursor);
+
+            if(mode == placing && recipe != null && !existing.remove && existing.recipe != null
+                    && (existing.recipe != recipe || existing.rotation != rotation)){
+                Tile target = existing.tile();
+                selection.removeValue(existing, true);
+                if(target != null){
+                    selection.add(lastPlaced = new PlaceRequest(target.worldx() + recipe.result.offset(), target.worldy() + recipe.result.offset(), recipe, rotation));
+                }
+            }else{
+                removeRequest(existing);
+            }
         }else if(mode == placing && isPlacing() && validPlace(cursor.x, cursor.y, recipe.result, rotation) && !checkOverlapPlacement(cursor.x, cursor.y, recipe.result)){
             //add to selection queue if it's a valid place position
             selection.add(lastPlaced = new PlaceRequest(cursor.worldx() + recipe.result.offset(), cursor.worldy() + recipe.result.offset(), recipe, rotation));
-        }else if(mode == breaking && validBreak(cursor.target().x, cursor.target().y) && !hasRequest(cursor.target())){
-            //add to selection queue if it's a valid BREAK position
-            cursor = cursor.target();
-            selection.add(new PlaceRequest(cursor.worldx(), cursor.worldy()));
+        }else if(mode == breaking){
+            Tile target = cursor.target();
+
+            //cancel a queued place plan, then also select the real block underneath if present
+            player.removeBuildRequest(target.x, target.y, false);
+
+            if(validBreak(target.x, target.y) && !hasRequest(target)){
+                selection.add(new PlaceRequest(target.worldx(), target.worldy()));
+            }
         }else if(!canTapPlayer(worldx, worldy)){
             boolean consumed = false;
             //else, try and carry units

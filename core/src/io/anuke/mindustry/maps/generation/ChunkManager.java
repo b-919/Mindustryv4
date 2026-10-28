@@ -611,6 +611,7 @@ public class ChunkManager{
         }
         if(!headless && players[0] != null){
             saveManager.saveEntities(saveName);
+            saveManager.savePlans(saveName);
         }
         OpenWorldSaveManager.OpenWorldMeta meta = saveManager.readMeta(saveName);
         if(meta == null){

@@ -66,6 +66,8 @@ public class Save17 extends SaveFileVersion{
 
         MassAI.read(stream);
 
+        readVersionData(stream);
+
         //mode flags and RTS bits are not saved, so restore canonical values instead of inheriting stale custom game settings
         state.mode.reset();
         state.rtsAIBits = GameState.defaultRtsAIBits;
@@ -107,5 +109,15 @@ public class Save17 extends SaveFileVersion{
         writeMap(stream);
 
         MassAI.write(stream);
+
+        writeVersionData(stream);
+    }
+
+    /** Hook for save versions to append extra data after the map and MassAI state. */
+    protected void writeVersionData(DataOutputStream stream) throws IOException{
+    }
+
+    /** Hook for save versions to read extra data after the map and MassAI state. */
+    protected void readVersionData(DataInputStream stream) throws IOException{
     }
 }

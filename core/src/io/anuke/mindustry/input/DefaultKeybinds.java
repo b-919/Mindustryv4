@@ -38,6 +38,7 @@ public class DefaultKeybinds{
                 "schematic_select", Input.T,
                 "schematic_flip_x", Input.X,
                 "schematic_flip_y", Input.Z,
+                "rebuild_select", Input.B,
                 "map", Input.M,
                 new Category("multiplayer"),
                 "player_list", Input.TAB,

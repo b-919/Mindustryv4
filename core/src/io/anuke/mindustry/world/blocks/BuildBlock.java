@@ -74,6 +74,8 @@ public class BuildBlock extends Block{
         if(tile == null) return;
         tile.setRotation(rotation);
         world.setBlock(tile, block, team);
+
+        state.teams.get(team).removePlansOverlapping(block, tile.x, tile.y);
         Effects.effect(Fx.placeBlock, tile.drawx(), tile.drawy(), block.size);
         Sound sound = blockPlace;
         if(Vars.soundController != null && sound != null){
@@ -235,6 +237,8 @@ public class BuildBlock extends Block{
          */
         public Block previous;
         public int builderID = -1;
+        /** Whether this build block is being deconstructed rather than constructed. */
+        public boolean deconstructing;
         /** Whether the prop being deconstructed was already felled (stump), used by damageWhenDeconstruct props. */
         public boolean previousStump;
         /** Health of the prop when the deconstruction began, so partial damage persists across deconstructs. */
@@ -366,6 +370,7 @@ public class BuildBlock extends Block{
         public void setConstruct(Block previous, Recipe recipe){
             this.recipe = recipe;
             this.previous = previous;
+            this.deconstructing = false;
             this.accumulator = new float[recipe.requirements.length];
             this.totalAccumulator = new float[recipe.requirements.length];
             this.buildCost = recipe.cost;
@@ -373,6 +378,7 @@ public class BuildBlock extends Block{
 
         public void setDeconstruct(Block previous){
             this.previous = previous;
+            this.deconstructing = true;
             this.progress = 1f;
             this.deconstructDropsPaid = false;
             if(Recipe.getByResult(previous) != null){
@@ -408,6 +414,9 @@ public class BuildBlock extends Block{
             short pid = stream.readShort();
             short rid = stream.readShort();
             byte acsize = stream.readByte();
+
+            //deconstruction starts at full progress and counts down; constructions never save at full progress
+            deconstructing = progress >= 0.999f;
 
             if(acsize != -1){
                 accumulator = new float[acsize];

@@ -14,6 +14,7 @@ import io.anuke.mindustry.core.GameState.State;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.Units;
+import io.anuke.mindustry.entities.traits.BuilderTrait.BuildRequest;
 import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.entities.units.GroundUnit;
@@ -58,6 +59,7 @@ public class DesktopInput extends InputHandler{
 
     /**Animation scale for line.*/
     private float selectScale;
+    private int rebuildStartX, rebuildStartY;
     private final IntSet selectedUnits = new IntSet();
     private boolean selectingUnits;
     private final Vector2 unitSelectStart = new Vector2();
@@ -92,7 +94,7 @@ public class DesktopInput extends InputHandler{
 
     @Override
     public boolean isDrawing(){
-        return mode != none || recipe != null;
+        return mode != none || recipe != null || rebuildSelecting;
     }
 
     /** @return whether the camera is detached from the player */
@@ -123,7 +125,14 @@ public class DesktopInput extends InputHandler{
         int cursorY = tileY(Gdx.input.getY());
 
         //draw selection(s)
-        if(mode == placing && recipe != null){
+        if(rebuildSelecting){
+            NormalizeDrawResult result = PlaceUtils.normalizeDrawArea(Blocks.air, rebuildStartX, rebuildStartY, cursorX, cursorY, false, maxLength, 1f);
+
+            Draw.color(Palette.accentBack);
+            Lines.rect(result.x, result.y - 1, result.x2 - result.x, result.y2 - result.y);
+            Draw.color(Palette.accent);
+            Lines.rect(result.x, result.y, result.x2 - result.x, result.y2 - result.y);
+        }else if(mode == placing && recipe != null){
             NormalizeResult result = PlaceUtils.normalizeArea(selectX, selectY, cursorX, cursorY, rotation, true, maxLength);
 
             for(int i = 0; i <= result.getLength(); i += recipe.result.size){
@@ -196,6 +205,23 @@ public class DesktopInput extends InputHandler{
             }
             drawPlace(cursorX, cursorY, recipe.result, rotation);
             recipe.result.drawPlace(cursorX, cursorY, rotation, validPlace(cursorX, cursorY, recipe.result, rotation));
+        }else if(!ui.hasMouse()){
+            Tile hover = tileAt(Gdx.input.getX(), Gdx.input.getY());
+            BuildRequest plan = hover == null ? null : player.getBuildRequest(hover.x, hover.y);
+
+            if(plan != null && !plan.breaking && plan.recipe != null){
+                Block block = plan.recipe.result;
+                float dx = plan.x * tilesize + block.offset(), dy = plan.y * tilesize + block.offset();
+
+                Draw.color(Palette.accent);
+                Lines.stroke(2f);
+                Lines.square(dx, dy, block.size * tilesize / 2f + Mathf.absin(Timers.time(), 7f, 1f));
+
+                if(block.rotate){
+                    Draw.color(Palette.placeRotate);
+                    Draw.grect("place-arrow", dx, dy, plan.rotation * 90 - 90);
+                }
+            }
         }
 
         Draw.reset();
@@ -206,7 +232,10 @@ public class DesktopInput extends InputHandler{
         int cursorX = tileX(Gdx.input.getX());
         int cursorY = tileY(Gdx.input.getY());
 
-        if(ui.hasKeyboard() || ui.chatfrag.chatOpen() || ui.mapfrag.isOpen()) return;
+        if(ui.hasKeyboard() || ui.chatfrag.chatOpen() || ui.mapfrag.isOpen()){
+            rebuildSelecting = false;
+            return;
+        }
 
         if(Net.active() && Inputs.keyTap("player_list")){
             ui.listfrag.toggle();
@@ -243,7 +272,10 @@ public class DesktopInput extends InputHandler{
             player.isShooting = false;
         }
 
-        if(state.is(State.menu) || ui.hasDialog() || ui.hasKeyboard()) return;
+        if(state.is(State.menu) || ui.hasDialog() || ui.hasKeyboard()){
+            rebuildSelecting = false;
+            return;
+        }
 
         boolean controller = KeyBinds.getSection(section).device.type == Inputs.DeviceType.controller;
 
@@ -256,9 +288,28 @@ public class DesktopInput extends InputHandler{
 
         updateCamera();
 
-        if(player.isDead()) return;
+        if(player.isDead()){
+            rebuildSelecting = false;
+            return;
+        }
 
         pollInput();
+
+        //rebuild selection
+        if(Inputs.keyTap(section, "rebuild_select") && !ui.hasMouse() && !isPlacing()){
+            rebuildSelecting = true;
+            rebuildStartX = cursorX;
+            rebuildStartY = cursorY;
+        }
+
+        if(rebuildSelecting){
+            if(ui.hasMouse()){
+                rebuildSelecting = false;
+            }else if(Inputs.keyRelease(section, "rebuild_select")){
+                rebuildSelecting = false;
+                rebuildArea(rebuildStartX, rebuildStartY, cursorX, cursorY);
+            }
+        }
 
         //deselect if not placing
         if(!isPlacing() && mode == placing){
@@ -285,7 +336,16 @@ public class DesktopInput extends InputHandler{
                     for(int i = 0; i < 3; i++) schematic.rotate();
                 }
             }else{
-                rotation = Mathf.mod(rotation + axis, 4);
+                Tile hover = !isPlacing() && !ui.hasMouse() ? tileAt(Gdx.input.getX(), Gdx.input.getY()) : null;
+                BuildRequest plan = hover == null ? null : player.getBuildRequest(hover.x, hover.y);
+
+                if(plan != null && !plan.breaking && !plan.initialized && plan.progress <= 0f
+                        && plan.recipe != null && plan.recipe.result.rotate){
+                    plan.rotation = Mathf.mod(plan.rotation + axis, 4);
+                    rotation = plan.rotation;
+                }else{
+                    rotation = Mathf.mod(rotation + axis, 4);
+                }
             }
         }
 
@@ -319,6 +379,13 @@ public class DesktopInput extends InputHandler{
     }
 
     void pollInput(){
+        if(rebuildSelecting){
+            //do not place/break/shoot while selecting a rebuild area
+            leftWasDown = Gdx.input.isButtonPressed(Buttons.LEFT);
+            rightWasDown = Gdx.input.isButtonPressed(Buttons.RIGHT);
+            return;
+        }
+
         Tile selected = tileAt(Gdx.input.getX(), Gdx.input.getY());
         int cursorX = tileX(Gdx.input.getX());
         int cursorY = tileY(Gdx.input.getY());

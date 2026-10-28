@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.PixmapIO;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
@@ -32,7 +33,9 @@ import io.anuke.mindustry.entities.units.FlyingUnit;
 import io.anuke.mindustry.entities.traits.BuilderTrait;
 import io.anuke.mindustry.game.EventType.WorldLoadGraphicsEvent;
 import io.anuke.mindustry.game.Team;
+import io.anuke.mindustry.game.Teams.BlockPlan;
 import io.anuke.mindustry.graphics.*;
+import io.anuke.mindustry.input.InputHandler;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.Floor;
@@ -77,6 +80,8 @@ public class Renderer extends RendererModule{
 
     private Bloom bloom;
     private boolean lastBloom;
+    /** Fade factor for destroyed-block rebuild ghosts. */
+    private float brokenFade;
 
     /**
      * Target camera scale (pixels per world unit) that the player has asked for, and the scale
@@ -475,6 +480,8 @@ public class Renderer extends RendererModule{
         Graphics.shader();
 
         blocks.drawBlocks(Layer.overlay);
+
+        drawDestroyedBlocks();
 
         drawAllTeams(false);
 
@@ -1003,6 +1010,39 @@ public class Renderer extends RendererModule{
             }
         }
         return count;
+    }
+
+    /** Draws translucent ghosts of destroyed blocks that can be rebuilt. */
+    private void drawDestroyedBlocks(){
+        if(state.is(State.menu) || players.length == 0 || players[0] == null) return;
+        if(!Settings.getBool("destroyedblocks", true)) return;
+
+        InputHandler input = control.input(0);
+        if(input == null) return;
+
+        boolean show = input.isPlacing() || input.isBreaking() || input.isRebuildSelecting();
+        brokenFade = Mathf.lerpDelta(brokenFade, show ? 1f : 0f, 0.1f);
+
+        if(brokenFade <= 0.001f) return;
+
+        float range = Math.max(camera.viewportWidth, camera.viewportHeight) * 0.75f;
+
+        for(BlockPlan plan : state.teams.get(players[0].getTeam()).plans){
+            Block block = plan.block;
+            float x = plan.x * tilesize + block.offset(), y = plan.y * tilesize + block.offset();
+
+            if(Mathf.dst(x - camera.position.x, y - camera.position.y) > range + block.size * tilesize) continue;
+
+            Draw.color(Color.WHITE);
+            Draw.alpha(0.3f * brokenFade);
+
+            for(TextureRegion region : block.getBlockIcon()){
+                Draw.rect(region, x, y, region.getRegionWidth(), region.getRegionHeight(),
+                        block.rotate ? plan.rotation * 90 : 0);
+            }
+        }
+
+        Draw.reset();
     }
 
     private <T extends DrawTrait> void drawReflected(T entity, float gap, boolean flip, float halfW, float halfH, Matrix4 mat){

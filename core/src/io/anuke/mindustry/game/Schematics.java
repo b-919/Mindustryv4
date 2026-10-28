@@ -35,6 +35,7 @@ import static io.anuke.mindustry.Vars.content;
 public class Schematics {
     private Array<Schematic> all = new Array<>();
     private LongMap<Object> pendingConfigs = new LongMap<>();
+    private LongMap<Block> pendingConfigBlocks = new LongMap<>();
     private LongMap<Integer> configTries = new LongMap<>();
     private ObjectMap<Schematic, Texture> previews = new ObjectMap<>();
     private SpriteBatch spriteBatch;
@@ -218,13 +219,29 @@ public class Schematics {
             //so blocks know not to apply their "last placed" presets while the
             //schematic config (or lack of one) is still pending
             pendingConfigs.put(key(ox, oy), stile.config);
+            pendingConfigBlocks.put(key(ox, oy), stile.block);
             Vars.control.input(0).tryPlaceBlock(ox, oy, recipe, stile.rotation);
         }
+    }
+
+    /** Queues a config to be applied to a specific block type constructed at this position. */
+    public void queueConfig(int x, int y, Block block, Object config){
+        pendingConfigs.put(key(x, y), config);
+        pendingConfigBlocks.put(key(x, y), block);
     }
 
     public void applyConfig(Tile tile){
         long k = key(tile.x, tile.y);
         if(!pendingConfigs.containsKey(k)) return;
+
+        Block expected = pendingConfigBlocks.get(k);
+        if(expected != null && tile.block() != expected){
+            pendingConfigs.remove(k);
+            pendingConfigBlocks.remove(k);
+            configTries.remove(k);
+            return;
+        }
+
         Object config = pendingConfigs.get(k);
 
         boolean applied = true;
@@ -238,6 +255,7 @@ public class Schematics {
 
         if(applied){
             pendingConfigs.remove(k);
+            pendingConfigBlocks.remove(k);
             configTries.remove(k);
         }else{
             //retry for a while, in case the referenced tiles are still being built
@@ -247,6 +265,7 @@ public class Schematics {
                 Vars.threads.runDelay(() -> applyConfig(tile));
             }else{
                 pendingConfigs.remove(k);
+                pendingConfigBlocks.remove(k);
                 configTries.remove(k);
             }
         }
@@ -412,7 +431,7 @@ public class Schematics {
         }
     }
 
-    private void writeTileConfig(DataOutputStream stream, Object config) throws IOException {
+    public static void writeTileConfig(DataOutputStream stream, Object config) throws IOException {
         if (config == null) {
             stream.writeByte(0);
         } else if (config instanceof Item) {
@@ -434,7 +453,7 @@ public class Schematics {
         }
     }
 
-    private Object readTileConfig(DataInputStream stream) throws IOException {
+    public static Object readTileConfig(DataInputStream stream) throws IOException {
         byte type = stream.readByte();
         switch (type) {
             case 0: return null;

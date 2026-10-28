@@ -12,11 +12,14 @@ import io.anuke.mindustry.entities.units.FlyingUnit;
 import io.anuke.mindustry.entities.units.UnitCommand;
 import io.anuke.mindustry.entities.units.UnitState;
 import io.anuke.mindustry.game.EventType.BuildSelectEvent;
+import io.anuke.mindustry.game.Teams.BlockPlan;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.ItemStack;
 import io.anuke.mindustry.type.ItemType;
+import io.anuke.mindustry.type.Recipe;
+import io.anuke.mindustry.world.Build;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.BuildBlock;
 import io.anuke.mindustry.world.blocks.BuildBlock.BuildEntity;
@@ -75,12 +78,12 @@ public class Drone extends FlyingUnit implements BuilderTrait{
             if(core == null) return;
 
             if((entity.progress() < 1f || entity.progress() > 0f) && entity.tile.block() instanceof BuildBlock){ //building is valid
-                if(!isBuilding() && distanceTo(target) < placeDistance * 0.9f){ //within distance, begin placing
+                if(!isBuilding() && distanceTo(target) < buildRange * 0.9f){ //within distance, begin placing
                     checkRetreat();
                     if(isBreaking){
-                        getPlaceQueue().addLast(new BuildRequest(entity.tile.x, entity.tile.y));
+                        addBuildRequest(new BuildRequest(entity.tile.x, entity.tile.y));
                     }else{
-                        getPlaceQueue().addLast(new BuildRequest(entity.tile.x, entity.tile.y, entity.tile.getRotation(), entity.recipe));
+                        addBuildRequest(new BuildRequest(entity.tile.x, entity.tile.y, entity.tile.getRotation(), entity.recipe));
                     }
                 }
 
@@ -97,7 +100,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
                     }
                 }
 
-                circle(placeDistance * 0.7f);
+                circle(buildRange * 0.7f);
             }else{ //building isn't valid
                 checkRetreat();
                 setState(repair);
@@ -117,10 +120,15 @@ public class Drone extends FlyingUnit implements BuilderTrait{
                 target = Units.findDamagedTile(team, x, y);
 
                 if(target == null){
-                    checkRetreat();
-                    setState(mine);
+                    if(followPlayerMode || !startRebuild()){
+                        checkRetreat();
+                        setState(mine);
+                    }
                 }
             });
+
+            //state may have changed to rebuild inside retarget
+            if(state.is(rebuild)) return;
 
             if(target == null) return;
 
@@ -128,6 +136,38 @@ public class Drone extends FlyingUnit implements BuilderTrait{
                 circle(type.range*0.9f);
             }else{
                 getWeapon().update(Drone.this, target.getX(), target.getY());
+            }
+        }
+    },
+
+    rebuild = new UnitState(){
+
+        public void entered(){
+        }
+
+        public void update(){
+            BuildRequest request = getCurrentRequest();
+
+            if(request == null){
+                setState(repair);
+                return;
+            }
+
+            Tile tile = world.tile(request.x, request.y);
+
+            if(tile == null){
+                getPlaceQueue().clear();
+                setState(repair);
+                return;
+            }
+
+            target = tile;
+            circle(buildRange * 0.7f);
+
+            //construction has started; switch to the normal build assistance state
+            if(tile.entity instanceof BuildEntity){
+                target = tile.entity;
+                setState(build);
             }
         }
     },
@@ -278,8 +318,49 @@ public class Drone extends FlyingUnit implements BuilderTrait{
         });
     }
 
+    /** Picks the closest valid destroyed-block plan and starts rebuilding it. */
+    protected boolean startRebuild(){
+        BlockPlan best = null;
+        float bestDst = Float.MAX_VALUE;
+
+        for(BlockPlan plan : Vars.state.teams.get(team).plans){
+            if(!canRebuild(plan)) continue;
+
+            float dst = Mathf.dst(plan.x * Vars.tilesize - x, plan.y * Vars.tilesize - y);
+            if(dst < bestDst){
+                bestDst = dst;
+                best = plan;
+            }
+        }
+
+        if(best == null) return false;
+
+        Tile tile = world.tile(best.x, best.y);
+        Recipe recipe = Recipe.getByResult(best.block);
+
+        if(tile == null || recipe == null) return false;
+
+        if(best.config != null){
+            Vars.schematics.queueConfig(best.x, best.y, best.block, best.config);
+        }
+
+        addBuildRequest(new BuildRequest(best.x, best.y, best.rotation, recipe));
+        target = tile;
+        setState(rebuild);
+        return true;
+    }
+
+    /** Whether this destroyed block can currently be rebuilt. */
+    protected boolean canRebuild(BlockPlan plan){
+        Tile tile = world.tile(plan.x, plan.y);
+        Recipe recipe = Recipe.getByResult(plan.block);
+
+        return tile != null && tile.block() == Blocks.air && recipe != null && recipe.available()
+                && Build.validPlace(team, plan.x, plan.y, plan.block, plan.rotation);
+    }
+
     public void notifyPlaced(BuildEntity entity, boolean isBreaking){
-        float dist = Math.min(entity.distanceTo(x, y) - placeDistance, 0);
+        float dist = Math.min(entity.distanceTo(x, y) - buildRange, 0);
 
         if(!state.is(build) && dist / type.maxVelocity < entity.buildCost * 0.9f){
             target = entity;
@@ -422,7 +503,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
 
     @Override
     public float drawSize(){
-        return isBuilding() ? placeDistance * 2f : 30f;
+        return isBuilding() ? buildRange * 2f : 30f;
     }
 
     protected void findItem(){
@@ -450,7 +531,8 @@ public class Drone extends FlyingUnit implements BuilderTrait{
 
     @Override
     public boolean canCreateBlocks(){
-        return false;
+        //builder drones can now start rebuild plans for destroyed team blocks
+        return true;
     }
 
     @Override

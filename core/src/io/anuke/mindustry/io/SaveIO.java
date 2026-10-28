@@ -10,6 +10,7 @@ import io.anuke.mindustry.io.versions.Save16;
 import io.anuke.mindustry.io.versions.Save17;
 import io.anuke.mindustry.io.versions.Save18;
 import io.anuke.mindustry.io.versions.Save19;
+import io.anuke.mindustry.io.versions.Save20;
 import io.anuke.mindustry.maps.campaign.Campaign;
 
 import java.io.*;
@@ -30,7 +31,8 @@ public class SaveIO{
         new Save16(),
         new Save17(),
         new Save18(),
-        new Save19()
+        new Save19(),
+        new Save20()
     );
 
     static{

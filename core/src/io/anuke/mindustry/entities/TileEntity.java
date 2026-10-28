@@ -9,6 +9,7 @@ import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.annotations.Annotations.Loc;
 import io.anuke.annotations.Annotations.Remote;
 import io.anuke.mindustry.ai.MassAI;
+import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.fx.Fx;
 import io.anuke.mindustry.content.UnitTypes;
 import io.anuke.mindustry.entities.bullet.Bullet;
@@ -16,13 +17,16 @@ import io.anuke.mindustry.entities.effect.ScorchDecal;
 import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.mindustry.entities.units.types.BlockDefenseDrone;
 import io.anuke.mindustry.game.Team;
+import io.anuke.mindustry.game.Teams.BlockPlan;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.net.Net;
+import io.anuke.mindustry.type.Recipe;
 import io.anuke.ucore.entities.trait.Entity;
 import io.anuke.mindustry.sounds.Sounds;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Edges;
 import io.anuke.mindustry.world.Tile;
+import io.anuke.mindustry.world.blocks.BuildBlock;
 import io.anuke.mindustry.world.blocks.defense.Wall;
 import io.anuke.mindustry.world.consumers.Consume;
 import io.anuke.mindustry.world.modules.ConsumeModule;
@@ -304,6 +308,13 @@ public class TileEntity extends BaseEntity implements TargetTrait, HealthTrait{
         if(!dead){
             dead = true;
             Block block = tile.block();
+
+            //remember destroyed team blocks so they can be rebuilt later
+            if(block.synthetic() && tile.getTeam() != Team.none && tile.getTeam() != Team.themass
+                    && !(block instanceof BuildBlock) && Recipe.getByResult(block) != null){
+                Vars.state.teams.get(tile.getTeam()).addPlan(
+                        new BlockPlan(tile.x, tile.y, tile.getRotation(), block, config()));
+            }
 
             if(block.living){
                 ScorchDecal.create(x, y, Color.valueOf("2b0000"));

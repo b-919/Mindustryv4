@@ -8,9 +8,13 @@ import io.anuke.mindustry.entities.traits.TypeTrait;
 import io.anuke.mindustry.game.Content;
 import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.MappableContent;
+import io.anuke.mindustry.game.Schematics;
 import io.anuke.mindustry.game.Team;
+import io.anuke.mindustry.game.Teams.BlockPlan;
+import io.anuke.mindustry.game.Teams.TeamData;
 import io.anuke.mindustry.maps.Map;
 import io.anuke.mindustry.type.ContentType;
+import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.BlockPart;
 import io.anuke.ucore.entities.Entities;
@@ -231,6 +235,66 @@ public abstract class SaveFileVersion{
                 trait.readSave(stream);
             }
         }
+    }
+
+    public void writePlans(DataOutputStream stream) throws IOException{
+        stream.writeByte(Team.all.length);
+
+        for(Team team : Team.all){
+            TeamData data = state.teams.getOrNull(team);
+            stream.writeShort(data == null ? 0 : data.plans.size);
+
+            if(data == null) continue;
+
+            for(BlockPlan plan : data.plans){
+                stream.writeShort(plan.block.id);
+                stream.writeShort(plan.x);
+                stream.writeShort(plan.y);
+                stream.writeByte(plan.rotation);
+                Schematics.writeTileConfig(stream, plan.config);
+            }
+        }
+    }
+
+    public void readPlans(DataInputStream stream) throws IOException{
+        readPlans(stream, null);
+    }
+
+    public void readPlans(DataInputStream stream, MappableContent[][] mapper) throws IOException{
+        int teams = stream.readUnsignedByte();
+
+        for(int i = 0; i < teams; i++){
+            Team team = i < Team.all.length ? Team.all[i] : null;
+            int amount = stream.readUnsignedShort();
+
+            for(int j = 0; j < amount; j++){
+                int blockid = stream.readUnsignedShort();
+                int x = stream.readShort();
+                int y = stream.readShort();
+                int rotation = stream.readUnsignedByte();
+                Object config = Schematics.readTileConfig(stream);
+
+                Block block = resolvePlanBlock(blockid, mapper);
+
+                if(team != null && block != null && block != Blocks.air && io.anuke.mindustry.type.Recipe.getByResult(block) != null){
+                    state.teams.get(team).addPlan(new BlockPlan(x, y, rotation, block, config));
+                }
+            }
+        }
+    }
+
+    private Block resolvePlanBlock(int id, MappableContent[][] mapper){
+        if(mapper != null && mapper[ContentType.block.ordinal()] != null && mapper[ContentType.block.ordinal()].length != 0){
+            if(mapper[ContentType.block.ordinal()].length <= id || mapper[ContentType.block.ordinal()][id] == null){
+                return Blocks.air;
+            }
+            return (Block)mapper[ContentType.block.ordinal()][id];
+        }
+
+        if(id < 0 || id >= content.blocks().size){
+            return null;
+        }
+        return content.block(id);
     }
 
     public MappableContent[][] readContentHeader(DataInputStream stream) throws IOException{

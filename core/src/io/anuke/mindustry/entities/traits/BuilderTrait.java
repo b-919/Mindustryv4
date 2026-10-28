@@ -41,7 +41,8 @@ import static io.anuke.mindustry.Vars.*;
  */
 public interface BuilderTrait extends Entity{
     //these are not instance variables!
-    float placeDistance = 150f;
+    /** Maximum distance at which a plan can actually be constructed. */
+    float buildRange = 220f;
     float mineDistance = 70f;
 
     /**Returns the queue for storing build requests.*/
@@ -124,18 +125,10 @@ public interface BuilderTrait extends Entity{
     }
 
     /**
-     * If a place request matching this signature is present, it is removed.
+     * If a place request matching this position is present, it is replaced by the new request.
      * Otherwise, a new place request is added to the queue.
      */
     default void replaceBuilding(int x, int y, int rotation, Recipe recipe){
-        for(BuildRequest request : getPlaceQueue()){
-            if(request.x == x && request.y == y){
-                clearBuilding();
-                addBuildRequest(request);
-                return;
-            }
-        }
-
         addBuildRequest(new BuildRequest(x, y, rotation, recipe));
     }
 
@@ -144,17 +137,79 @@ public interface BuilderTrait extends Entity{
         getPlaceQueue().clear();
     }
 
-    /**Add another build requests to the tail of the queue, if it doesn't exist there yet.*/
-    default void addBuildRequest(BuildRequest place){
+    /**
+     * Returns the queued request overlapping this tile, or null.
+     * Multiblock plans are matched against their whole footprint, like modern Mindustry plans.
+     */
+    default BuildRequest getBuildRequest(int x, int y){
         for(BuildRequest request : getPlaceQueue()){
-            if(request.x == place.x && request.y == place.y){
-                return;
+            Tile tile = world.tile(request.x, request.y);
+            if(tile == null || (!request.breaking && request.recipe == null)) continue;
+
+            int size = request.breaking ? tile.block().size : request.recipe.result.size;
+            float offset = request.breaking ? tile.block().offset() : request.recipe.result.offset();
+            float half = size * tilesize / 2f;
+            float cx = request.x * tilesize + offset, cy = request.y * tilesize + offset;
+
+            //cursor tile is treated as a 1x1 block centered on the tile origin, matching existing UI code
+            if(Math.abs(cx - x * tilesize) < half + tilesize / 2f
+                    && Math.abs(cy - y * tilesize) < half + tilesize / 2f){
+                return request;
             }
         }
+        return null;
+    }
+
+    /** Removes a queued request if it matches this position and type. */
+    default boolean removeBuildRequest(int x, int y, boolean breaking){
+        BuildRequest request = getBuildRequest(x, y);
+        if(request != null && request.breaking == breaking){
+            getPlaceQueue().removeValue(request, true);
+            return true;
+        }
+        return false;
+    }
+
+    /** Whether two queued requests overlap in the world. */
+    default boolean buildRequestOverlaps(BuildRequest a, BuildRequest b){
+        Tile at = world.tile(a.x, a.y);
+        Tile bt = world.tile(b.x, b.y);
+        if(at == null || bt == null || (!a.breaking && a.recipe == null) || (!b.breaking && b.recipe == null)) return false;
+
+        int asize = a.breaking ? at.block().size : a.recipe.result.size;
+        float aoffset = a.breaking ? at.block().offset() : a.recipe.result.offset();
+        int bsize = b.breaking ? bt.block().size : b.recipe.result.size;
+        float boffset = b.breaking ? bt.block().offset() : b.recipe.result.offset();
+
+        float ah = asize * tilesize / 2f, bh = bsize * tilesize / 2f;
+        float ax = a.x * tilesize + aoffset, ay = a.y * tilesize + aoffset;
+        float bx = b.x * tilesize + boffset, by = b.y * tilesize + boffset;
+
+        return Math.abs(ax - bx) < ah + bh && Math.abs(ay - by) < ah + bh;
+    }
+
+    /**
+     * Adds a build request to the tail of the queue, replacing any existing request that overlaps it.
+     * This mirrors modern Mindustry's addBuild(), which lets players override plans (including rotation
+     * and block type) instead of silently ignoring the click.
+     */
+    default void addBuildRequest(BuildRequest place){
         Tile tile = world.tile(place.x, place.y);
         if(tile != null && tile.entity instanceof BuildEntity){
-            place.progress = tile.<BuildEntity>entity().progress;
+            BuildEntity existing = tile.entity();
+            //only preserve progress when this is the same construction
+            if(!place.breaking && existing.recipe != null && place.recipe != null
+                    && existing.recipe.result == place.recipe.result && tile.getRotation() == place.rotation){
+                place.progress = existing.progress;
+            }
         }
+
+        for(int i = getPlaceQueue().size - 1; i >= 0; i--){
+            if(buildRequestOverlaps(place, getPlaceQueue().get(i))){
+                getPlaceQueue().removeIndex(i);
+            }
+        }
+
         getPlaceQueue().addLast(place);
     }
 
@@ -183,9 +238,38 @@ public interface BuilderTrait extends Entity{
             setMineTile(null);
         }
 
-        Tile tile = world.tile(current.x, current.y);
+        //drop invalid requests (e.g. a recipe that no longer exists)
+        if(!current.breaking && current.recipe == null){
+            getPlaceQueue().removeFirst();
+            return;
+        }
 
-        if(unit.distanceTo(tile) > placeDistance){
+        Tile tile = world.tile(current.x, current.y);
+        if(tile == null){
+            getPlaceQueue().removeFirst();
+            return;
+        }
+
+        //if the current plan can't be reached, cycle the queue so a reachable plan is picked
+        //instead of letting the first queued plan block the whole queue (modern builder behavior).
+        //only one step is taken per update so long queues stay O(1) per frame.
+        if(unit.distanceTo(tile) > buildRange && getPlaceQueue().size > 1){
+            getPlaceQueue().addLast(getPlaceQueue().removeFirst());
+
+            current = getCurrentRequest();
+            tile = world.tile(current.x, current.y);
+
+            if(!current.breaking && current.recipe == null){
+                getPlaceQueue().removeFirst();
+                return;
+            }
+
+            if(tile == null || unit.distanceTo(tile) > buildRange){
+                return;
+            }
+        }
+
+        if(unit.distanceTo(tile) > buildRange){
             return;
         }
 
@@ -197,6 +281,28 @@ public interface BuilderTrait extends Entity{
             }else{
                 getPlaceQueue().removeFirst();
                 return;
+            }
+        }else if(canCreateBlocks() && !current.breaking){
+            //a construction is already in progress here; override it if this plan is different
+            BuildEntity existing = tile.entity();
+
+            if(existing != null && existing.deconstructing){
+                //do not override a deconstruction site with a placement plan
+                getPlaceQueue().removeFirst();
+                return;
+            }
+
+            if(existing != null && (existing.recipe == null || existing.recipe.result != current.recipe.result || tile.getRotation() != current.rotation)){
+                Build.beginPlace(unit.getTeam(), current.x, current.y, current.recipe, current.rotation);
+
+                BuildEntity updated = tile.entity();
+                if(tile.block() instanceof BuildBlock && (updated == null || updated.recipe == null
+                        || updated.recipe.result != current.recipe.result || tile.getRotation() != current.rotation)){
+                    //the override could not be applied to the in-progress construction; drop it rather than
+                    //finishing the wrong block
+                    getPlaceQueue().removeFirst();
+                    return;
+                }
             }
         }
 
@@ -215,7 +321,7 @@ public interface BuilderTrait extends Entity{
             return;
         }
 
-        if(unit.distanceTo(tile) <= placeDistance){
+        if(unit.distanceTo(tile) <= buildRange){
             unit.rotation = Mathf.slerpDelta(unit.rotation, unit.angleTo(entity), 0.4f);
         }
 
@@ -234,7 +340,9 @@ public interface BuilderTrait extends Entity{
         }
 
         if(!current.initialized){
-            Gdx.app.postRunnable(() -> Events.fire(new BuildSelectEvent(tile, unit.getTeam(), this, current.breaking)));
+            final BuildRequest request = current;
+            final Tile target = tile;
+            Gdx.app.postRunnable(() -> Events.fire(new BuildSelectEvent(target, unit.getTeam(), this, request.breaking)));
             current.initialized = true;
         }
     }
@@ -287,7 +395,7 @@ public interface BuilderTrait extends Entity{
 
         Tile tile = world.tile(request.x, request.y);
 
-        if(unit.distanceTo(tile) > placeDistance){
+        if(unit.distanceTo(tile) > buildRange){
             return;
         }
 
@@ -349,7 +457,8 @@ public interface BuilderTrait extends Entity{
 
     /**Class for storing build requests. Can be either a place or remove request.*/
     class BuildRequest{
-        public final int x, y, rotation;
+        public final int x, y;
+        public int rotation;
         public final Recipe recipe;
         public final boolean breaking;
 

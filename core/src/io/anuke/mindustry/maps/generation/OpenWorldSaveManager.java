@@ -20,6 +20,7 @@ public class OpenWorldSaveManager{
     private static final String META_FILE = "meta.json";
     private static final String CHUNKS_DIR = "chunks";
     private static final String ENTITIES_FILE = "entities.dat";
+    private static final String PLANS_FILE = "plans.dat";
     private static final byte CHUNK_FORMAT_VERSION = 3;
 
     private FileHandle getRootDir(){
@@ -297,6 +298,31 @@ public class OpenWorldSaveManager{
         if(!file.exists()) return;
         try(DataInputStream in = new DataInputStream(file.read())){
             io.anuke.mindustry.io.SaveIO.getVersion().readEntities(in);
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+    }
+
+    /** Save destroyed-block rebuild plans for all teams. */
+    public void savePlans(String worldName){
+        FileHandle file = getWorldDir(worldName).child(PLANS_FILE);
+        getWorldDir(worldName).mkdirs();
+        try(DataOutputStream out = new DataOutputStream(file.write(false))){
+            out.writeByte(1); //plans file format version
+            io.anuke.mindustry.io.SaveIO.getVersion().writePlans(out);
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+    }
+
+    /** Load destroyed-block rebuild plans for all teams. */
+    public void loadPlans(String worldName){
+        FileHandle file = getWorldDir(worldName).child(PLANS_FILE);
+        if(!file.exists()) return;
+        try(DataInputStream in = new DataInputStream(file.read())){
+            int version = in.readUnsignedByte();
+            if(version != 1) return;
+            io.anuke.mindustry.io.SaveIO.getVersion().readPlans(in);
         }catch(IOException e){
             e.printStackTrace();
         }
