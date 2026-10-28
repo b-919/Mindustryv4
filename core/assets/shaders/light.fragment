@@ -21,8 +21,10 @@ void main(){
     if(u_type == 0){
         vec2 coords = (v_texCoord - u_uv) / (u_uv2 - u_uv);
         float dist = distance(coords, vec2(0.5));
-        float alpha = pow(clamp(1.0 - dist * 2.0, 0.0, 1.0), 1.0);
-        gl_FragColor = v_color * alpha * 1.5;
+        float alpha = clamp(1.0 - dist * 2.0, 0.0, 1.0);
+        alpha *= alpha;
+        float coverage = clamp(v_color.a * alpha * 4.0, 0.0, 1.0);
+        gl_FragColor = vec4(mix(u_ambient.rgb, v_color.rgb, coverage), 0.5);
     }else{
         vec4 colors = texture2D(u_texture0, v_texCoord);
         vec4 light = texture2D(u_lightmap, v_texCoord);

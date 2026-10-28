@@ -59,6 +59,7 @@ public class Shaders{
         @Override
         public void apply(){
             shader.setUniformi("u_type", type);
+            shader.setUniformf("u_ambient", ambient.r, ambient.g, ambient.b, ambient.a);
 
             if(type == 0){
                 if(region != null){
@@ -70,8 +71,6 @@ public class Shaders{
                 shader.setUniformi("u_lightmap", 1);
                 lightmap.bind(1);
                 Gdx.gl.glActiveTexture(GL20.GL_TEXTURE0);
-
-                shader.setUniformf("u_ambient", ambient.r, ambient.g, ambient.b, ambient.a);
             }
         }
     }

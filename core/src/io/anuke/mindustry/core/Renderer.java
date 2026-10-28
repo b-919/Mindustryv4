@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.PixmapIO;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -635,6 +636,9 @@ public class Renderer extends RendererModule{
         Graphics.clear(ambient);
         batch.setProjectionMatrix(camera.combined);
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+        //compose lights with the per-channel maximum: overlapping lights take the brightest
+        //single result instead of summing into a hotspot where two lights meet
+        Gdx.gl.glBlendEquation(GL30.GL_MAX);
 
         //draw lights over a wider area than the visible blocks
         int avgx = Mathf.scl(camera.position.x, tilesize);
@@ -660,6 +664,7 @@ public class Renderer extends RendererModule{
                 camera.viewportWidth, camera.viewportHeight);
 
         Shaders.light.type = 0;
+        Shaders.light.ambient.set(ambient);
         Graphics.shader(Shaders.light);
 
         //Blocks
@@ -811,6 +816,7 @@ public class Renderer extends RendererModule{
             }
         }
 
+        Gdx.gl.glBlendEquation(GL20.GL_FUNC_ADD);
         Graphics.shader();
         Draw.color();
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
