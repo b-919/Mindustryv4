@@ -1,13 +1,10 @@
 package io.anuke.mindustry.ai.mass;
 
-import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.LongSet;
-import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.content.blocks.DistributionBlocks;
-import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Block;
@@ -26,14 +23,9 @@ public final class MassUtil{
     private static float enemyCoreRadius;
     private static float enemyCoresTime = -1f;
 
-    private static final Rectangle enemyScanRect = new Rectangle();
-    /**Result of the last enemy scan; kept for save compatibility with the old shared flag.*/
-    static boolean enemyNearby;
-
     public static void invalidate(){
         enemyCores.clear();
         enemyCoresTime = -1f;
-        enemyNearby = false;
     }
 
     private static void refreshEnemyCores(){
@@ -62,17 +54,6 @@ public final class MassUtil{
         for(int i = 0; i < enemyCores.size; i++){
             Tile core = enemyCores.get(i);
             if(Mathf.dst(tile.x - core.x, tile.y - core.y) < enemyCoreRadius) return true;
-        }
-        return false;
-    }
-
-    /**Scans the square around each core once; result is kept in {@link #enemyNearby}.*/
-    static boolean anyEnemyNearCores(ObjectSet<Tile> cores){
-        for(Tile core : cores){
-            enemyScanRect.setSize(MassAIConfig.ENEMY_SCAN_SIZE).setCenter(core.worldx(), core.worldy());
-            enemyNearby = false;
-            Units.getNearbyEnemies(Team.themass, enemyScanRect, u -> enemyNearby = true);
-            if(enemyNearby) return true;
         }
         return false;
     }
@@ -117,17 +98,6 @@ public final class MassUtil{
             }
         }
         return enemyCore;
-    }
-
-    static int countNearbyCores(Tile near){
-        int count = 0;
-        float radius = MassAIConfig.CORE_PROXIMITY_TILES;
-        for(Tile core : Vars.state.teams.get(Team.themass).cores){
-            if(Mathf.dst(core.x - near.x, core.y - near.y) <= radius){
-                count++;
-            }
-        }
-        return count;
     }
 
     static boolean hasOresNearby(Tile tile, int radius){

@@ -335,11 +335,14 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     protected transient boolean chunkPathFine = false;
     private final transient Translator chunkVec = new Translator();
     private static final float[] avoidOffsets = {40f, -40f, 80f, -80f, 120f, -120f, 160f, -160f};
+    protected float bodyHalf(){
+        return Math.max(type.hitsize * 0.5f - 1f, 2f);
+    }
 
     /** Returns true when a ground unit moving along this angle would hit solid terrain or deeper drowning liquid. */
     protected boolean blockedAtAngle(float angle){
-        float look = Math.max(type.hitsize * 0.75f + 5f, 12f);
-        float half = Math.max(type.hitsize * 0.5f - 1.5f, 3f);
+        float look = Math.max(type.hitsize * 0.75f + 8f, 16f);
+        float half = Math.max(type.hitsize * 0.5f - 1f, 3f);
         float step = Math.max(3f, look * 0.3f);
 
         for(float d = step; d <= look + 0.01f; d += step){
@@ -442,10 +445,12 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         float curX = x, curY = y;
         for(int i = 0; i < coarse.size; i++){
             long wp = coarse.items[i];
-            float wx = (int)(wp >> 32) * tilesize + tilesize / 2f;
-            float wy = (int)wp * tilesize + tilesize / 2f;
+            float wx = (int)(wp >> 32) * tilesize;
+            float wy = (int)wp * tilesize;
             LongArray leg = world.pathfinder.findUnitPath(team, curX, curY, wx, wy);
-            if(leg == null || leg.size == 0) return null;
+            if(leg == null || leg.size == 0){
+                return out.size > 1 ? out : null;
+            }
             for(int j = 0; j < leg.size; j++){
                 if(leg.items[j] == wp) continue;
                 out.add(leg.items[j]);
@@ -453,11 +458,11 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             //pathological long corridors: keep the coarse route instead of A*ing every single door
             if(out.size > REFINE_MAX_WAYPOINTS) return null;
             long last = leg.peek();
-            curX = (int)(last >> 32) * tilesize + tilesize / 2f;
-            curY = (int)last * tilesize + tilesize / 2f;
+            curX = (int)(last >> 32) * tilesize;
+            curY = (int)last * tilesize;
         }
         LongArray tail = world.pathfinder.findUnitPath(team, curX, curY, gx, gy);
-        if(tail == null || tail.size == 0) return null;
+        if(tail == null || tail.size == 0) return out.size > 1 ? out : null;
         for(int j = 0; j < tail.size; j++){
             out.add(tail.items[j]);
         }
@@ -567,13 +572,13 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         chunkPathIndex = idx;
 
         float wx = waypointX(idx), wy = waypointY(idx);
-        if(Mathf.dst(wx - x, wy - y) < 3 * tilesize){
+        if(Mathf.dst(wx - x, wy - y) < tilesize * 0.75f){
             chunkPathIndex = Math.min(idx + 1, chunkPath.size - 1);
         }
 
         long wp = chunkPath.items[chunkPathIndex];
-        wx = (int)(wp >> 32) * tilesize + tilesize / 2f;
-        wy = (int)wp * tilesize + tilesize / 2f;
+        wx = (int)(wp >> 32) * tilesize;
+        wy = (int)wp * tilesize;
         float wayDist = Mathf.dst(x - wx, y - wy);
 
         if(wp != chunkStuckTarget){
@@ -592,9 +597,9 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         chunkStuckProg = wayDist;
         boolean hopBlocked = !inlineClear(x, y, wx, wy);
         //chronic jam: refined-fine hops are clear by construction so a jam is a fresh obstruction or a
-        //gap too narrow for the body (>30 frames). Coarse fallback: >14 frames on a truly blocking hop,
+        //gap too narrow for the body (>12 frames). Coarse fallback: >6 frames on a truly blocking hop,
         //or >44 even when the hop line looks clear. Either way the waypoint is unusable for this unit.
-        if(chunkStuck > (chunkPathFine ? 30 : (hopBlocked ? 14 : 44)) && !isFlying()){
+        if(chunkStuck > (chunkPathFine ? 12 : (hopBlocked ? 6 : 44)) && !isFlying()){
             chunkStuck = 0;
             chunkStuckProg = Float.NaN;
 
@@ -691,13 +696,15 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         float goalDistSq = gdx * gdx + gdy * gdy;
         while(idx < chunkPath.size){
             float toWpX = waypointX(idx) - x, toWpY = waypointY(idx) - y;
-            if(Mathf.dst(toWpX, toWpY) < 3 * tilesize){
+            float dist = Mathf.dst(toWpX, toWpY);
+            if(dist < tilesize * 0.6f){
                 idx++;
                 continue;
             }
-            //strictly-behind waypoints (>90° away from the goal direction) would make the unit
-            //backtrack; skip them unless the goal itself is basically adjacent
+
             if(goalDistSq > tilesize * tilesize && (gdx * toWpX + gdy * toWpY) <= 0){
+                if(goalDistSq > (8 * tilesize) * (8 * tilesize)) break;
+                if(!inlineClear(x, y, gx, gy)) break;
                 idx++;
                 continue;
             }
@@ -708,12 +715,31 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
     private float waypointX(int index){
         long wp = chunkPath.items[index];
-        return (int)(wp >> 32) * tilesize + tilesize / 2f;
+        return (int)(wp >> 32) * tilesize;
     }
 
     private float waypointY(int index){
         long wp = chunkPath.items[index];
-        return (int)wp * tilesize + tilesize / 2f;
+        return (int)wp * tilesize;
+    }
+
+    /**True when the straight hop to a waypoint is clear for the unit's whole body.*/
+    protected boolean hopClear(Tile waypoint){
+        return waypoint == null || hopClear(waypoint.worldx(), waypoint.worldy());
+    }
+
+    /**
+     * True when the immediate part of a straight line is clear for the whole body. Only the next
+     * few tiles are sampled, so using this against a far goal stays cheap.
+     */
+    protected boolean hopClear(float wx, float wy){
+        float dx = wx - x, dy = wy - y;
+        float len = Mathf.dst(dx, dy);
+        if(len <= 0.001f) return true;
+
+        float check = Math.min(len, tilesize * 3f);
+        float t = check / len;
+        return inlineClear(x, y, x + dx * t, y + dy * t);
     }
 
     /**
@@ -721,11 +747,11 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
      * sampled across the unit's body width. Keeps the rubber-band corner-cutting from skipping
      * chunk doors that hide a slope just around the corner.
      */
-    private boolean inlineClear(float ax, float ay, float bx, float by){
+    protected boolean inlineClear(float ax, float ay, float bx, float by){
         if(Mathf.dst(ax - bx, ay - by) <= tilesize) return true;
         int steps = Math.max(2, (int)(Mathf.dst(ax - bx, ay - by) / (tilesize * 0.5f)));
         float ang = Mathf.atan2(by - ay, bx - ax);
-        float half = Math.max(type.hitsize * 0.35f, 2f);
+        float half = bodyHalf();
         float dx = (bx - ax) / steps, dy = (by - ay) / steps;
         for(int s = 1; s < steps; s++){
             float px = ax + dx * s, py = ay + dy * s;

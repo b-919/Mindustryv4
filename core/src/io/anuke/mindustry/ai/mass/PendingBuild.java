@@ -1,6 +1,8 @@
 package io.anuke.mindustry.ai.mass;
 
+import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.content.blocks.DistributionBlocks;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.type.AmmoEntry;
 import io.anuke.mindustry.type.AmmoType;
@@ -74,6 +76,11 @@ class PendingBuild{
 
     void place(){
         if(tile == null) return;
+
+        Array<Tile> replacedVeins = block != DistributionBlocks.veins
+            ? MassBuilder.collectVeins(tile, block.size)
+            : null;
+
         world.setBlock(tile, block, team);
         if(rotation != 0) tile.setRotation((byte) rotation);
 
@@ -96,6 +103,10 @@ class PendingBuild{
             }
 
             MassDefense.invalidateTurretCount();
+        }
+
+        if(replacedVeins != null && replacedVeins.size > 0){
+            MassBuilder.repairVeins(replacedVeins);
         }
     }
 }

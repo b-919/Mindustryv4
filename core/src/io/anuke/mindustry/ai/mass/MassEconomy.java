@@ -159,8 +159,9 @@ public class MassEconomy{
                 if(dist < minSourceDist) minSourceDist = dist;
             }
 
-            // Check distance to all conveyor lines
+            // Check distance to all conveyor lines; skip lines whose bounding box is already farther
             for(BuildingLine line : MassBuilder.activeLines){
+                if(line.bboxDistanceSq(quadTile) >= minSourceDist * minSourceDist) continue;
                 for(PathTile pt : line.tiles){
                     float dist = Mathf.dst(pt.tile.x - quadTile.x, pt.tile.y - quadTile.y);
                     if(dist < minSourceDist) minSourceDist = dist;
@@ -228,7 +229,8 @@ public class MassEconomy{
                 for(int dx = 0; dx < bsize; dx++){
                     for(int dy = 0; dy < bsize; dy++){
                         Tile t = world.tile(target.x + offset + dx, target.y + offset + dy);
-                        if(t == null || t.block() != Blocks.air || t.floor().isLiquid || !t.floor().placeableOn || !t.isInfected){
+                        if(t == null || t.block() != Blocks.air || t.floor().isLiquid || !t.floor().placeableOn || !t.isInfected
+                            || MassBuilder.isVeinEntrance(t)){
                             occluded = true;
                             break;
                         }
@@ -323,7 +325,8 @@ public class MassEconomy{
                 for(int dx = 0; dx < size; dx++){
                     for(int dy = 0; dy < size; dy++){
                         Tile t = world.tile(tx + offset + dx, ty + offset + dy);
-                        if(t == null || t.block() != Blocks.air || t.floor().isLiquid || !t.floor().placeableOn){
+                        if(t == null || t.block() != Blocks.air || t.floor().isLiquid || !t.floor().placeableOn
+                            || MassBuilder.isVeinEntrance(t)){
                             occluded = true;
                             break;
                         }

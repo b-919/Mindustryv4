@@ -53,8 +53,12 @@ public class ChunkWaypointGraph{
         ChunkManager cm = world.isOpenWorld() ? world.chunks() : null;
         if(cm == null) return null;
 
-        int scx = MathUtils.floor(fromX / CSIZE), scy = MathUtils.floor(fromY / CSIZE);
-        int tcx = MathUtils.floor(toX / CSIZE), tcy = MathUtils.floor(toY / CSIZE);
+        //world tile centers sit at tile*tilesize, so round the continuous tile coordinate first
+        int sfx = Math.round(fromX), sfy = Math.round(fromY);
+        int tfx = Math.round(toX), tfy = Math.round(toY);
+
+        int scx = MathUtils.floor((float)sfx / CSIZE), scy = MathUtils.floor((float)sfy / CSIZE);
+        int tcx = MathUtils.floor((float)tfx / CSIZE), tcy = MathUtils.floor((float)tfy / CSIZE);
 
         WorldChunk startChunk = cm.peekChunk(scx, scy);
         if(startChunk == null || startChunk.tiles == null) return null;
@@ -62,8 +66,8 @@ public class ChunkWaypointGraph{
         ChunkNodes start = getNodes(cm, scx, scy);
         if(start == null) return null;
 
-        int slx = clampLocal((int)fromX - scx * CSIZE), sly = clampLocal((int)fromY - scy * CSIZE);
-        int glx = clampLocal((int)toX - tcx * CSIZE), gly = clampLocal((int)toY - tcy * CSIZE);
+        int slx = clampLocal(sfx - scx * CSIZE), sly = clampLocal(sfy - scy * CSIZE);
+        int glx = clampLocal(tfx - tcx * CSIZE), gly = clampLocal(tfy - tcy * CSIZE);
 
         //solid endpoints (cores, walls, orders onto trees/lakes) snap to the nearest passable tile so
         //attacks on structures and long-range orders still produce a corridor into the destination chunk

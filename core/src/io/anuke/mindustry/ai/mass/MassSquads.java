@@ -10,7 +10,6 @@ import io.anuke.mindustry.ai.MassAI;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.UnitCommand;
 import io.anuke.mindustry.entities.units.UnitOrderType;
 import io.anuke.mindustry.entities.units.UnitType;
 import io.anuke.mindustry.game.Team;
@@ -31,10 +30,6 @@ import static io.anuke.mindustry.Vars.world;
 
 /** Preset squad roster order system for biomass units.*/
 public class MassSquads{
-    //legacy globals kept for save compatibility
-    static UnitCommand currentCommand = UnitCommand.attack;
-    static float enemyNearbyTimer = 0;
-
     public static final ObjectIntMap<BaseUnit> unitSquadAssignments = new ObjectIntMap<>();
     static final Array<MassSquad> activeSquads = new Array<>();
 
@@ -62,20 +57,11 @@ public class MassSquads{
     private static final Rectangle scanRect = new Rectangle();
     private static final FloatArray rollWeights = new FloatArray();
     private static final Array<Unit> enemyScratch = new Array<>();
+    private static final float[] orbitScratch = new float[2];
 
     public static void update(ObjectSet<Tile> cores){
         if(cores.size == 0){
-            currentCommand = UnitCommand.retreat;
             return;
-        }
-
-        //legacy global-command bookkeeping kept fresh for the save file
-        if(MassUtil.anyEnemyNearCores(cores)){
-            currentCommand = UnitCommand.patrol;
-            enemyNearbyTimer = 0;
-        }else{
-            enemyNearbyTimer += Timers.delta();
-            currentCommand = UnitCommand.attack;
         }
 
         MassInfection.commandTimer += Timers.delta();
@@ -86,11 +72,12 @@ public class MassSquads{
 
         refreshSquadMetrics();
         assignFreshUnits();
-        recomputeCentroids();
+        finalizeMetrics();
 
         for(MassSquad squad : activeSquads){
             squad.nextOrderTime -= Timers.delta();
             squad.nextTargetRefresh -= Timers.delta();
+            if(squad.patrolGrace > 0f) squad.patrolGrace = Math.max(0f, squad.patrolGrace - Timers.delta());
 
             if(squad.defensive){
                 squad.nextOrderTime = Math.max(squad.nextOrderTime, 0.5f);
@@ -99,15 +86,35 @@ public class MassSquads{
             }
 
             if(isPursuitOrder(squad.order)){
-                squad.pursuitTimer -= Timers.delta();
-                if(squad.pursuitTarget == null || squad.pursuitTarget.isDead() || !squad.pursuitTarget.isAdded()){
-                    exitPursuit(squad);
-                }else if(squad.pursuitTimer <= 0f){
-                    float d = Mathf.dst(squad.cx - squad.pursuitTarget.x, squad.cy - squad.pursuitTarget.y);
-                    if(d > MassAIConfig.PATROL_ENGAGE_RADIUS * 1.5f){
+                if(squad.retaliating){
+                    //retaliation from damage: no range leash; outranging attackers are dropped by the timer
+                    if(squad.pursuitTarget == null || squad.pursuitTarget.isDead() || !squad.pursuitTarget.isAdded()){
+                        exitPursuit(squad);
+                    }else if(anyMemberInRange(squad, squad.pursuitTarget)){
+                        //engaged: keep fighting; fresh hits also refresh this
+                        squad.retaliateTimer = MassAIConfig.RETALIATE_TIME;
+                    }else{
+                        squad.retaliateTimer -= Timers.delta();
+                        if(squad.retaliateTimer <= 0f){
+                            if(MassAI.debug) Log.info("[MassAI] squad={0} could not reach its attacker in {1}s, resuming patrol", squad.id, MassAIConfig.RETALIATE_TIME / 60f);
+                            exitPursuit(squad);
+                        }
+                    }
+                }else{
+                    squad.pursuitTimer -= Timers.delta();
+                    if(squad.pursuitTarget == null || squad.pursuitTarget.isDead() || !squad.pursuitTarget.isAdded()){
                         exitPursuit(squad);
                     }else{
-                        squad.pursuitTimer = MassAIConfig.PURSUIT_MIN_TIME;
+                        //leash from the closest member, so a spread squad does not oscillate around its centroid
+                        float d = Float.MAX_VALUE;
+                        for(BaseUnit unit : squad.members){
+                            d = Math.min(d, Mathf.dst(unit.x - squad.pursuitTarget.x, unit.y - squad.pursuitTarget.y));
+                        }
+                        if(squad.pursuitRange <= 0f || d > squad.pursuitRange){
+                            exitPursuit(squad);
+                        }else if(squad.pursuitTimer <= 0f){
+                            squad.pursuitTimer = MassAIConfig.PURSUIT_MIN_TIME;
+                        }
                     }
                 }
             }
@@ -145,17 +152,55 @@ public class MassSquads{
         if(coreCount == rosterCoreCount && evo == rosterEvo) return;
 
         int perHive = Math.max(1, MassAIConfig.squadsPerHive(Vars.state.difficulty));
+        int total = perHive * coreCount;
+        SquadPreset[] presets = presetsFor(evo);
         if(MassAI.debug) Log.info("[MassAI] roster rebuilt coreCount={0} evo={1} perHive={2}", coreCount, evo, perHive);
+
         rosterCoreCount = coreCount;
         rosterEvo = evo;
+
+        //snapshot assignments so squads whose index and preset survive keep their units
+        tempAssignments.clear();
+        for(ObjectIntMap.Entry<BaseUnit> entry : unitSquadAssignments.entries()){
+            BaseUnit unit = entry.key;
+            if(unit == null || unit.isDead() || !unit.isAdded()) continue;
+            tempAssignments.put(unit, entry.value);
+        }
+
+        Array<MassSquad> previous = new Array<>(activeSquads);
         activeSquads.clear();
         squadTypeMaps.clear();
-        unitSquadAssignments.clear();
 
-        SquadPreset[] presets = presetsFor(evo);
-        int total = perHive * coreCount;
         for(int i = 0; i < total; i++){
-            addPreset(presets[i % presets.length]);
+            SquadPreset preset = presets[i % presets.length];
+            MassSquad squad;
+            if(i < previous.size && previous.get(i).preset == preset){
+                squad = previous.get(i);
+                squad.memberCount = 0;
+                squad.members.clear();
+            }else{
+                squad = new MassSquad(i, preset);
+                squad.nodeTimer = 0f;
+            }
+            activeSquads.add(squad);
+            squadTypeMaps.add(new ObjectIntMap<UnitType>());
+        }
+
+        unitSquadAssignments.clear();
+        for(ObjectIntMap.Entry<BaseUnit> entry : tempAssignments.entries()){
+            int squadId = entry.value;
+            if(squadId < 0 || squadId >= activeSquads.size) continue;
+
+            MassSquad squad = activeSquads.get(squadId);
+            UnitType type = entry.key.getType();
+            if(type == null || !squad.preset.accepts(type)) continue;
+
+            ObjectIntMap<UnitType> counts = squadTypeMaps.get(squadId);
+            if(squad.preset.want(type, counts.get(type, 0), squad.memberCount) <= 0) continue;
+
+            unitSquadAssignments.put(entry.key, squadId);
+            counts.getAndIncrement(type, 0, 1);
+            squad.memberCount++;
         }
     }
 
@@ -177,13 +222,6 @@ public class MassSquads{
             };
         }
         return new SquadPreset[]{SquadPreset.LOW};
-    }
-
-    private static void addPreset(SquadPreset preset){
-        MassSquad squad = new MassSquad(activeSquads.size, preset);
-        squad.nodeTimer = 0f;
-        activeSquads.add(squad);
-        squadTypeMaps.add(new ObjectIntMap<UnitType>());
     }
 
     private static int getMaxEvolution(ObjectSet<Tile> cores){
@@ -323,6 +361,76 @@ public class MassSquads{
         return best;
     }
 
+    public static void notifyUnitDamaged(Unit unit, Entity attacker){
+        if(!(unit instanceof BaseUnit) || unit.isDead() || !unit.isAdded()) return;
+        BaseUnit damaged = (BaseUnit) unit;
+
+        int squadId = unitSquadAssignments.get(damaged, -1);
+        MassSquad squad = squadId >= 0 && squadId < activeSquads.size ? activeSquads.get(squadId) : null;
+        if(squad == null) squad = nearestPatrolSquad(damaged);
+        if(squad == null || squad.defensive) return;
+
+        boolean patrol = isPatrolOrder(squad.order);
+        boolean retaliating = isPursuitOrder(squad.order) && squad.retaliating;
+        if(!patrol && !retaliating) return;
+
+        Unit target = null;
+        if(attacker instanceof Unit
+            && !((Unit) attacker).isDead() && attacker.isAdded()
+            && Vars.state.teams.areEnemies(Team.themass, ((Unit) attacker).getTeam())){
+            target = (Unit) attacker;
+        }
+        if(target == null) target = findNearestEnemy(unit.x, unit.y);
+        if(target == null) return;
+
+        if(retaliating && squad.pursuitTarget == target){
+            //the damager is still attacking: keep the timer topped up and keep chasing
+            squad.retaliateTimer = MassAIConfig.RETALIATE_TIME;
+            return;
+        }
+
+        enterRetaliation(squad, target);
+    }
+    private static MassSquad nearestPatrolSquad(BaseUnit unit){
+        MassSquad best = null;
+        float bestD = MassAIConfig.DEFEND_RADIUS * tilesize;
+        for(MassSquad squad : activeSquads){
+            if(squad.defensive || squad.memberCount == 0 || !isPatrolOrder(squad.order)) continue;
+            float d = Mathf.dst(unit.x - squad.cx, unit.y - squad.cy);
+            if(d < bestD){
+                bestD = d;
+                best = squad;
+            }
+        }
+        return best;
+    }
+
+    private static void enterRetaliation(MassSquad squad, Unit target){
+        if(squad.defensive) return;
+        if(!(isPatrolOrder(squad.order) || (isPursuitOrder(squad.order) && squad.retaliating))) return;
+
+        if(isPatrolOrder(squad.order)) squad.previousPatrol = squad.order;
+        squad.order = MassOrder.PURSUE;
+        squad.pursuitTarget = target;
+        squad.pursuitTimer = 0f;
+        squad.pursuitRange = 0f;
+        squad.retaliating = true;
+        squad.retaliateTimer = MassAIConfig.RETALIATE_TIME;
+        squad.giveUpPatrol = false;
+        squad.nodeTimer = 0f;
+        if(MassAI.debug) Log.info("[MassAI] squad={0} retaliating against attacker near ({1},{2})", squad.id, (int)(target.x / tilesize), (int)(target.y / tilesize));
+    }
+    private static boolean anyMemberInRange(MassSquad squad, Unit target){
+        if(target == null) return false;
+        for(BaseUnit unit : squad.members){
+            UnitType type = unit.getType();
+            if(type != null && !type.targetAir && target.isFlying()) continue;
+            float range = attackRange(unit);
+            if(range > 0f && Mathf.dst(unit.x - target.x, unit.y - target.y) <= range) return true;
+        }
+        return false;
+    }
+
     private static void updateDefenseState(){
         if(!hiveUnderAttack) return;
 
@@ -336,7 +444,7 @@ public class MassSquads{
 
         defendGiveupTimer -= Timers.delta();
         if(defendGiveupTimer <= 0f){
-            if(MassAI.debug) Log.info("[MassAI] attacker survived {0}s, defense gives up", MassAIConfig.DEFEND_GIVEUP_TIME);
+            if(MassAI.debug) Log.info("[MassAI] attacker survived {0}s, defense gives up", MassAIConfig.DEFEND_GIVEUP_TIME / 60f);
             giveupDefenseSquads();
             hiveUnderAttack = false;
             defendTarget = null;
@@ -372,15 +480,13 @@ public class MassSquads{
             squad.memberCount = 0;
             squad.cx = 0f;
             squad.cy = 0f;
+            squad.members.clear();
         }
         for(ObjectIntMap<UnitType> map : squadTypeMaps){
             map.clear();
         }
 
         massUnitsScratch.clear();
-        for(Team team : Team.all){
-            if(team == Team.themass || team == Team.none) continue;
-        }
         for(BaseUnit unit : unitGroups[Team.themass.ordinal()].all()){
             if(unit != null && unit.isAdded() && !unit.isDead()){
                 massUnitsScratch.add(unit);
@@ -399,6 +505,7 @@ public class MassSquads{
             int squadId = entry.value;
             if(squadId < 0 || squadId >= activeSquads.size) continue;
             MassSquad squad = activeSquads.get(squadId);
+            squad.members.add(entry.key);
             squad.memberCount++;
             squad.cx += entry.key.x;
             squad.cy += entry.key.y;
@@ -409,7 +516,6 @@ public class MassSquads{
     private static void assignFreshUnits(){
         for(BaseUnit unit : massUnitsScratch){
             if(unitSquadAssignments.containsKey(unit)) continue;
-            if(unit.getSpawner() == null) continue;
             UnitType type = unit.getType();
             if(type == null) continue;
 
@@ -436,24 +542,16 @@ public class MassSquads{
             if(best == null) continue;
 
             unitSquadAssignments.put(unit, best.id);
+            best.members.add(unit);
+            best.memberCount++;
+            best.cx += unit.x;
+            best.cy += unit.y;
+            squadTypeMaps.get(best.id).getAndIncrement(type, 0, 1);
             if(MassAI.debug) Log.info("[MassAI] unit={0} type={1} assigned to squad={2} (preset={3})", unit.getID(), type.name, best.id, best.preset);
         }
     }
 
-    private static void recomputeCentroids(){
-        for(MassSquad squad : activeSquads){
-            squad.memberCount = 0;
-            squad.cx = 0f;
-            squad.cy = 0f;
-        }
-        for(ObjectIntMap.Entry<BaseUnit> entry : unitSquadAssignments.entries()){
-            int squadId = entry.value;
-            if(squadId < 0 || squadId >= activeSquads.size) continue;
-            MassSquad squad = activeSquads.get(squadId);
-            squad.memberCount++;
-            squad.cx += entry.key.x;
-            squad.cy += entry.key.y;
-        }
+    private static void finalizeMetrics(){
         for(MassSquad squad : activeSquads){
             if(squad.memberCount > 0){
                 squad.cx /= squad.memberCount;
@@ -541,6 +639,10 @@ public class MassSquads{
         squad.attackUnit = null;
         squad.pursuitTarget = null;
         squad.pursuitTimer = 0f;
+        squad.pursuitRange = 0f;
+        squad.retaliating = false;
+        squad.retaliateTimer = 0f;
+        squad.patrolGrace = 0f;
     }
 
     private static void refreshSquadTarget(MassSquad squad){
@@ -665,7 +767,7 @@ public class MassSquads{
         }
         if(!anyAttack){
             for(MassSquad squad : activeSquads){
-                if(squad.defensive || squad.giveUpPatrol) continue;
+                if(squad.defensive || squad.giveUpPatrol || squad.patrolGrace > 0f) continue;
                 squad.order = MassOrder.ATTACK_BASE;
                 squad.nextOrderTime = Math.max(squad.nextOrderTime, 10f * 60f);
                 if(MassAI.debug) Log.info("[MassAI] guarantee: forcing squad={0} to attack base", squad.id);
@@ -706,6 +808,9 @@ public class MassSquads{
             if(isPursuitOrder(squad.order)){
                 squad.pursuitTarget = null;
                 squad.pursuitTimer = 0f;
+                squad.pursuitRange = 0f;
+                squad.retaliating = false;
+                squad.retaliateTimer = 0f;
             }
             squad.previousPatrol = isPatrolOrder(squad.order) ? squad.order : squad.previousPatrol;
             squad.order = MassOrder.DEFEND_HIVE;
@@ -724,54 +829,79 @@ public class MassSquads{
         squad.previousPatrol = squad.order;
         squad.pursuitTarget = null;
         squad.pursuitTimer = 0f;
+        squad.pursuitRange = 0f;
+        squad.retaliating = false;
+        squad.retaliateTimer = 0f;
+        squad.patrolGrace = MassAIConfig.PATROL_RETURN_TIME;
+        squad.nextOrderTime = Math.max(squad.nextOrderTime, MassAIConfig.PATROL_RETURN_TIME);
+        squad.giveUpPatrol = false;
         squad.nodeTimer = 0f;
     }
 
-    private static void enterPursuit(MassSquad squad, Unit target){
+    private static void enterPursuit(MassSquad squad, Unit target, float attackRange){
         if(squad.order == MassOrder.PURSUE && squad.pursuitTarget == target) return;
         if(!(isPatrolOrder(squad.order) || isPursuitOrder(squad.order))) return;
         squad.previousPatrol = isPatrolOrder(squad.order) ? squad.order : squad.previousPatrol;
         squad.order = MassOrder.PURSUE;
         squad.pursuitTarget = target;
         squad.pursuitTimer = MassAIConfig.PURSUIT_GIVEUP_TIME;
-        if(MassAI.debug) Log.info("[MassAI] squad={0} pursuing target near ({1},{2})", squad.id, (int)(target.x/tilesize), (int)(target.y/tilesize));
+        squad.pursuitRange = attackRange * MassAIConfig.PURSUE_RANGE_MULTIPLIER;
+        squad.retaliating = false;
+        squad.retaliateTimer = 0f;
+        squad.giveUpPatrol = false;
+        if(MassAI.debug) Log.info("[MassAI] squad={0} pursuing target near ({1},{2}) range={3}", squad.id, (int)(target.x/tilesize), (int)(target.y/tilesize), squad.pursuitRange);
     }
 
-    private static float engagementRadius(SquadPreset preset){
-        if(preset == null) return MassAIConfig.PATROL_ENGAGE_RADIUS;
-        switch(preset){
-            case ULTRA: return MassAIConfig.PATROL_ENGAGE_RADIUS * 1.15f;
-            case SIEGE: return MassAIConfig.PATROL_ENGAGE_RADIUS * 1.1f;
-            case ARTILLERY: return MassAIConfig.PATROL_ENGAGE_RADIUS * 1.1f;
-            case SWARM: return MassAIConfig.PATROL_ENGAGE_RADIUS * 0.7f;
-            case DEMOLITION_AIR: return MassAIConfig.PATROL_ENGAGE_RADIUS * 0.85f;
-            default: return MassAIConfig.PATROL_ENGAGE_RADIUS;
-        }
+    private static float attackRange(BaseUnit unit){
+        UnitType type = unit.getType();
+        float range = unit.getWeaponMountRange();
+        return type == null ? range : Math.max(range, type.range);
     }
 
     private static void detectPatrolEngagement(){
         if(hiveUnderAttack) return;
+
         for(MassSquad squad : activeSquads){
-            if(!isPatrolOrder(squad.order) || squad.defensive || squad.giveUpPatrol) continue;
+            if(!isPatrolOrder(squad.order) || squad.defensive) continue;
             if(squad.memberCount == 0) continue;
 
-            float radius = engagementRadius(squad.preset);
+            float maxRange = 0f;
+            float spread = 0f;
+            for(BaseUnit unit : squad.members){
+                maxRange = Math.max(maxRange, attackRange(unit));
+                spread = Math.max(spread, Mathf.dst(unit.x - squad.cx, unit.y - squad.cy));
+            }
+            if(maxRange <= 0f) continue;
+
+            float queryRadius = maxRange + spread;
             enemyScratch.clear();
-            Units.getNearbyEnemies(Team.themass, scanRect.setSize(radius * 2f).setCenter(squad.cx, squad.cy), enemyScratch::add);
+            Units.getNearbyEnemies(Team.themass, scanRect.setSize(queryRadius * 2f).setCenter(squad.cx, squad.cy), enemyScratch::add);
+            if(enemyScratch.size == 0) continue;
 
             Unit best = null;
             float bestD = Float.MAX_VALUE;
+            float bestRange = 0f;
+
             for(Unit enemy : enemyScratch){
                 if(enemy == null || enemy.isDead() || !enemy.isAdded()) continue;
-                float d = Mathf.dst(enemy.x - squad.cx, enemy.y - squad.cy);
-                if(d <= radius && d < bestD){
-                    bestD = d;
-                    best = enemy;
+
+                for(BaseUnit unit : squad.members){
+                    UnitType type = unit.getType();
+                    if(type != null && !type.targetAir && enemy.isFlying()) continue;
+
+                    float range = attackRange(unit);
+                    if(range <= 0f) continue;
+
+                    float d = Mathf.dst(enemy.x - unit.x, enemy.y - unit.y);
+                    if(d <= range && d < bestD){
+                        bestD = d;
+                        best = enemy;
+                        bestRange = range;
+                    }
                 }
             }
-            if(best != null){
-                enterPursuit(squad, best);
-            }
+
+            if(best != null) enterPursuit(squad, best, bestRange);
         }
     }
 
@@ -780,14 +910,13 @@ public class MassSquads{
 
         float tx, ty;
         UnitOrderType want;
+        boolean patrolOrder = isPatrolOrder(squad.order);
         switch(squad.order){
             case ATTACK_BASE:
             case ATTACK_PRODUCTION:
             case ATTACK_UNIT_PRODUCTION:
                 if(squad.attackTile == null){
-                    for(ObjectIntMap.Entry<BaseUnit> entry : unitSquadAssignments.entries()){
-                        if(entry.value == squad.id) entry.key.clearOrder();
-                    }
+                    for(BaseUnit unit : squad.members) unit.clearOrder();
                     return;
                 }
                 tx = squad.attackTile.drawx();
@@ -796,9 +925,7 @@ public class MassSquads{
                 break;
             case ATTACK_UNITS:
                 if(squad.attackUnit == null || squad.attackUnit.isDead() || !squad.attackUnit.isAdded()){
-                    for(ObjectIntMap.Entry<BaseUnit> entry : unitSquadAssignments.entries()){
-                        if(entry.value == squad.id) entry.key.clearOrder();
-                    }
+                    for(BaseUnit unit : squad.members) unit.clearOrder();
                     return;
                 }
                 tx = squad.attackUnit.x;
@@ -816,9 +943,7 @@ public class MassSquads{
             case PURSUE:
                 if(squad.pursuitTarget == null || squad.pursuitTarget.isDead() || !squad.pursuitTarget.isAdded()){
                     exitPursuit(squad);
-                    for(ObjectIntMap.Entry<BaseUnit> entry : unitSquadAssignments.entries()){
-                        if(entry.value == squad.id) entry.key.clearOrder();
-                    }
+                    for(BaseUnit unit : squad.members) unit.clearOrder();
                     return;
                 }
                 tx = squad.pursuitTarget.x;
@@ -838,9 +963,7 @@ public class MassSquads{
                 break;
         }
 
-        for(ObjectIntMap.Entry<BaseUnit> entry : unitSquadAssignments.entries()){
-            if(entry.value != squad.id) continue;
-            BaseUnit unit = entry.key;
+        for(BaseUnit unit : squad.members){
             if(want == UnitOrderType.attackTarget){
                 if(squad.order == MassOrder.ATTACK_UNITS){
                     unit.setDirectTarget(squad.attackUnit);
@@ -852,19 +975,93 @@ public class MassSquads{
                     unit.setDirectTarget(defendTarget);
                 }
             }
-            boolean force = want == UnitOrderType.attackTarget;
-            boolean moved = Mathf.dst(unit.getOrderX() - tx, unit.getOrderY() - ty) > tilesize;
-            if(force || !unit.hasOrder() || unit.getOrderType() != want || moved){
+
+            float ux = tx, uy = ty;
+            boolean orbiting = false;
+            if(patrolOrder && squad.nodeCount > 0){
+                float nodeX = squad.patrolX[squad.nodeIndex];
+                float nodeY = squad.patrolY[squad.nodeIndex];
+                if(Mathf.dst(unit.x - nodeX, unit.y - nodeY) <= patrolArriveDist(unit) && orbitTarget(unit, nodeX, nodeY)){
+                    ux = orbitScratch[0];
+                    uy = orbitScratch[1];
+                    orbiting = true;
+                }
+            }
+
+            float orderThreshold = orbiting ? tilesize * 0.5f : tilesize;
+            boolean moved = Mathf.dst(unit.getOrderX() - ux, unit.getOrderY() - uy) > orderThreshold;
+            if(!unit.hasOrder() || unit.getOrderType() != want || moved){
                 unit.clearOrder();
                 if(want == UnitOrderType.move){
-                    unit.orderMove(tx, ty);
+                    unit.orderMove(ux, uy);
                 }else if(want == UnitOrderType.attackMove){
-                    unit.orderAttackMove(tx, ty);
+                    unit.orderAttackMove(ux, uy);
                 }else{
-                    unit.orderAttackTarget(tx, ty);
+                    unit.orderAttackTarget(ux, uy);
                 }
             }
         }
+    }
+
+    /**Distance at which a unit counts as having reached a patrol node.*/
+    private static float patrolArriveDist(BaseUnit unit){
+        UnitType type = unit.getType();
+        return Math.max(tilesize * 5f, type == null ? 0f : type.hitsize * 2f + tilesize);
+    }
+
+    private static float orbitRadius(BaseUnit unit){
+        UnitType type = unit.getType();
+        float base = Math.max(MassAIConfig.PATROL_ORBIT_RADIUS * tilesize, (type == null ? 0f : type.hitsize) + tilesize);
+        return base + (unit.getID() % 3) * tilesize * 0.5f;
+    }
+
+    /**Computes a tangential point ahead of the unit, with radial correction to keep the orbit radius.*/
+    private static boolean orbitTarget(BaseUnit unit, float nodeX, float nodeY){
+        float desired = orbitRadius(unit);
+        float dx = unit.x - nodeX, dy = unit.y - nodeY;
+        float dist = Mathf.dst(dx, dy);
+
+        float baseAngle;
+        if(dist < 0.001f){
+            //sitting on the node: seed the direction so units spread around the circle
+            baseAngle = (Timers.time() * MassAIConfig.PATROL_ORBIT_SPEED + unit.getID() * 47f) % 360f;
+            dx = Angles.trnsx(baseAngle, 1f);
+            dy = Angles.trnsy(baseAngle, 1f);
+            dist = 1f;
+        }else{
+            baseAngle = Mathf.atan2(dx, dy);
+        }
+
+        float nx = dx / dist, ny = dy / dist; //radial (node -> unit)
+        float tx = -ny, ty = nx;              //tangent, counter-clockwise
+
+        UnitType type = unit.getType();
+        float lead = Math.max(tilesize * 2f, type == null ? 0f : type.hitsize + tilesize * 0.5f);
+        float correction = Mathf.clamp((desired - dist) * 0.75f, -tilesize, tilesize);
+
+        float ox = unit.x + tx * lead + nx * correction;
+        float oy = unit.y + ty * lead + ny * correction;
+
+        if(!patrolSpotValid(ox, oy)){
+            //mirror the direction around the node before giving up
+            ox = unit.x - tx * lead + nx * correction;
+            oy = unit.y - ty * lead + ny * correction;
+        }
+
+        if(!patrolSpotValid(ox, oy)){
+            orbitScratch[0] = nodeX;
+            orbitScratch[1] = nodeY;
+            return false;
+        }
+
+        orbitScratch[0] = ox;
+        orbitScratch[1] = oy;
+        return true;
+    }
+
+    private static boolean patrolSpotValid(float x, float y){
+        Tile tile = world.tileWorld(x, y);
+        return tile != null && !tile.solid() && !tile.floor().isLiquid;
     }
 
     private static boolean isAttackOrder(MassOrder order){
@@ -952,8 +1149,6 @@ public class MassSquads{
     }
 
     private static void resetState(){
-        currentCommand = UnitCommand.attack;
-        enemyNearbyTimer = 0;
         rosterCoreCount = -1;
         rosterEvo = -1;
         baseX = 0f;

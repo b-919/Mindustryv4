@@ -17,26 +17,24 @@ public class MassAIConfig{
     public static final float RESPONSE_MIN = 8f * 60f;
     public static final float RESPONSE_MAX = 15f * 60f;
     public static final float SUBSECTION_CONNCHECK_INTERVAL = 60f * 60f;
-    public static final float INFECTION_MIN = 5f * 60f * 60f; //todo set
-    public static final float INFECTION_MAX = 40f * 60f * 60f; //todo set
+    public static final float INFECTION_MIN = 5f * 60f * 60f;
+    public static final float INFECTION_MAX = 40f * 60f * 60f;
     public static final float LINE_ACTION_INTERVAL = 60f;
     public static final float LINE_IDLE_TIME = 30f * 60f;
     public static final float DRILL_STUCK_TIME = 15f * 60f;
 
     //squads
-    public static final float ROSTER_INTERVAL = 4f * 60f; //todo set
     public static final float ORDER_REFRESH_MIN = 40f * 60f;
     public static final float ORDER_REFRESH_MAX = 90f * 60f;
     public static final float TARGET_REFRESH_INTERVAL = 4f * 60f;
     public static final float NODE_REFRESH_INTERVAL = 12f * 60f;
     public static final float NODE_REACH = 12f;
-    public static final float ATTACK_ARRIVE_DIST = 14f; //todo set
     public static final float DEFEND_RADIUS = 25f;
-    public static final float DEFEND_SCAN = 200f * 2f; //todo set
+    public static final float DEFEND_SCAN = 200f * 2f;
     public static final float DEFEND_ALERT_RADIUS = 40f;
-    public static final float DEFEND_GIVEUP_TIME = 30f;
-    public static final float DEFEND_GIVEUP_ORDER_TIME = 60f;
-    public static final float DEFEND_NOTIFY_INTERVAL = 5f;
+    public static final float DEFEND_GIVEUP_TIME = 30f * 60f; //seconds
+    public static final float DEFEND_GIVEUP_ORDER_TIME = 60f * 60f; //seconds
+    public static final float DEFEND_NOTIFY_INTERVAL = 5f * 60f; //seconds
     public static final float ATTACK_UNITS_EXPOSED_RADIUS = 20f;
     public static final int UNIT_CLUSTER_MIN = 3;
     public static final float UNIT_CLUSTER_RADIUS = 16f;
@@ -46,13 +44,16 @@ public class MassAIConfig{
     public static final float PATROL_HIVE_RADIUS = 55f;
     public static final float PATROL_OUTSIDE_EXTRA = 35f;
     public static final float PATROL_OUTSIDE_SPACING = 30f;
-    public static final float PATROL_ENGAGE_RADIUS = 24f;
-    public static final float PURSUIT_GIVEUP_TIME = 10f;
-    public static final float PURSUIT_MIN_TIME = 1f;
+    public static final float PATROL_ORBIT_RADIUS = 1.5f; //tiles
+    public static final float PATROL_ORBIT_SPEED = 0.6f; //degrees per tick
+    public static final float PURSUE_RANGE_MULTIPLIER = 2.5f;
+    public static final float RETALIATE_TIME = 15f * 60f;
+    public static final float PATROL_RETURN_TIME = 15f * 60f;
+    public static final float PURSUIT_GIVEUP_TIME = 10f * 60f; //seconds
+    public static final float PURSUIT_MIN_TIME = 1f * 60f; //seconds
     public static final float PERIODIC_TURRET_AIR_CHANCE = 0.3f;
 
     //defense
-    public static final float ENEMY_SCAN_SIZE = 200f * 2f;
     public static final int TURRET_LIMIT_PER_CORE = 10;
     public static final int DAMAGE_TURRET_SEARCH_RANGE = 10;
     public static final int TURRET_PLACE_ATTEMPTS = 20;
@@ -73,7 +74,6 @@ public class MassAIConfig{
     public static final int HEAVY_SPAWNER_COST = 25; //corrupted biomatter
     public static final int EXPAND_BIOMASS_COST = 20; //corrupted biomatter
     public static final int UNIT_QUEUE_TARGET = 3;
-    //public static final int UNIT_QUEUE_ATTEMPTS = 10;
     public static final int MAX_CORES = 10;
     public static final int CORE_MIN_DISTANCE = 75;
     public static final int MAP_EDGE_MARGIN = 5;
@@ -84,8 +84,6 @@ public class MassAIConfig{
     public static final int EXPAND_ATTEMPTS = 20;
     public static final int EXPAND_RANDOM_RADIUS = 30;
     public static final int ORE_SEARCH_RADIUS = 10;
-    public static final int CORE_PROXIMITY_TILES = 40;
-    //public static final int TURRET_SEEK_RANGE = 10;
     public static final Item[] TARGET_ORES = {Items.scrap, Items.lead, Items.copper, Items.coal, Items.titanium, Items.thorium, Items.chromium};
     public static final int[] ORE_LIMITS = {6, 6, 6, 5, 4, 4, 4};
 
@@ -199,5 +197,5 @@ public class MassAIConfig{
     /**Minimum heat for the threat map to count as a hotspot.*/
     public static final float THREAT_HOTSPOT_MIN = 0.5f;
     /**Seconds for a full threat heat value to decay back to zero.*/
-    public static final float THREAT_DECAY_TIME = 12f;
+    public static final float THREAT_DECAY_TIME = 12f * 60f;
 }

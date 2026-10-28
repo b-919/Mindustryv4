@@ -5,6 +5,7 @@ import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.ai.mass.*;
+import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.game.EventType.WorldLoadEvent;
 import io.anuke.mindustry.game.Team;
@@ -29,17 +30,14 @@ import static io.anuke.mindustry.Vars.unitGroups;
 //welcome to the hell, this is the entrance where all the shit passes good luck figuring out this class
 public class MassAI{
     public static boolean debug = true;
+    /**True when the mass has no cores and its runtime state has already been dropped.*/
+    private static boolean massIdle = true;
 
     static{
         Events.on(WorldLoadEvent.class, event -> {
             MassInfection.reset();
-            MassBuilder.reset();
-            MassEconomy.reset();
-            MassDefense.reset();
-            MassAdrenaline.reset();
-            MassIntel.reset();
-            MassSquads.reset();
-            MassUtil.invalidate();
+            resetRuntime();
+            massIdle = true;
         });
     }
 
@@ -47,8 +45,11 @@ public class MassAI{
         MassSave.write(stream);
     }
 
-    public static void read(DataInputStream stream) throws IOException{
-        MassSave.read(stream);
+    /**Reads the mass state; {@code format} selects the layout (see {@link MassSave}).*/
+    public static void read(DataInputStream stream, int format) throws IOException{
+        MassSave.read(stream, format);
+        //let the next update validate the loaded state and drop it if the save has no hive left
+        massIdle = false;
     }
 
     public static void update(){
@@ -60,13 +61,35 @@ public class MassAI{
 
         ObjectSet<Tile> cores = Vars.state.teams.get(Team.themass).cores;
 
+        //the infection countdown is the only mass system allowed to run while there is no hive
         cores = MassInfection.update(cores);
+
+        if(cores.size == 0){
+            if(!massIdle){
+                massIdle = true;
+                resetRuntime();
+            }
+            return;
+        }
+        massIdle = false;
+
         MassAdrenaline.update(cores);
         MassIntel.update();
         MassBuilder.update(cores);
         MassDefense.update();
         MassEconomy.update(cores);
         MassSquads.update(cores);
+    }
+
+    /**Drops all live Mass subsystem state without touching the infection countdown.*/
+    private static void resetRuntime(){
+        MassBuilder.reset();
+        MassEconomy.reset();
+        MassDefense.reset();
+        MassAdrenaline.reset();
+        MassIntel.reset();
+        MassSquads.reset();
+        MassUtil.invalidate();
     }
 
     public static void spawnInitialHive(){
@@ -83,6 +106,11 @@ public class MassAI{
         MassSquads.notifyAttack(x, y, attacker);
     }
 
+    /**Called when a mass unit (not a tile) takes damage; lets patrol squads retaliate.*/
+    public static void onUnitDamage(Unit unit, Entity attacker){
+        MassSquads.notifyUnitDamaged(unit, attacker);
+    }
+
     public static float getGraceTime(){
         return MassInfection.getGraceTime();
     }
@@ -97,6 +125,10 @@ public class MassAI{
 
     public static void setInfectionTime(float time){
         MassInfection.setInfectionTime(time);
+    }
+
+    public static float randomInfectionTime(){
+        return MassInfection.randomInfectionTime();
     }
 
     public static void setDebug(boolean enabled){

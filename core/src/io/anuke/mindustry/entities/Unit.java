@@ -6,6 +6,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import io.anuke.mindustry.ai.MassAI;
 import io.anuke.mindustry.content.blocks.Blocks;
+import io.anuke.mindustry.entities.bullet.Bullet;
 import io.anuke.mindustry.entities.traits.*;
 import io.anuke.mindustry.entities.weapon.WeaponMount;
 import io.anuke.mindustry.entities.weapon.WeaponMounts;
@@ -22,6 +23,7 @@ import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.entities.impl.DestructibleEntity;
 import io.anuke.ucore.entities.trait.DamageTrait;
 import io.anuke.ucore.entities.trait.DrawTrait;
+import io.anuke.ucore.entities.trait.Entity;
 import io.anuke.ucore.entities.trait.SolidTrait;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;
@@ -67,6 +69,8 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
 
     protected CarryTrait carrier;
     protected float drownTime;
+    /**Last unit/entity that hit this unit, used by the Mass AI for retaliation targets.*/
+    public transient Entity lastDamager;
 
     @Override
     public boolean movable(){
@@ -134,12 +138,22 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
     }
 
     @Override
+    public void onHit(SolidTrait entity){
+        if(entity instanceof Bullet){
+            Entity owner = ((Bullet) entity).getOwner();
+            if(owner != null) lastDamager = owner;
+        }
+    }
+
+    @Override
     public void damage(float amount){
         super.damage(calculateDamage(amount));
         hitTime = hitDuration;
 
         if (team == Team.themass) {
-            MassAI.onDamage(this.x, this.y, null);
+            MassAI.onDamage(this.x, this.y, lastDamager);
+            MassAI.onUnitDamage(this, lastDamager);
+            lastDamager = null;
         }
     }
 

@@ -1,6 +1,8 @@
 package io.anuke.mindustry.ai.mass;
 
+import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.entities.Unit;
+import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.entities.units.UnitOrderType;
 import io.anuke.mindustry.world.Tile;
 
@@ -8,6 +10,7 @@ import io.anuke.mindustry.world.Tile;
 class MassSquad{
     final int id;
     final SquadPreset preset;
+    final Array<BaseUnit> members = new Array<>();
 
     MassOrder order = MassOrder.PATROL_HIVES;
     MassOrder previousPatrol = MassOrder.PATROL_HIVES;
@@ -15,6 +18,10 @@ class MassSquad{
     boolean giveUpPatrol;
     Unit pursuitTarget;
     float pursuitTimer;
+    float pursuitRange;
+    boolean retaliating;
+    float retaliateTimer;
+    float patrolGrace;
     int memberCount;
     float cx, cy;
 

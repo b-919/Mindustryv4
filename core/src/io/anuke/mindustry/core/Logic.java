@@ -104,7 +104,7 @@ public class Logic extends Module{
         if (state.startWithBiomass) {
             MassAI.spawnInitialHive();
         } else if (state.allowMassInfection && (MassAI.getInfectionTime() <= 0)){
-            MassAI.setInfectionTime(Mathf.random(5f, 40f) * 60f * 60f);
+            MassAI.setInfectionTime(MassAI.randomInfectionTime());
         }
     }
 
@@ -330,8 +330,8 @@ public class Logic extends Module{
     }
 
     private void recenterOpenWorld(){
-        int playerTX = (int)(players[0].x / tilesize);
-        int playerTY = (int)(players[0].y / tilesize);
+        int playerTX = world.toTile(players[0].x);
+        int playerTY = world.toTile(players[0].y);
 
         int halfW = world.width() / 2;
         int halfH = world.height() / 2;

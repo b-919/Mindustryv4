@@ -12,7 +12,6 @@ import static io.anuke.mindustry.Vars.unitGroups;
 public class MassIntel{
     private static float airRatio = MassAIConfig.PERIODIC_TURRET_AIR_CHANCE;
     private static int enemyCount;
-    private static boolean hasComposition;
 
     private static float threatX, threatY, threatHeat;
 
@@ -23,7 +22,6 @@ public class MassIntel{
     public static void reset(){
         airRatio = MassAIConfig.PERIODIC_TURRET_AIR_CHANCE;
         enemyCount = 0;
-        hasComposition = false;
         threatX = 0f;
         threatY = 0f;
         threatHeat = 0f;
@@ -56,10 +54,7 @@ public class MassIntel{
             }
         }
         enemyCount = total;
-        hasComposition = total > 0;
-        if(total > 0){
-            airRatio = (float) air / total;
-        }
+        airRatio = total > 0 ? (float) air / total : MassAIConfig.PERIODIC_TURRET_AIR_CHANCE;
     }
 
     /**Records a hit for the threat map (world coordinates).*/
@@ -69,9 +64,9 @@ public class MassIntel{
         threatHeat = Math.min(1f, threatHeat + MassAIConfig.THREAT_HEAT_PER_HIT);
     }
 
-    /**Fraction of scanned enemy units that are airborne (0..1). Falls back to the configured default.*/
+    /**Fraction of scanned enemy units that are airborne (0..1).*/
     public static float enemyAirRatio(){
-        return hasComposition ? airRatio : MassAIConfig.PERIODIC_TURRET_AIR_CHANCE;
+        return airRatio;
     }
 
     /**True when a recent hotspot is hot enough to bias defense toward it.*/
@@ -89,7 +84,4 @@ public class MassIntel{
     public static float threatHeat(){
         return threatHeat;
     }
-    //public static boolean hasComposition(){
-     //   return hasComposition;
-    //}
 }

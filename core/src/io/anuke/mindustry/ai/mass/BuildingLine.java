@@ -28,6 +28,9 @@ class BuildingLine{
     int divisions = 0;
     Array<PathTile> tiles = new Array<>();
     Array<Tile> pathBuffer = new Array<>();
+    //bounding box of the placed tiles, used to skip far lines when searching for ore
+    int bboxMinX = Integer.MAX_VALUE, bboxMinY = Integer.MAX_VALUE;
+    int bboxMaxX = Integer.MIN_VALUE, bboxMaxY = Integer.MIN_VALUE;
     //staggered so all lines don't act on the same tick; each line still acts exactly once per interval
     float timer = Mathf.random(MassAIConfig.LINE_ACTION_INTERVAL);
     float lastSubsectionTimer = 0;
@@ -69,6 +72,7 @@ class BuildingLine{
         }
 
         MassBuilder.markLineTile(world.tile(startX, startY));
+        MassBuilder.markVeinEntrance(world.tile(startX, startY));
     }
 
     void update(){
@@ -92,6 +96,8 @@ class BuildingLine{
                         if(a >= MassAIConfig.LINE_REBUILD_ATTEMPTS){
                             gaveUp.add(i);
                             targetLength--;
+                            //this tile will never be rebuilt
+                            MassBuilder.unmarkLineTile(tiles.get(i).tile);
                         }
                         return;
                     }
@@ -135,6 +141,23 @@ class BuildingLine{
         return tiles.size == 0 ? world.tile(startX, startY) : tiles.peek().tile;
     }
 
+    /**Adds a placed vein and keeps the bounding box in sync.*/
+    private void addTile(Tile tile, int rot){
+        tiles.add(new PathTile(tile, rot));
+        if(tile.x < bboxMinX) bboxMinX = tile.x;
+        if(tile.x > bboxMaxX) bboxMaxX = tile.x;
+        if(tile.y < bboxMinY) bboxMinY = tile.y;
+        if(tile.y > bboxMaxY) bboxMaxY = tile.y;
+    }
+
+    /**Squared distance from a tile to this line's bounding box; a lower bound for any tile in the line.*/
+    float bboxDistanceSq(Tile tile){
+        if(tiles.size == 0) return Float.MAX_VALUE;
+        float dx = Math.max(Math.max(bboxMinX - tile.x, tile.x - bboxMaxX), 0);
+        float dy = Math.max(Math.max(bboxMinY - tile.y, tile.y - bboxMaxY), 0);
+        return dx * dx + dy * dy;
+    }
+
     //Absolutely this shit is broken
     boolean isBroken(int i){
         if(i < 0 || i >= tiles.size) return false;
@@ -164,7 +187,7 @@ class BuildingLine{
             int rot = (lastDir + 2) % 4;
             start.setBlock(DistributionBlocks.veins, Team.themass, rot);
             MassBuilder.markLineTile(start);
-            tiles.add(new PathTile(start, rot));
+            addTile(start, rot);
             return;
         }
 
@@ -175,7 +198,7 @@ class BuildingLine{
                 int rot = next.relativeTo(prev.x, prev.y);
                 next.setBlock(DistributionBlocks.veins, Team.themass, rot);
                 MassBuilder.markLineTile(next);
-                tiles.add(new PathTile(next, rot));
+                addTile(next, rot);
                 tilesSinceBranch++;
                 straightCount = 0;
             }else{
@@ -249,7 +272,7 @@ class BuildingLine{
         int rot = (best + 2) % 4;
         nt.setBlock(DistributionBlocks.veins, Team.themass, rot);
         MassBuilder.markLineTile(nt);
-        tiles.add(new PathTile(nt, rot));
+        addTile(nt, rot);
         straightCount = (best == lastDir) ? straightCount + 1 : 0;
         lastDir = best;
         tilesSinceBranch++;
@@ -453,7 +476,7 @@ class BuildingLine{
         int tileCount = stream.readInt();
         for(int i = 0; i < tileCount; i++){
             PathTile pt = PathTile.read(stream);
-            line.tiles.add(pt);
+            line.addTile(pt.tile, pt.rotation);
             MassBuilder.markLineTile(pt.tile);
         }
 

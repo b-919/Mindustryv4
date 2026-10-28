@@ -4,6 +4,9 @@ import com.badlogic.gdx.backends.headless.HeadlessApplicationConfiguration;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.ai.MassAI;
+import io.anuke.mindustry.ai.mass.MassAIConfig;
+import io.anuke.mindustry.ai.mass.MassSave;
 import io.anuke.mindustry.content.Items;
 import io.anuke.mindustry.content.UnitTypes;
 import io.anuke.mindustry.content.blocks.Blocks;
@@ -16,6 +19,7 @@ import io.anuke.mindustry.core.NetServer;
 import io.anuke.mindustry.core.World;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.game.Content;
+import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.io.BundleLoader;
 import io.anuke.mindustry.io.MapIO;
@@ -38,7 +42,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.DataInputStream;
 import java.io.File;
-
 import static io.anuke.mindustry.Vars.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -214,6 +217,86 @@ public class ApplicationTests{
         assertEquals(world.getMap(), map);
         assertEquals(world.width(), map.meta.width);
         assertEquals(world.height(), map.meta.height);
+    }
+
+    @Test
+    void massDifficultyScaling(){
+        assertEquals(10f, MassAIConfig.graceMinutes(Difficulty.training), 0.001f);
+        assertEquals(0.5f, MassAIConfig.graceMinutes(Difficulty.eradication), 0.001f);
+        assertEquals(5f, MassAIConfig.graceMinutes(null), 0.001f);
+
+        assertEquals(1, MassAIConfig.biomassGeneratorBaseLimit(Difficulty.training));
+        assertEquals(10, MassAIConfig.biomassGeneratorBaseLimit(Difficulty.eradication));
+        assertEquals(3, MassAIConfig.biomassGeneratorBaseLimit(null));
+
+        assertEquals(2, MassAIConfig.squadsPerHive(Difficulty.training));
+        assertEquals(16, MassAIConfig.squadsPerHive(Difficulty.eradication));
+        assertEquals(4, MassAIConfig.squadsPerHive(null));
+
+        assertEquals(4, MassAIConfig.hiveLimit(Difficulty.training));
+        assertEquals(24, MassAIConfig.hiveLimit(Difficulty.eradication));
+        assertEquals(10, MassAIConfig.hiveLimit(null));
+    }
+
+    @Test
+    void massSaveFormats() throws Exception{
+        assertTrue(world.maps.all().size > 0);
+        world.loadMap(world.maps.all().first());
+
+        //legacy layout: no header, no response timers, old global-command tail
+        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.FORMAT_LEGACY, 555f))),
+            MassSave.FORMAT_LEGACY);
+        assertEquals(555f, MassAI.getInfectionTime(), 0.01f);
+
+        //format 4: header + response timers, still with the tail
+        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.FORMAT_HEADERED, 777f))),
+            MassSave.FORMAT_HEADERED);
+        assertEquals(777f, MassAI.getInfectionTime(), 0.01f);
+
+        //format 5: writer/reader symmetry
+        MassAI.setInfectionTime(1234.5f);
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        try(java.io.DataOutputStream out = new java.io.DataOutputStream(bytes)){
+            MassSave.write(out);
+        }
+        MassAI.setInfectionTime(0f);
+        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray())), MassSave.SAVE_VERSION);
+        assertEquals(1234.5f, MassAI.getInfectionTime(), 0.01f);
+
+        //a mismatched header must fail instead of desynchronizing the rest of the save
+        assertThrows(java.io.IOException.class, () -> MassSave.read(
+            new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.FORMAT_HEADERED, 0f))),
+            MassSave.SAVE_VERSION));
+    }
+
+    private static byte[] massBlock(int format, float infectionTime) throws Exception{
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        try(java.io.DataOutputStream out = new java.io.DataOutputStream(bytes)){
+            if(format >= MassSave.FORMAT_HEADERED) out.writeInt(format);
+            out.writeInt(0); //cores
+            out.writeInt(0); //lines
+            out.writeInt(0); //subsections
+            out.writeFloat(1f); //spawn timer
+            out.writeFloat(2f); //turret timer
+            out.writeFloat(3f); //next turret
+            out.writeFloat(4f); //damage turret timer
+            out.writeFloat(5f); //next damage turret
+            if(format >= MassSave.FORMAT_HEADERED){
+                out.writeFloat(6f); //response timer
+                out.writeFloat(7f); //next response
+            }
+            out.writeFloat(infectionTime); //infection countdown
+            out.writeInt(0); //pending builds
+            for(int i = 0; i < 7; i++) out.writeInt(0); //ore boosts
+            out.writeInt(0); //expanded cores
+            if(format < MassSave.SAVE_VERSION) out.writeInt(0); //legacy currentCommand
+            out.writeFloat(123f); //grace timer
+            if(format < MassSave.SAVE_VERSION){
+                out.writeFloat(0f); //legacy enemy nearby timer
+                out.writeBoolean(false); //legacy enemy nearby flag
+            }
+        }
+        return bytes.toByteArray();
     }
 
     @Test

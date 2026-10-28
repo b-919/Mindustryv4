@@ -10,6 +10,7 @@ import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Timers;
+import io.anuke.ucore.util.Geometry;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -48,6 +49,14 @@ class SubSection{
         this.targetOre = targetOre;
         this.path.clear();
         this.path.addAll(path);
+        //resources leave the drill/generator through one of these cardinal mouths; turrets must not cover them
+        for(int i = 0; i < 4; i++){
+            MassBuilder.markVeinEntrance(targetTile.getNearby(Geometry.d4[i]));
+        }
+        //the last vein before the target is the actual mouth the subsection uses
+        if(path.size > 1){
+            MassBuilder.markVeinEntrance(path.get(path.size - 2));
+        }
     }
 
     void update(){
@@ -72,7 +81,7 @@ class SubSection{
             // check if it's stuck or (full capacity, biomass generator is considered stuck if capacity = 2)
             if(targetTile.entity != null && targetTile.entity.items.total() >= targetTile.block().itemCapacity){
                 stuckTimer += Timers.delta();
-                if(stuckTimer >= MassAIConfig.DRILL_STUCK_TIME){ // 15 minutes
+                if(stuckTimer >= MassAIConfig.DRILL_STUCK_TIME){ // 15 seconds
                     // try to reconnect
                     if(!tryReconnect()){
                         // FAILED to reconnect -> destroy
@@ -145,8 +154,7 @@ class SubSection{
     }
 
     boolean connected(){
-        Array<Tile> probe = MassBuilder.findPathToAnyLine(targetTile);
-        return probe != null && probe.size > 1;
+        return MassBuilder.isVeinConnected(targetTile);
     }
     boolean tryReconnect(){
         Array<Tile> newPath = MassBuilder.findPathToAnyLine(targetTile);

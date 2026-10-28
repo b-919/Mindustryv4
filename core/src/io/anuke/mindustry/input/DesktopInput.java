@@ -814,8 +814,8 @@ public class DesktopInput extends InputHandler{
                     float lastx = unit.x, lasty = unit.y;
                     for(int i = Math.max(pathIndex - 1, 0); i < path.size; i++){
                         long wp = path.items[i];
-                        float wx = (int)(wp >> 32) * tilesize + tilesize / 2f;
-                        float wy = (int)wp * tilesize + tilesize / 2f;
+                        float wx = (int)(wp >> 32) * tilesize;
+                        float wy = (int)wp * tilesize;
                         Lines.line(lastx, lasty, wx, wy);
                         lastx = wx;
                         lasty = wy;
@@ -825,7 +825,7 @@ public class DesktopInput extends InputHandler{
                     Lines.stroke(1f);
                     for(int i = Math.max(pathIndex, 0); i < path.size; i++){
                         long wp = path.items[i];
-                        Lines.circle((int)(wp >> 32) * tilesize + tilesize / 2f, (int)wp * tilesize + tilesize / 2f, 2.2f);
+                        Lines.circle((int)(wp >> 32) * tilesize, (int)wp * tilesize, 2.2f);
                     }
                 }else{
                     Draw.color(Palette.remove);

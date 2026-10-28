@@ -411,10 +411,12 @@ public class Pathfinder{
 
         int size = path.size;
         int sizeY = path.sizeY;
-        int sx = MathUtils.floor(fromWorldX / tilesize) - path.offsetX;
-        int sy = MathUtils.floor(fromWorldY / tilesize) - path.offsetY;
-        int gx = MathUtils.floor(toWorldX / tilesize) - path.offsetX;
-        int gy = MathUtils.floor(toWorldY / tilesize) - path.offsetY;
+        //tile centers live at tile*tilesize (World.tileWorld uses scl2/round); floor() here
+        //shifted every start/goal half a tile and made paths begin or end on a corner tile
+        int sx = Mathf.scl2(fromWorldX, tilesize) - path.offsetX;
+        int sy = Mathf.scl2(fromWorldY, tilesize) - path.offsetY;
+        int gx = Mathf.scl2(toWorldX, tilesize) - path.offsetX;
+        int gy = Mathf.scl2(toWorldY, tilesize) - path.offsetY;
 
         if(sx < 0 || sy < 0 || sx >= size || sy >= sizeY) return null;
 
@@ -592,10 +594,10 @@ public class Pathfinder{
 
         int size = path.size;
         int sizeY = path.sizeY;
-        int sx = MathUtils.floor(fromWorldX / tilesize) - path.offsetX;
-        int sy = MathUtils.floor(fromWorldY / tilesize) - path.offsetY;
-        float gx = MathUtils.floor(toWorldX / tilesize) - path.offsetX + 0.5f;
-        float gy = MathUtils.floor(toWorldY / tilesize) - path.offsetY + 0.5f;
+        int sx = Mathf.scl2(fromWorldX, tilesize) - path.offsetX;
+        int sy = Mathf.scl2(fromWorldY, tilesize) - path.offsetY;
+        float gx = Mathf.scl2(toWorldX, tilesize) - path.offsetX + 0.5f;
+        float gy = Mathf.scl2(toWorldY, tilesize) - path.offsetY + 0.5f;
 
         if(sx < 0 || sy < 0 || sx >= size || sy >= sizeY) return null;
 
@@ -796,9 +798,9 @@ public class Pathfinder{
 
             if(world.isOpenWorld()){
                 int playerTX = players.length > 0 && players[0] != null
-                        ? MathUtils.floor(players[0].x / tilesize) : 0;
+                        ? Mathf.scl2(players[0].x, tilesize) : 0;
                 int playerTY = players.length > 0 && players[0] != null
-                        ? MathUtils.floor(players[0].y / tilesize) : 0;
+                        ? Mathf.scl2(players[0].y, tilesize) : 0;
                 offsetX = playerTX - size / 2;
                 offsetY = playerTY - size / 2;
             }else{

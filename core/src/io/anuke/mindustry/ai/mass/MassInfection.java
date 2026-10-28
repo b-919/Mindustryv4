@@ -26,9 +26,8 @@ public class MassInfection{
     public static ObjectSet<Tile> update(ObjectSet<Tile> cores){
         if(Vars.state.allowMassInfection && cores.size == 0){
             nextInfectionTime -= Timers.delta();
-            //System.out.println("Timer time is " + nextInfectionTime);
             if(nextInfectionTime <= 0){
-                nextInfectionTime = Mathf.random(5f, 40f) * 60f * 60f;
+                nextInfectionTime = randomInfectionTime();
                 spawnInitialHive();
                 if(MassAI.debug) Log.info("[MassAI] infection timer reached zero, spawning initial hive");
                 cores = Vars.state.teams.get(Team.themass).cores;
@@ -55,13 +54,12 @@ public class MassInfection{
         for(int i = 0; i < MassAIConfig.INITIAL_HIVE_ATTEMPTS; i++){
             int x = Mathf.random(world.width() - 1);
             int y = Mathf.random(world.height() - 1);
-            Tile tile = world.tile(x, y);
 
-            if(tile != null && tile.block() == Blocks.air && !tile.floor().solid && !MassUtil.isNearEnemyCore(tile)){
+            if(canPlaceHive(x, y)){
                 float dist = Mathf.dst(x - playerCore.x, y - playerCore.y);
                 if(dist > maxDist){
                     maxDist = dist;
-                    spawn = tile;
+                    spawn = world.tile(x, y);
                 }
             }
         }
@@ -74,6 +72,25 @@ public class MassInfection{
                 Vars.ui.hudfrag.showBiomassAlert(msg);
             }
         }
+    }
+
+    /**True when the whole hive footprint is buildable: inside the margin, air, placeable, dry, away from enemy cores.*/
+    private static boolean canPlaceHive(int x, int y){
+        int size = StorageBlocks.hive.size;
+        int offset = -(size - 1) / 2;
+
+        if(x + offset < MassAIConfig.MAP_EDGE_MARGIN || y + offset < MassAIConfig.MAP_EDGE_MARGIN
+            || x + offset + size > world.width() - MassAIConfig.MAP_EDGE_MARGIN
+            || y + offset + size > world.height() - MassAIConfig.MAP_EDGE_MARGIN) return false;
+
+        for(int dx = 0; dx < size; dx++){
+            for(int dy = 0; dy < size; dy++){
+                Tile t = world.tile(x + offset + dx, y + offset + dy);
+                if(t == null || t.block() != Blocks.air || t.floor().isLiquid || !t.floor().placeableOn
+                    || MassUtil.isNearEnemyCore(t)) return false;
+            }
+        }
+        return true;
     }
 
     /**Raises the grace timer so the grace period is skipped after damage.*/
@@ -103,11 +120,16 @@ public class MassInfection{
         nextInfectionTime = time;
     }
 
+    /**Random initial-hive countdown from {@link MassAIConfig#INFECTION_MIN}..{@link MassAIConfig#INFECTION_MAX} ticks.*/
+    public static float randomInfectionTime(){
+        return Mathf.random(MassAIConfig.INFECTION_MIN, MassAIConfig.INFECTION_MAX);
+    }
+
     public static void reset(){
         commandTimer = 0;
         disableGrace = false;
         if(nextInfectionTime <= 0){ // only initialize if not already set by loading
-            nextInfectionTime = Mathf.random(5f, 40f) * 60f * 60f;
+            nextInfectionTime = randomInfectionTime();
         }
     }
 }

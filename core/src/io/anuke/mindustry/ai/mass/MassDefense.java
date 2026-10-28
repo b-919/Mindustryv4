@@ -29,8 +29,9 @@ public class MassDefense{
     static float nextResponseTime = 0;
     static Array<PendingBuild> pendingBuilds = new Array<>();
 
-    private static final Block[] airTurrets = {TurretBlocks.evilCyclone, TurretBlocks.evilScatter};
-    private static final Block[] groundTurrets = {TurretBlocks.evilRipple, TurretBlocks.evilFuse, TurretBlocks.evilSalvo};
+    //cheapest affordable first; evilDuo is the free fallback and is also counted against the cap
+    private static final Block[] airTurrets = {TurretBlocks.evilScatter, TurretBlocks.evilCyclone};
+    private static final Block[] groundTurrets = {TurretBlocks.evilSalvo, TurretBlocks.evilFuse, TurretBlocks.evilRipple, TurretBlocks.evilDuo};
 
     //reused buffer for the intel threat hotspot (x,y)
     private static final float[] hotspotScratch = new float[2];
@@ -128,7 +129,7 @@ public static void update(){
         ObjectSet<Tile> cores = Vars.state.teams.get(massTeam).cores;
         if(cores.size == 0) return;
 
-        // determine which turret to spawn based on resources in the nearest core, it will always choose the most lowcost one and efficient against the target
+        // determine which turret to spawn based on resources in the nearest core; cheapest affordable first
         // if unit is aerial will spawn turrets that targets air, same if the target is ground unit
         //targeted whenever the caller supplied a position (on-damage or an intel hotspot), otherwise default to a core
         boolean targeted = fromDamage || targetX != 0f || targetY != 0f;
@@ -138,9 +139,8 @@ public static void update(){
         if(nearestCore == null) return;
 
         if(!fromDamage){
-            int coreCount = MassUtil.countNearbyCores(nearestCore);
-            int limit = MassAIConfig.TURRET_LIMIT_PER_CORE * Math.max(1, coreCount);
-            if(countTurrets(targetAir) >= limit) return;
+            //cores are placed at least CORE_MIN_DISTANCE apart, so the per-neighbourhood multiplier was always 1
+            if(countTurrets(targetAir) >= MassAIConfig.TURRET_LIMIT_PER_CORE) return;
         }
 
         ItemModule items = nearestCore.entity.items;
@@ -195,28 +195,30 @@ public static void update(){
                 }
 
                 ItemStack[] cost = costOf(turretBlock);
+
+                //an unconnected turret would be dead weight; try another base instead of paying for it
+                Array<Tile> veinPath = MassBuilder.findPathToAnyLine(target);
+                if(veinPath == null) continue;
+
                 for(ItemStack stack : cost){
                     items.remove(stack.item, stack.amount);
                 }
 
-                Array<Tile> veinPath = MassBuilder.findPathToAnyLine(target);
-                if(veinPath != null){
-                    // start from the building line(aka vein lines) and build towards the turret (first tile)
-                    for(int j = veinPath.size - 1; j >= 0; j--){
-                        Tile vt = veinPath.get(j);
-                        if(vt.block() == Blocks.air){
-                            //point towards the next tile in the sequence from line to turret
-                            // If j is 0, it points to the turret target(unit/player i think if not I'm crazy)
-                            Tile next = (j == 0) ? target : veinPath.get(j - 1);
+                // start from the building line(aka vein lines) and build towards the turret (first tile)
+                for(int j = veinPath.size - 1; j >= 0; j--){
+                    Tile vt = veinPath.get(j);
+                    if(vt.block() == Blocks.air){
+                        //point towards the next tile in the sequence from line to turret
+                        // If j is 0, it points to the turret target(unit/player i think if not I'm crazy)
+                        Tile next = (j == 0) ? target : veinPath.get(j - 1);
 
-                            //pathfinds the vein from the lines to the turret placement location
-                            float delay = (veinPath.size - j) * 5f;
-                            pendingBuilds.add(new PendingBuild(vt, DistributionBlocks.veins, massTeam, vt.relativeTo(next.x, next.y), delay));
-                        }
+                        //pathfinds the vein from the lines to the turret placement location
+                        float delay = (veinPath.size - j) * 5f;
+                        pendingBuilds.add(new PendingBuild(vt, DistributionBlocks.veins, massTeam, vt.relativeTo(next.x, next.y), delay));
                     }
                 }
 
-                float turretDelay = (veinPath != null ? veinPath.size * 5f : 0) + 10f;
+                float turretDelay = veinPath.size * 5f + 10f;
                 //adrenaline mode: hives swarming with enemies queue their turrets in half the time
                 if(MassAdrenaline.isBonusActiveAt(target)) turretDelay /= MassAIConfig.ADRENALINE_TURRET_SPEED;
                 pendingBuilds.add(new PendingBuild(target, turretBlock, massTeam, 0, turretDelay, fromDamage, targetX, targetY));
