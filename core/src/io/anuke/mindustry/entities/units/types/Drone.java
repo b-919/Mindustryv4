@@ -40,11 +40,12 @@ import static io.anuke.mindustry.Vars.world;
 
 public class Drone extends FlyingUnit implements BuilderTrait{
     protected static int timerRepairEffect = timerIndex++;
+    protected static int timerRebuildCheck = timerIndex++;
 
     @Override
     public boolean canShootWeapons(){
-        //don't shoot while mining or building!
-        return !(state.is(mine) || state.is(build));
+        //don't shoot while mining, building or rebuilding you baka!
+        return !(state.is(mine) || state.is(build) || state.is(rebuild));
     }
 
     protected Item targetItem;
@@ -54,6 +55,8 @@ public class Drone extends FlyingUnit implements BuilderTrait{
     protected boolean followPlayerMode = false;
     protected int followPlayerID = -1;
     protected UnitState previousState;
+    protected UnitState rebuildReturnState;
+    protected boolean rebuilding;
 
     public UnitState
 
@@ -71,7 +74,11 @@ public class Drone extends FlyingUnit implements BuilderTrait{
 
             if(entity == null){
                 checkRetreat();
-                setState(repair);
+                if(rebuilding){
+                    restoreAfterRebuild();
+                }else{
+                    setState(repair);
+                }
                 return;
             }
 
@@ -103,7 +110,11 @@ public class Drone extends FlyingUnit implements BuilderTrait{
                 circle(buildRange * 0.7f);
             }else{ //building isn't valid
                 checkRetreat();
-                setState(repair);
+                if(rebuilding){
+                    restoreAfterRebuild();
+                }else{
+                    setState(repair);
+                }
             }
         }
     },
@@ -149,7 +160,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
             BuildRequest request = getCurrentRequest();
 
             if(request == null){
-                setState(repair);
+                restoreAfterRebuild();
                 return;
             }
 
@@ -157,7 +168,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
 
             if(tile == null){
                 getPlaceQueue().clear();
-                setState(repair);
+                restoreAfterRebuild();
                 return;
             }
 
@@ -322,18 +333,33 @@ public class Drone extends FlyingUnit implements BuilderTrait{
     protected boolean startRebuild(){
         BlockPlan best = null;
         float bestDst = Float.MAX_VALUE;
+        BlockPlan needItems = null;
+        float needDst = Float.MAX_VALUE;
+        TileEntity core = getClosestCore();
 
         for(BlockPlan plan : Vars.state.teams.get(team).plans){
             if(!canRebuild(plan)) continue;
 
             float dst = Mathf.dst(plan.x * Vars.tilesize - x, plan.y * Vars.tilesize - y);
-            if(dst < bestDst){
-                bestDst = dst;
-                best = plan;
+
+            if(hasRequiredItems(plan, core)){
+                if(dst < bestDst){
+                    bestDst = dst;
+                    best = plan;
+                }
+            }else if(dst < needDst){
+                needDst = dst;
+                needItems = plan;
             }
         }
 
-        if(best == null) return false;
+        //no affordable rebuild available; gather the missing resources for the closest one
+        if(best == null){
+            if(needItems != null){
+                mineForPlan(needItems, core);
+            }
+            return false;
+        }
 
         Tile tile = world.tile(best.x, best.y);
         Recipe recipe = Recipe.getByResult(best.block);
@@ -344,10 +370,56 @@ public class Drone extends FlyingUnit implements BuilderTrait{
             Vars.schematics.queueConfig(best.x, best.y, best.block, best.config);
         }
 
+        //remember where to resume once the rebuild is done
+        if(!state.is(rebuild) && !rebuilding){
+            rebuildReturnState = state.get();
+            rebuilding = true;
+        }
+
         addBuildRequest(new BuildRequest(best.x, best.y, best.rotation, recipe));
         target = tile;
         setState(rebuild);
         return true;
+    }
+
+    /** Whether the core has at least one of every item required by this plan. */
+    protected boolean hasRequiredItems(BlockPlan plan, TileEntity core){
+        Recipe recipe = Recipe.getByResult(plan.block);
+        if(recipe == null || core == null) return false;
+
+        for(ItemStack stack : recipe.requirements){
+            if(!core.items.has(stack.item, 1)){
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** Switches to mining if a rebuild plan is missing resources this drone can gather. */
+    protected void mineForPlan(BlockPlan plan, TileEntity core){
+        Recipe recipe = Recipe.getByResult(plan.block);
+        if(recipe == null || core == null) return;
+
+        for(ItemStack stack : recipe.requirements){
+            if(!core.items.has(stack.item, 1) && type.toMine.contains(stack.item)){
+                targetItem = stack.item;
+                getPlaceQueue().clear();
+
+                if(!state.is(mine)){
+                    setState(mine);
+                }
+                return;
+            }
+        }
+    }
+
+    /** Returns to the state the drone was in before it started rebuilding. */
+    protected void restoreAfterRebuild(){
+        UnitState next = rebuildReturnState == null ? repair : rebuildReturnState;
+        rebuildReturnState = null;
+        rebuilding = false;
+        setState(next);
     }
 
     /** Whether this destroyed block can currently be rebuilt. */
@@ -355,14 +427,24 @@ public class Drone extends FlyingUnit implements BuilderTrait{
         Tile tile = world.tile(plan.x, plan.y);
         Recipe recipe = Recipe.getByResult(plan.block);
 
-        return tile != null && tile.block() == Blocks.air && recipe != null && recipe.available()
-                && Build.validPlace(team, plan.x, plan.y, plan.block, plan.rotation);
+        if(tile == null || recipe == null || !recipe.available()) return false;
+
+        if(tile.block() == Blocks.air){
+            return Build.validPlace(team, plan.x, plan.y, plan.block, plan.rotation);
+        }
+
+        if(tile.entity instanceof BuildEntity){
+            BuildEntity entity = tile.entity();
+            return !entity.deconstructing && entity.recipe != null && entity.recipe.result == plan.block;
+        }
+
+        return false;
     }
 
     public void notifyPlaced(BuildEntity entity, boolean isBreaking){
         float dist = Math.min(entity.distanceTo(x, y) - buildRange, 0);
 
-        if(!state.is(build) && dist / type.maxVelocity < entity.buildCost * 0.9f){
+        if(!state.is(build) && !state.is(rebuild) && dist / type.maxVelocity < entity.buildCost * 0.9f){
             target = entity;
             this.isBreaking = isBreaking;
             setState(build);
@@ -438,8 +520,22 @@ public class Drone extends FlyingUnit implements BuilderTrait{
     }
 
     @Override
+    public void updateDefaultAI(){
+        if(!updateOrder()){
+            //repairing/mining drones may pause to rebuild destroyed blocks.
+            //building and retreat are never interrupted.
+            if(!followPlayerMode && (state.is(repair) || state.is(mine)) && timer.get(timerRebuildCheck, 20)){
+                startRebuild();
+            }
+
+            state.update();
+        }
+    }
+
+    @Override
     protected void updateRotation(){
-        if(target != null && ((state.is(repair) && target.distanceTo(this) < type.range) || state.is(mine))){
+        if(target != null && ((state.is(repair) && target.distanceTo(this) < type.range)
+                || state.is(mine) || (state.is(rebuild) && target.distanceTo(this) < buildRange))){
             rotation = Mathf.slerpDelta(rotation, angleTo(target), 0.3f);
         }else{
             rotation = Mathf.slerpDelta(rotation, velocity.angle(), 0.3f);
@@ -522,6 +618,8 @@ public class Drone extends FlyingUnit implements BuilderTrait{
             targetItem = null;
             setMineTile(null);
             getPlaceQueue().clear();
+            rebuildReturnState = null;
+            rebuilding = false;
         }
     }
 

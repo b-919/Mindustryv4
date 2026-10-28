@@ -2,6 +2,7 @@ package io.anuke.mindustry.io.versions;
 
 import com.badlogic.gdx.utils.TimeUtils;
 import io.anuke.mindustry.ai.MassAI;
+import io.anuke.mindustry.ai.mass.MassSave;
 import io.anuke.mindustry.core.GameState;
 import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.GameMode;
@@ -29,7 +30,7 @@ public class Save17 extends SaveFileVersion{
 
     @Override
     public void read(DataInputStream stream) throws IOException{
-        stream.readLong(); //time
+        long savedTime = stream.readLong(); //time
         stream.readLong(); //total playtime
         stream.readInt(); //build
         int sector = stream.readInt(); //sector ID
@@ -64,7 +65,7 @@ public class Save17 extends SaveFileVersion{
 
         readMap(stream);
 
-        MassAI.read(stream);
+        MassAI.read(stream, massSaveVersion(savedTime));
 
         readVersionData(stream);
 
@@ -119,5 +120,20 @@ public class Save17 extends SaveFileVersion{
 
     /** Hook for save versions to read extra data after the map and MassAI state. */
     protected void readVersionData(DataInputStream stream) throws IOException{
+    }
+
+    /**Epoch (ms) of the build that introduced the header + response-timer mass layout (2026-10-21 18:21:29 +02:00).*/
+    private static final long massHeaderEpoch = 1792599689000L;
+
+    /**
+     * Mass AI block layout for this save. v19 was the newest writer from 2026-08-13 until v20 was added,
+     * so it spans the layout change: use the save's own timestamp for it. v17/v18 predate the change and
+     * v20+ postdate it.
+     */
+    protected int massSaveVersion(long savedTime){
+        if(version >= 21) return MassSave.SAVE_VERSION;
+        if(version >= 20) return MassSave.FORMAT_HEADERED;
+        if(version == 19) return savedTime >= massHeaderEpoch ? MassSave.FORMAT_HEADERED : MassSave.FORMAT_LEGACY;
+        return MassSave.FORMAT_LEGACY;
     }
 }

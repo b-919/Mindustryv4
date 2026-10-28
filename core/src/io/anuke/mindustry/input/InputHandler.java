@@ -437,6 +437,7 @@ public abstract class InputHandler extends InputAdapter{
         if(!cursorNear()) return;
 
         player.removeBuildRequest(x, y, false);
+        state.teams.get(player.getTeam()).removePlanAt(x, y);
 
         if(validBreak(x, y)){
             breakBlock(x, y);

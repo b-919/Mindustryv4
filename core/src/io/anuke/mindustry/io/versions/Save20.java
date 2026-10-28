@@ -14,6 +14,10 @@ public class Save20 extends Save19{
         super(20);
     }
 
+    public Save20(int version){
+        super(version);
+    }
+
     @Override
     public MappableContent[][] readContentHeader(DataInputStream stream) throws IOException{
         contentMapper = super.readContentHeader(stream);

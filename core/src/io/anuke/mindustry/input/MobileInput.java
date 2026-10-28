@@ -600,6 +600,9 @@ public class MobileInput extends InputHandler implements GestureListener{
                 //normalize area
                 NormalizeResult result = PlaceUtils.normalizeArea(lineStartX, lineStartY, tileX, tileY, rotation, false, maxLength);
 
+                //destroyed-block ghost plans in the deconstruction area are removed too
+                state.teams.get(player.getTeam()).removePlansInRect(result.x, result.y, result.x2, result.y2);
+
                 //break everything in area
                 for(int x = 0; x <= Math.abs(result.x2 - result.x); x++){
                     for(int y = 0; y <= Math.abs(result.y2 - result.y); y++){
@@ -709,6 +712,7 @@ public class MobileInput extends InputHandler implements GestureListener{
 
             //cancel a queued place plan, then also select the real block underneath if present
             player.removeBuildRequest(target.x, target.y, false);
+            state.teams.get(player.getTeam()).removePlanAt(target.x, target.y);
 
             if(validBreak(target.x, target.y) && !hasRequest(target)){
                 selection.add(new PlaceRequest(target.worldx(), target.worldy()));

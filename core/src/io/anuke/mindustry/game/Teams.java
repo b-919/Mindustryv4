@@ -109,6 +109,51 @@ public class Teams {
         }
 
         /**
+         * Removes the plan whose block footprint covers this tile, if present.
+         */
+        public boolean removePlanAt(int x, int y) {
+            for (int i = 0; i < plans.size; i++) {
+                BlockPlan plan = plans.get(i);
+                int offsetx = -(plan.block.size - 1) / 2;
+                int offsety = -(plan.block.size - 1) / 2;
+
+                if (x >= plan.x + offsetx && x < plan.x + offsetx + plan.block.size
+                        && y >= plan.y + offsety && y < plan.y + offsety + plan.block.size) {
+                    plans.removeIndex(i);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Removes all plans whose block footprints overlap the given tile rectangle.
+         * Returns how many plans were removed.
+         */
+        public int removePlansInRect(int x1, int y1, int x2, int y2) {
+            int minX = Math.min(x1, x2), minY = Math.min(y1, y2);
+            int maxX = Math.max(x1, x2), maxY = Math.max(y1, y2);
+            int removed = 0;
+
+            for (int i = plans.size - 1; i >= 0; i--) {
+                BlockPlan plan = plans.get(i);
+                int offsetx = -(plan.block.size - 1) / 2;
+                int offsety = -(plan.block.size - 1) / 2;
+                int planX1 = plan.x + offsetx;
+                int planY1 = plan.y + offsety;
+                int planX2 = planX1 + plan.block.size - 1;
+                int planY2 = planY1 + plan.block.size - 1;
+
+                if (planX1 <= maxX && planX2 >= minX && planY1 <= maxY && planY2 >= minY) {
+                    plans.removeIndex(i);
+                    removed++;
+                }
+            }
+
+            return removed;
+        }
+
+        /**
          * Removes all plans covered by the footprint of a block at this position.
          */
         public void removePlansOverlapping(Block block, int x, int y) {

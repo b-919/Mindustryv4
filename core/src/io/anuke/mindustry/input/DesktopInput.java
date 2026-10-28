@@ -550,6 +550,10 @@ public class DesktopInput extends InputHandler{
                 }
             }else if(mode == breaking){ //touch up while breaking, break everything in selection
                 NormalizeResult result = PlaceUtils.normalizeArea(selectX, selectY, cursorX, cursorY, rotation, false, maxLength);
+
+                //destroyed-block ghost plans in the deconstruction area are removed too
+                state.teams.get(player.getTeam()).removePlansInRect(result.x, result.y, result.x2, result.y2);
+
                 for(int x = 0; x <= Math.abs(result.x2 - result.x); x++){
                     for(int y = 0; y <= Math.abs(result.y2 - result.y); y++){
                         int wx = selectX + x * Mathf.sign(cursorX - selectX);

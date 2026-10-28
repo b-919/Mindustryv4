@@ -2,6 +2,7 @@ package io.anuke.mindustry.io.versions;
 
 import com.badlogic.gdx.utils.TimeUtils;
 import io.anuke.mindustry.ai.MassAI;
+import io.anuke.mindustry.ai.mass.MassSave;
 import io.anuke.mindustry.core.GameState;
 import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.GameMode;
@@ -55,7 +56,7 @@ public class Save16 extends SaveFileVersion{
 
         readMap(stream);
 
-        MassAI.read(stream);
+        MassAI.read(stream, MassSave.FORMAT_LEGACY);
 
         //mode flags and RTS bits are not saved, so restore canonical values instead of inheriting stale custom game settings
         state.mode.reset();
