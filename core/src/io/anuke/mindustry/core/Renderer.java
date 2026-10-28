@@ -243,9 +243,11 @@ public class Renderer extends RendererModule{
         Color.WHITE.set(1f, 1f, 1f, 1f);
 
         checkPostSettings();
-        checkRendererSettings();
 
+        //update the fractional camera scale first, then size the surfaces for it;
+        //otherwise the render surfaces lag one frame behind the zoom
         updateScale();
+        checkRendererSettings();
         updateCameraViewport();
         Lod.update();
 
@@ -1153,12 +1155,15 @@ public class Renderer extends RendererModule{
 
     /** Rebuilds all surfaces to match the current camera scale and render scale setting. */
     private void applyScale(){
+        int scale = renderScale();
+
         for(Surface surface : Graphics.getSurfaces()){
-            surface.setScale(renderScale());
+            surface.setScale(scale);
         }
-        //the surface scale is derived from the scale, so a zoom that crosses a whole step has to
-        //rescale the surfaces; recording the step stops a smooth zoom from doing it every frame
+        //remember both values; otherwise every frame with a changed zoom sees
+        //renderScale() != lastSurfaceScale and rebuilds every surface again
         lastRenderScale = Settings.getInt("renderer", 100);
+        lastSurfaceScale = scale;
     }
 
     /** The scale factor used by the render surfaces. Larger = smaller surfaces.
