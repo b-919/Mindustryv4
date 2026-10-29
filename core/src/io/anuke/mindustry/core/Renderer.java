@@ -249,6 +249,9 @@ public class Renderer extends RendererModule{
         Settings.defaults("bloomintensity", 10);
         Settings.defaults("bloomblur", 2);
         Settings.defaults("bloomthreshold", 15);
+        Settings.defaults("lightdither", false);
+        Settings.defaults("lightdithersize", 2);
+        Settings.defaults("lightditherstrength", 50);
 
         Settings.defaults("showweather", true);
 
@@ -664,6 +667,9 @@ public class Renderer extends RendererModule{
                 camera.viewportWidth, camera.viewportHeight);
 
         Shaders.light.type = 0;
+        Shaders.light.dither = Settings.getBool("lightdither");
+        Shaders.light.ditherSize = Settings.getInt("lightdithersize", 2);
+        Shaders.light.ditherStrength = Settings.getInt("lightditherstrength", 50) / 100f;
         Shaders.light.ambient.set(ambient);
         Graphics.shader(Shaders.light);
 

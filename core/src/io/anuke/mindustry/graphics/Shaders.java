@@ -3,6 +3,7 @@ package io.anuke.mindustry.graphics;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import io.anuke.ucore.core.Core;
@@ -10,6 +11,7 @@ import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Shader;
 import io.anuke.ucore.scene.ui.layout.Unit;
+import io.anuke.ucore.util.Mathf;
 
 import static io.anuke.mindustry.Vars.tilesize;
 import static io.anuke.mindustry.Vars.world;
@@ -51,9 +53,29 @@ public class Shaders{
         public Color ambient = new Color();
         public Texture lightmap;
         public int type = 0;
+        public boolean dither = false;
+        public float ditherSize = 2f;
+        public float ditherStrength = 0.5f;
+        private Texture ditherTexture;
 
         public LightShader(){
             super("light", "default");
+            ditherTexture = createDitherTexture();
+        }
+
+        private Texture createDitherTexture(){
+            int[] bayer = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+            Pixmap pixmap = new Pixmap(4, 4, Pixmap.Format.RGBA8888);
+            for(int i = 0; i < 16; i++){
+                float value = bayer[i] / 15f;
+                pixmap.setColor(value, value, value, 1f);
+                pixmap.drawPixel(i % 4, i / 4);
+            }
+            Texture texture = new Texture(pixmap);
+            texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+            texture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+            pixmap.dispose();
+            return texture;
         }
 
         @Override
@@ -67,6 +89,15 @@ public class Shaders{
                     shader.setUniformf("u_uv2", region.getU2(), region.getV2());
                     shader.setUniformf("u_texsize", region.getTexture().getWidth(), region.getTexture().getHeight());
                 }
+
+                shader.setUniformi("u_ditherEnabled", dither ? 1 : 0);
+                shader.setUniformf("u_ditherSize", Math.max(1f, ditherSize));
+                shader.setUniformf("u_ditherStrength", Mathf.clamp(ditherStrength, 0f, 1f));
+                shader.setUniformi("u_dither", 2);
+                if(ditherTexture != null){
+                    ditherTexture.bind(2);
+                }
+                Gdx.gl.glActiveTexture(GL20.GL_TEXTURE0);
             }else{
                 shader.setUniformi("u_lightmap", 1);
                 lightmap.bind(1);
