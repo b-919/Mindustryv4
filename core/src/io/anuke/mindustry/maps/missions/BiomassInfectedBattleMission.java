@@ -39,6 +39,11 @@ public class BiomassInfectedBattleMission extends MissionWithStartingCore{
     }
 
     @Override
+    public boolean isAttack(){
+        return true;
+    }
+
+    @Override
     public boolean isInfected(){
         return false;
     }

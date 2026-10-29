@@ -81,6 +81,11 @@ public class AttackMission extends MissionWithStartingCore{
     }
 
     @Override
+    public boolean isAttack(){
+        return true;
+    }
+
+    @Override
     public boolean isComplete(){
         for(Team team : Vars.state.teams.enemiesOf(Vars.defaultTeam)){
             if(Vars.state.teams.isActive(team)){

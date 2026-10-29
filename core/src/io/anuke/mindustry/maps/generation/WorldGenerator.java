@@ -5,9 +5,9 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.LongArray;
 import com.badlogic.gdx.utils.ObjectMap;
+import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.Items;
-import io.anuke.mindustry.content.blocks.Blocks;
-import io.anuke.mindustry.content.blocks.OreBlocks;
+import io.anuke.mindustry.content.blocks.Blocks;import io.anuke.mindustry.content.blocks.OreBlocks;
 import io.anuke.mindustry.content.blocks.StorageBlocks;
 import io.anuke.mindustry.game.GameMode;
 import io.anuke.mindustry.game.Team;
@@ -32,14 +32,14 @@ import static io.anuke.mindustry.Vars.*;
 
 
 public class WorldGenerator{
-    private static final int baseSeed = 0;
+    private static final long baseSeed = 0;
     private int oreIndex = 0;
 
-    public Simplex sim = new Simplex(baseSeed);
-    public Simplex sim2 = new Simplex(baseSeed + 1);
-    public Simplex sim3 = new Simplex(baseSeed + 2);
-    public RidgedPerlin rid = new RidgedPerlin(baseSeed + 4, 1);
-    public SeedRandom random = new SeedRandom(baseSeed + 3);
+    public Simplex sim;
+    public Simplex sim2;
+    public Simplex sim3;
+    public RidgedPerlin rid;
+    public SeedRandom random;
 
     public float elevationDensity = 6.1f;
     public float temperatureScale = 1100f;
@@ -51,11 +51,23 @@ public class WorldGenerator{
     public float oreThreshold = 0.23f;
     public float oreThreshold2 = 0.32f;
     public boolean genOres = true;
+    public int sectorSize = Vars.sectorSize;
 
     private GenResult result = new GenResult();
     private ObjectMap<Block, Block> decoration;
 
     public WorldGenerator(){
+        this(baseSeed);
+    }
+
+    /** Creates a terrain generator with its own noise seed. */
+    public WorldGenerator(long seed){
+        sim = new Simplex(seed);
+        sim2 = new Simplex(seed + 1);
+        sim3 = new Simplex(seed + 2);
+        rid = new RidgedPerlin((int)(seed + 4), 1);
+        random = new SeedRandom(seed + 3);
+
         decoration = Structs.map(
             Blocks.grass, Blocks.shrub,
             Blocks.stone, Blocks.rock,
@@ -63,6 +75,12 @@ public class WorldGenerator{
             Blocks.snow, Blocks.icerock,
             Blocks.blackstone, Blocks.blackrock
         );
+    }
+
+    /** Creates a terrain generator with its own noise seed and sector map size. */
+    public WorldGenerator(long seed, int sectorSize){
+        this(seed);
+        this.sectorSize = sectorSize;
     }
 
     /**Loads raw map tile data into a Tile[][] array, setting up multiblocks, cliffs and ores. */
@@ -372,8 +390,14 @@ public class WorldGenerator{
      * @return the GenResult passed in with its values modified
      */
     public GenResult generateTile(GenResult result, int sectorX, int sectorY, int localX, int localY, boolean detailed, Array<GridPoint2> spawnpoints, Array<Item> ores){
-        int x = sectorX * sectorSize + localX + Short.MAX_VALUE;
-        int y = sectorY * sectorSize + localY + Short.MAX_VALUE;
+        return generateTile(result, sectorX, sectorY, localX, localY, detailed, spawnpoints, ores, sectorSize);
+    }
+
+    /** Same as above, but with an explicit coordinate scale. Used by planet mesh sampling. */
+    public GenResult generateTile(GenResult result, int sectorX, int sectorY, int localX, int localY, boolean detailed,
+                                  Array<GridPoint2> spawnpoints, Array<Item> ores, int coordinateScale){
+        int x = sectorX * coordinateScale + localX + Short.MAX_VALUE;
+        int y = sectorY * coordinateScale + localY + Short.MAX_VALUE;
 
         Block floor;
         Block wall = Blocks.air;
@@ -397,11 +421,13 @@ public class WorldGenerator{
                 minDst = Math.min(minDst, dst);
 
                 if(dst < lerpDst){
-                    float targetElevation = Math.max(0.86f, (float)elevationOf(sectorX * sectorSize + p.x + Short.MAX_VALUE, sectorY * sectorSize + p.y + Short.MAX_VALUE, true));
+                    float targetElevation = Math.max(0.86f, (float)elevationOf(sectorX * coordinateScale + p.x + Short.MAX_VALUE, sectorY * coordinateScale + p.y + Short.MAX_VALUE, true));
                     elevation = Mathf.lerp((float)elevation, targetElevation, Mathf.clamp(1.5f*(1f-(dst / lerpDst))));
                 }
             }
         }
+
+        result.height = (float)elevation;
 
         if(elevation < 0.7){
             floor = Blocks.deepwater;
@@ -472,6 +498,7 @@ public class WorldGenerator{
     public static class GenResult{
         public Block floor, wall;
         public byte elevation;
+        public float height;
     }
 
     private static float oreFrequency(Item item){

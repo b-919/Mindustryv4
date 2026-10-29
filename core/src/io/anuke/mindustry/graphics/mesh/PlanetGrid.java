@@ -1,89 +1,272 @@
 package io.anuke.mindustry.graphics.mesh;
 
 import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.LongMap;
 
-/** Simplified geodesic cell grid for planet meshes. */
+/**
+ * Geodesic planet grid
+ *
+ * The grid is an icosahedron subdivided into triangles. Each tile is either a pentagon
+ * (the 12 original icosahedron vertices) or a hexagon. Every tile stores its neighboring
+ * tiles, its corners and its edges, which is what the planet terrain mesh and the sector
+ * region map need.
+ */
 public class PlanetGrid{
-    public static class Cell{
-        public final int id;
-        public final Vector3 v;
+    private static final PlanetGrid[] cache = new PlanetGrid[10];
 
-        public Cell(int id, Vector3 v){
-            this.id = id;
-            this.v = v;
+    private static final float x = -0.525731112119133606f;
+    private static final float z = -0.850650808352039932f;
+
+    private static final Vector3[] iTiles = {
+    new Vector3(-x, 0, z), new Vector3(x, 0, z), new Vector3(-x, 0, -z), new Vector3(x, 0, -z),
+    new Vector3(0, z, x), new Vector3(0, z, -x), new Vector3(0, -z, x), new Vector3(0, -z, -x),
+    new Vector3(z, x, 0), new Vector3(-z, x, 0), new Vector3(z, -x, 0), new Vector3(-z, -x, 0)
+    };
+
+    private static final int[][] iTilesP = {
+    {9, 4, 1, 6, 11}, {4, 8, 10, 6, 0}, {11, 7, 3, 5, 9}, {2, 7, 10, 8, 5},
+    {9, 5, 8, 1, 0}, {2, 3, 8, 4, 9}, {0, 1, 10, 7, 11}, {11, 6, 10, 3, 2},
+    {5, 3, 10, 1, 4}, {2, 5, 4, 0, 11}, {3, 7, 6, 1, 8}, {7, 2, 9, 0, 6}
+    };
+
+    public int size;
+    public Ptile[] tiles;
+    public Corner[] corners;
+    public Edge[] edges;
+
+    protected PlanetGrid(int size){
+        this.size = size;
+
+        tiles = new Ptile[tileCount(size)];
+        for(int i = 0; i < tiles.length; i++){
+            tiles[i] = new Ptile(i, i < 12 ? 5 : 6);
+        }
+
+        corners = new Corner[cornerCount(size)];
+        for(int i = 0; i < corners.length; i++){
+            corners[i] = new Corner(i);
+        }
+
+        edges = new Edge[edgeCount(size)];
+        for(int i = 0; i < edges.length; i++){
+            edges[i] = new Edge(i);
         }
     }
 
-    public final int subdivisions;
-    public final Cell[] cells;
-
-    private PlanetGrid(int subdivisions, Cell[] cells){
-        this.subdivisions = subdivisions;
-        this.cells = cells;
-    }
-
-    public static PlanetGrid create(int subdivisions){
-        Array<Vector3> vertices = buildGeodesicVertices(Math.max(0, subdivisions));
-        Cell[] out = new Cell[vertices.size];
-        for(int i = 0; i < vertices.size; i++){
-            out[i] = new Cell(i, vertices.get(i).cpy().nor());
+    public static synchronized PlanetGrid create(int size){
+        if(size < cache.length && cache[size] != null){
+            return cache[size];
         }
-        return new PlanetGrid(subdivisions, out);
+
+        PlanetGrid result;
+        if(size == 0){
+            result = initialGrid();
+        }else{
+            result = subdividedGrid(create(size - 1));
+        }
+
+        if(size < cache.length){
+            cache[size] = result;
+        }
+
+        return result;
     }
 
-    private static Array<Vector3> buildGeodesicVertices(int subdivisions){
-        Array<Vector3> vertices = new Array<>();
-        Array<int[]> faces = new Array<>();
+    public static PlanetGrid initialGrid(){
+        PlanetGrid grid = new PlanetGrid(0);
 
-        float t = (1f + (float)Math.sqrt(5f)) / 2f;
-        addVertex(vertices, -1, t, 0); addVertex(vertices, 1, t, 0); addVertex(vertices, -1, -t, 0); addVertex(vertices, 1, -t, 0);
-        addVertex(vertices, 0, -1, t); addVertex(vertices, 0, 1, t); addVertex(vertices, 0, -1, -t); addVertex(vertices, 0, 1, -t);
-        addVertex(vertices, t, 0, -1); addVertex(vertices, t, 0, 1); addVertex(vertices, -t, 0, -1); addVertex(vertices, -t, 0, 1);
-
-        int[][] base = {
-            {0,11,5},{0,5,1},{0,1,7},{0,7,10},{0,10,11},
-            {1,5,9},{5,11,4},{11,10,2},{10,7,6},{7,1,8},
-            {3,9,4},{3,4,2},{3,2,6},{3,6,8},{3,8,9},
-            {4,9,5},{2,4,11},{6,2,10},{8,6,7},{9,8,1}
-        };
-        for(int[] f : base) faces.add(f);
-
-        for(int s = 0; s < subdivisions; s++){
-            LongMap<Integer> cache = new LongMap<>();
-            Array<int[]> newFaces = new Array<>();
-            for(int[] f : faces){
-                int a = midpoint(vertices, cache, f[0], f[1]);
-                int b = midpoint(vertices, cache, f[1], f[2]);
-                int c = midpoint(vertices, cache, f[2], f[0]);
-                newFaces.add(new int[]{f[0], a, c});
-                newFaces.add(new int[]{f[1], b, a});
-                newFaces.add(new int[]{f[2], c, b});
-                newFaces.add(new int[]{a, b, c});
+        for(Ptile t : grid.tiles){
+            t.v = new Vector3(iTiles[t.id]);
+            for(int k = 0; k < 5; k++){
+                t.tiles[k] = grid.tiles[iTilesP[t.id][k]];
             }
-            faces = newFaces;
         }
+        for(int i = 0; i < 5; i++){
+            addCorner(i, grid, 0, iTilesP[0][(i + 4) % 5], iTilesP[0][i]);
+        }
+        for(int i = 0; i < 5; i++){
+            addCorner(i + 5, grid, 3, iTilesP[3][(i + 4) % 5], iTilesP[3][i]);
+        }
+        addCorner(10, grid, 10, 1, 8);
+        addCorner(11, grid, 1, 10, 6);
+        addCorner(12, grid, 6, 10, 7);
+        addCorner(13, grid, 6, 7, 11);
+        addCorner(14, grid, 11, 7, 2);
+        addCorner(15, grid, 11, 2, 9);
+        addCorner(16, grid, 9, 2, 5);
+        addCorner(17, grid, 9, 5, 4);
+        addCorner(18, grid, 4, 5, 8);
+        addCorner(19, grid, 4, 8, 1);
 
-        for(Vector3 v : vertices){
-            v.nor();
+        for(Corner c : grid.corners){
+            for(int k = 0; k < 3; k++){
+                c.corners[k] = c.tiles[k].corners[(pos(c.tiles[k], c) + 1) % 5];
+            }
         }
-        return vertices;
+        int nextEdge = 0;
+        for(Ptile t : grid.tiles){
+            for(int k = 0; k < 5; k++){
+                if(t.edges[k] == null){
+                    addEdge(nextEdge++, grid, t.id, iTilesP[t.id][k]);
+                }
+            }
+        }
+        return grid;
     }
 
-    private static int midpoint(Array<Vector3> verts, LongMap<Integer> cache, int i1, int i2){
-        int a = Math.min(i1, i2), b = Math.max(i1, i2);
-        long key = (((long)a) << 32) | (b & 0xffffffffL);
-        Integer idx = cache.get(key);
-        if(idx != null) return idx;
-        Vector3 v = new Vector3(verts.get(i1)).add(verts.get(i2)).scl(0.5f).nor();
-        int out = verts.size;
-        verts.add(v);
-        cache.put(key, out);
+    public static PlanetGrid subdividedGrid(PlanetGrid prev){
+        PlanetGrid grid = new PlanetGrid(prev.size + 1);
+
+        int prevTiles = prev.tiles.length;
+        int prevCorners = prev.corners.length;
+
+        for(int i = 0; i < prevTiles; i++){
+            grid.tiles[i].v = new Vector3(prev.tiles[i].v);
+            for(int k = 0; k < grid.tiles[i].edgeCount; k++){
+                grid.tiles[i].tiles[k] = grid.tiles[prev.tiles[i].corners[k].id + prevTiles];
+            }
+        }
+        for(int i = 0; i < prevCorners; i++){
+            grid.tiles[i + prevTiles].v = new Vector3(prev.corners[i].v);
+            for(int k = 0; k < 3; k++){
+                grid.tiles[i + prevTiles].tiles[2 * k] = grid.tiles[prev.corners[i].corners[k].id + prevTiles];
+                grid.tiles[i + prevTiles].tiles[2 * k + 1] = grid.tiles[prev.corners[i].tiles[k].id];
+            }
+        }
+        int nextCorner = 0;
+        for(Ptile n : prev.tiles){
+            Ptile t = grid.tiles[n.id];
+            for(int k = 0; k < t.edgeCount; k++){
+                addCorner(nextCorner, grid, t.id, t.tiles[(k + t.edgeCount - 1) % t.edgeCount].id, t.tiles[k].id);
+                nextCorner++;
+            }
+        }
+        for(Corner c : grid.corners){
+            for(int k = 0; k < 3; k++){
+                c.corners[k] = c.tiles[k].corners[(pos(c.tiles[k], c) + 1) % (c.tiles[k].edgeCount)];
+            }
+        }
+        int nextEdge = 0;
+        for(Ptile t : grid.tiles){
+            for(int k = 0; k < t.edgeCount; k++){
+                if(t.edges[k] == null){
+                    addEdge(nextEdge, grid, t.id, t.tiles[k].id);
+                    nextEdge++;
+                }
+            }
+        }
+
+        return grid;
+    }
+
+    static void addCorner(int id, PlanetGrid grid, int t1, int t2, int t3){
+        Corner c = grid.corners[id];
+        Ptile[] t = {grid.tiles[t1], grid.tiles[t2], grid.tiles[t3]};
+        c.v.set(t[0].v).add(t[1].v).add(t[2].v).nor();
+        for(int i = 0; i < 3; i++){
+            t[i].corners[pos(t[i], t[(i + 2) % 3])] = c;
+            c.tiles[i] = t[i];
+        }
+    }
+
+    static void addEdge(int id, PlanetGrid grid, int t1, int t2){
+        Edge e = grid.edges[id];
+        Ptile[] t = {grid.tiles[t1], grid.tiles[t2]};
+        Corner[] c = {
+        grid.corners[t[0].corners[pos(t[0], t[1])].id],
+        grid.corners[t[0].corners[(pos(t[0], t[1]) + 1) % t[0].edgeCount].id]};
+        for(int i = 0; i < 2; i++){
+            t[i].edges[pos(t[i], t[(i + 1) % 2])] = e;
+            e.tiles[i] = t[i];
+            c[i].edges[pos(c[i], c[(i + 1) % 2])] = e;
+            e.corners[i] = c[i];
+        }
+    }
+
+    static int pos(Ptile t, Ptile n){
+        for(int i = 0; i < t.edgeCount; i++){
+            if(t.tiles[i] == n) return i;
+        }
+        return -1;
+    }
+
+    static int pos(Ptile t, Corner c){
+        for(int i = 0; i < t.edgeCount; i++){
+            if(t.corners[i] == c) return i;
+        }
+        return -1;
+    }
+
+    static int pos(Corner c, Corner n){
+        for(int i = 0; i < 3; i++){
+            if(c.corners[i] == n) return i;
+        }
+        return -1;
+    }
+
+    static int pow3(int n){
+        int out = 1;
+        for(int i = 0; i < n; i++) out *= 3;
         return out;
     }
 
-    private static void addVertex(Array<Vector3> verts, float x, float y, float z){
-        verts.add(new Vector3(x, y, z).nor());
+    public static int tileCount(int size){
+        return 10 * pow3(size) + 2;
+    }
+
+    public static int cornerCount(int size){
+        return 20 * pow3(size);
+    }
+
+    public static int edgeCount(int size){
+        return 30 * pow3(size);
+    }
+
+    public static class Ptile{
+        public static final Ptile empty = new Ptile(0, 0);
+
+        public int id;
+        public int edgeCount;
+
+        public Ptile[] tiles;
+        public Corner[] corners;
+        public Edge[] edges;
+
+        public Vector3 v = new Vector3();
+
+        public Ptile(int id, int edgeCount){
+            this.id = id;
+            this.edgeCount = edgeCount;
+
+            tiles = new Ptile[edgeCount];
+            corners = new Corner[edgeCount];
+            edges = new Edge[edgeCount];
+        }
+
+        @Override
+        public String toString(){
+            return "Ptile{" + id + " " + v + "}";
+        }
+    }
+
+    public static class Corner{
+        public int id;
+        public Ptile[] tiles = new Ptile[3];
+        public Corner[] corners = new Corner[3];
+        public Edge[] edges = new Edge[3];
+        public Vector3 v = new Vector3();
+
+        public Corner(int id){
+            this.id = id;
+        }
+    }
+
+    public static class Edge{
+        public int id;
+        public Ptile[] tiles = new Ptile[2];
+        public Corner[] corners = new Corner[2];
+
+        public Edge(int id){
+            this.id = id;
+        }
     }
 }

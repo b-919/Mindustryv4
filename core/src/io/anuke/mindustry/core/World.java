@@ -16,6 +16,8 @@ import io.anuke.mindustry.game.GameMode;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.io.MapIO;
 import io.anuke.mindustry.maps.*;
+import io.anuke.mindustry.maps.campaign.CampaignRegistry;
+import io.anuke.mindustry.maps.campaign.PlanetGenerator;
 import io.anuke.mindustry.maps.generation.FortressGenerator;
 import io.anuke.mindustry.maps.generation.Generation;
 import io.anuke.mindustry.maps.generation.WorldGenerator;
@@ -35,6 +37,7 @@ public class World extends Module{
     private static final int customAttackCorePlacementAttempts = 250;
     public final Maps maps = new Maps();
     public final Sectors sectors = new Sectors();
+    /** Default Serpulo terrain generator. Also used by the editor and random maps. */
     public final WorldGenerator generator = new WorldGenerator();
     public final BlockIndexer indexer = new BlockIndexer();
     public final WaveSpawner spawner = new WaveSpawner();
@@ -292,7 +295,8 @@ public class World extends Module{
 
         beginMapLoad();
 
-        int width = sectorSize, height = sectorSize;
+        PlanetGenerator planetGenerator = CampaignRegistry.generator(sectors.getActiveCampaign());
+        int width = planetGenerator.sectorSize(), height = planetGenerator.sectorSize();
 
         Tile[][] tiles = createTiles(width, height);
 
@@ -301,7 +305,7 @@ public class World extends Module{
 
         EntityQuery.resizeTree(0, 0, width * tilesize, height * tilesize);
 
-        generator.generateMap(tiles, sector);
+        planetGenerator.terrain().generateMap(tiles, sector);
 
         endMapLoad();
     }

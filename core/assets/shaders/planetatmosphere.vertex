@@ -1,0 +1,18 @@
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+attribute vec4 a_position;
+attribute vec3 a_normal;
+
+uniform mat4 u_proj;
+uniform mat4 u_trans;
+
+varying vec3 v_world;
+varying vec3 v_normal;
+
+void main(){
+    v_world = (u_trans * a_position).xyz;
+    v_normal = normalize(a_normal);
+    gl_Position = u_proj * u_trans * a_position;
+}

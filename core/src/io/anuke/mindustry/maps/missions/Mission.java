@@ -37,6 +37,11 @@ public abstract class Mission{
         return false;
     }
 
+    /** Whether this mission places an enemy base (attack sector). */
+    public boolean isAttack(){
+        return false;
+    }
+
     public boolean isInfected(){
         return false;
     }

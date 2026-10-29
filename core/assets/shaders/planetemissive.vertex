@@ -1,0 +1,12 @@
+attribute vec4 a_position;
+attribute vec4 a_emissive;
+
+uniform mat4 u_proj;
+uniform mat4 u_trans;
+
+varying vec4 v_emissive;
+
+void main(){
+    v_emissive = a_emissive;
+    gl_Position = u_proj * u_trans * a_position;
+}

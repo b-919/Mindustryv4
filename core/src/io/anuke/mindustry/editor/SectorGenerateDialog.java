@@ -11,6 +11,7 @@ import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.TechTree;
 import io.anuke.mindustry.maps.MapTileData;
+import io.anuke.mindustry.maps.campaign.CampaignRegistry;
 import io.anuke.mindustry.maps.generation.WorldGenerator;
 import io.anuke.mindustry.maps.generation.WorldGenerator.GenResult;
 import io.anuke.mindustry.type.Item;
@@ -197,7 +198,7 @@ public class SectorGenerateDialog extends FloatingDialog{
     }
 
     void applySettings(){
-        WorldGenerator gen = world.generator;
+        WorldGenerator gen = CampaignRegistry.generator(CampaignRegistry.serpulo).terrain();
         gen.elevationDensity = elevationDensity;
         gen.temperatureScale = temperatureScale;
         gen.lakeFactor = lakeFactor;
@@ -217,7 +218,7 @@ public class SectorGenerateDialog extends FloatingDialog{
         int sx = (int)(parsedSeed % Short.MAX_VALUE);
         int sy = (int)(parsedSeed / Short.MAX_VALUE % Short.MAX_VALUE);
 
-        WorldGenerator generator = world.generator;
+        WorldGenerator generator = CampaignRegistry.generator(CampaignRegistry.serpulo).terrain();
         GenResult result = new GenResult();
         Array<GridPoint2> spawns = new Array<>();
         spawns.add(new GridPoint2(pixmap.getWidth() / 2, pixmap.getHeight() / 2));
@@ -263,7 +264,7 @@ public class SectorGenerateDialog extends FloatingDialog{
         int sx = (int)(parsedSeed % Short.MAX_VALUE);
         int sy = (int)(parsedSeed / Short.MAX_VALUE % Short.MAX_VALUE);
 
-        WorldGenerator generator = world.generator;
+        WorldGenerator generator = CampaignRegistry.generator(CampaignRegistry.serpulo).terrain();
         GenResult result = new GenResult();
         Array<GridPoint2> spawns = new Array<>();
         spawns.add(new GridPoint2(width / 2, height / 2));

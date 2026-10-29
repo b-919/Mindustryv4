@@ -218,6 +218,7 @@ public class UI extends SceneModule{
     @Override
     public void dispose(){
         super.dispose();
+        sectors.dispose();
         generator.dispose();
     }
 

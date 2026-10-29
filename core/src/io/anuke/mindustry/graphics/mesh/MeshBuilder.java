@@ -4,131 +4,88 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.LongMap;
+import io.anuke.mindustry.graphics.mesh.PlanetGrid.Corner;
+import io.anuke.mindustry.graphics.mesh.PlanetGrid.Ptile;
 
-// this is just a Copy paste of the ARC meshBuilder. for now useless
+/**
+ * Builds the geodesic planet meshes.
+ * Vertex format: position(3), normal(3), packed color(4).
+ */
 public class MeshBuilder{
-    /** Builds a smooth subdivided icosphere planet mesh with per-vertex height + color. */
-    public static Mesh buildPlanet(HexMesher mesher, int divisions, float radius, float intensity){
-        Array<Vector3> verts = new Array<>();
-        Array<short[]> faces = new Array<>();
-        buildIcosphere(Math.max(0, divisions), verts, faces);
+    private static final int vertexSize = 8;
 
-        int maxVerts = Math.min(verts.size, 65000);
-        float[] vertices = new float[maxVerts * (3 + 3 + 4)];
-        Color color = new Color();
-        int vptr = 0;
-
-        for(int i = 0; i < maxVerts; i++){
-            Vector3 n = new Vector3(verts.get(i)).nor();
-            if(mesher.skip(n)){
-                n.setZero();
-            }
-            mesher.getColor(n, color);
-            float h = radius * (1f + mesher.getHeight(n) * intensity);
-            Vector3 p = new Vector3(n).scl(h);
-            vptr = putVertex(vertices, vptr, p, n, color);
-        }
-
-        short[] indices = new short[faces.size * 3];
-        int iptr = 0;
-        for(short[] f : faces){
-            if(f[0] >= maxVerts || f[1] >= maxVerts || f[2] >= maxVerts) continue;
-            short i0 = f[0], i1 = f[1], i2 = f[2];
-            Vector3 a = verts.get(i0), b = verts.get(i1), c = verts.get(i2);
-            // enforce consistent outward winding to avoid missing faces with culling
-            float winding = new Vector3(b).sub(a).crs(new Vector3(c).sub(a)).dot(a);
-            if(winding < 0f){
-                short t = i1;
-                i1 = i2;
-                i2 = t;
-            }
-            indices[iptr++] = i0;
-            indices[iptr++] = i1;
-            indices[iptr++] = i2;
-        }
-
-        float[] outVerts = new float[vptr];
-        System.arraycopy(vertices, 0, outVerts, 0, vptr);
-        short[] outIndices = new short[iptr];
-        System.arraycopy(indices, 0, outIndices, 0, iptr);
-
-        Mesh mesh = new Mesh(true, maxVerts, iptr,
-            new VertexAttribute(Usage.Position, 3, "a_position"),
-            new VertexAttribute(Usage.Normal, 3, "a_normal"),
-            new VertexAttribute(Usage.ColorUnpacked, 4, "a_color")
-        );
-        mesh.setVertices(outVerts);
-        mesh.setIndices(outIndices);
-        return mesh;
-    }
-
-    /** Builds a colored geodesic patch mesh around PlanetGrid cells. */
+    /** Builds a terrain mesh with per-corner height and per-tile color. */
     public static Mesh buildHex(HexMesher mesher, int divisions, float radius, float intensity){
-        PlanetGrid grid = PlanetGrid.create(divisions);
-        int vertsPerCell = 1 + 6;
-        int indicesPerCell = 6 * 3;
+        PlanetGrid grid = PlanetGrid.create(Math.max(0, divisions));
 
-        float[] vertices = new float[grid.cells.length * vertsPerCell * (3 + 3 + 4)];
-        short[] indices = new short[grid.cells.length * indicesPerCell];
-        Color color = new Color();
+        int maxVertices = grid.tiles.length * 6;
+        int maxIndices = grid.tiles.length * 12;
+        float[] vertices = new float[maxVertices * vertexSize];
+        short[] indices = new short[maxIndices];
 
-        int vptr = 0;
-        int iptr = 0;
-        short base = 0;
-
-        for(PlanetGrid.Cell cell : grid.cells){
-            Vector3 n = new Vector3(cell.v).nor();
-            if(mesher.skip(n)) continue;
-
-            mesher.getColor(n, color);
-            float h = radius * (1f + mesher.getHeight(n) * intensity);
-            Vector3 center = new Vector3(n).scl(h);
-
-            // center vertex
-            vptr = putVertex(vertices, vptr, center, n, color);
-
-            Vector3 tangent = orthogonal(n).nor();
-            Vector3 bitangent = new Vector3(n).crs(tangent).nor();
-            float ring = Math.max(0.02f, (MathUtils.PI2 * h) / Math.max(36f, grid.cells.length / 8f));
-
-            short centerIdx = base;
-            for(int i = 0; i < 6; i++){
-                float a = MathUtils.PI2 * i / 6f;
-                Vector3 off = new Vector3(tangent).scl(MathUtils.cos(a) * ring).add(new Vector3(bitangent).scl(MathUtils.sin(a) * ring));
-                Vector3 p = new Vector3(center).add(off).nor().scl(h);
-                vptr = putVertex(vertices, vptr, p, n, color);
-            }
-
-            for(int i = 0; i < 6; i++){
-                short i1 = (short)(centerIdx + 1 + i);
-                short i2 = (short)(centerIdx + 1 + ((i + 1) % 6));
-                indices[iptr++] = centerIdx;
-                indices[iptr++] = i1;
-                indices[iptr++] = i2;
-            }
-
-            base += vertsPerCell;
-            if(base > 65000) break;
+        float[] heights = new float[grid.corners.length];
+        for(int i = 0; i < grid.corners.length; i++){
+            heights[i] = (1f + mesher.getHeight(grid.corners[i].v) * intensity) * radius;
         }
 
-        Mesh mesh = new Mesh(true, base, iptr,
+        Color color = new Color();
+        Vector3 normal = new Vector3();
+        int vptr = 0, iptr = 0, base = 0;
+
+        for(Ptile tile : grid.tiles){
+            if(mesher.skip(tile.v)) continue;
+
+            Corner[] corners = tile.corners;
+
+            normal(
+                corners[0].v.x * heights[corners[0].id], corners[0].v.y * heights[corners[0].id], corners[0].v.z * heights[corners[0].id],
+                corners[2].v.x * heights[corners[2].id], corners[2].v.y * heights[corners[2].id], corners[2].v.z * heights[corners[2].id],
+                corners[4].v.x * heights[corners[4].id], corners[4].v.y * heights[corners[4].id], corners[4].v.z * heights[corners[4].id],
+                normal
+            );
+
+            //one flat color per hex
+            mesher.getColor(tile.v, color);
+            float colorBits = color.toFloatBits();
+            mesher.getEmissiveColor(tile.v, color);
+            float emissiveBits = color.toFloatBits();
+
+            for(Corner corner : corners){
+                float h = heights[corner.id];
+                vptr = vertex(vertices, vptr, corner.v.x * h, corner.v.y * h, corner.v.z * h, normal, colorBits, emissiveBits);
+            }
+
+            indices[iptr++] = (short)(base);
+            indices[iptr++] = (short)(base + 1);
+            indices[iptr++] = (short)(base + 2);
+
+            indices[iptr++] = (short)(base);
+            indices[iptr++] = (short)(base + 2);
+            indices[iptr++] = (short)(base + 3);
+
+            indices[iptr++] = (short)(base);
+            indices[iptr++] = (short)(base + 3);
+            indices[iptr++] = (short)(base + 4);
+
+            if(corners.length > 5){
+                indices[iptr++] = (short)(base);
+                indices[iptr++] = (short)(base + 4);
+                indices[iptr++] = (short)(base + 5);
+            }
+
+            base += corners.length;
+        }
+
+        Mesh mesh = new Mesh(true, Math.max(1, base), Math.max(1, iptr),
             new VertexAttribute(Usage.Position, 3, "a_position"),
             new VertexAttribute(Usage.Normal, 3, "a_normal"),
-            new VertexAttribute(Usage.ColorUnpacked, 4, "a_color")
+            new VertexAttribute(Usage.ColorPacked, 4, "a_color"),
+            new VertexAttribute(Usage.ColorPacked, 4, "a_emissive")
         );
 
-        // trim arrays to written size
-        float[] outVerts = new float[vptr];
-        System.arraycopy(vertices, 0, outVerts, 0, vptr);
-        short[] outIndices = new short[iptr];
-        System.arraycopy(indices, 0, outIndices, 0, iptr);
-
-        mesh.setVertices(outVerts);
-        mesh.setIndices(outIndices);
+        mesh.setVertices(vertices, 0, vptr);
+        mesh.setIndices(indices, 0, iptr);
         return mesh;
     }
 
@@ -141,67 +98,71 @@ public class MeshBuilder{
         }, divisions, radius, 0f);
     }
 
-    private static int putVertex(float[] out, int p, Vector3 pos, Vector3 nor, Color c){
-        out[p++] = pos.x;
-        out[p++] = pos.y;
-        out[p++] = pos.z;
-        out[p++] = nor.x;
-        out[p++] = nor.y;
-        out[p++] = nor.z;
-        out[p++] = c.r;
-        out[p++] = c.g;
-        out[p++] = c.b;
-        out[p++] = c.a;
+    public static Mesh buildPlanetGrid(PlanetGrid grid, Color color, float scale){
+        return buildPlanetGrid(grid, color, null, scale);
+    }
+
+    /** Builds a line mesh that follows the supplied per-corner heights. */
+    public static Mesh buildPlanetGrid(PlanetGrid grid, Color color, float[] heights, float offset){
+        int maxVertices = grid.tiles.length * 6 * 2;
+        float[] vertices = new float[maxVertices * 4];
+        float colorBits = color.toFloatBits();
+        int vptr = 0;
+
+        for(Ptile tile : grid.tiles){
+            Corner[] corners = tile.corners;
+            for(int i = 0; i < corners.length; i++){
+                Corner a = corners[i];
+                Corner b = corners[(i + 1) % corners.length];
+                float ah = heights == null ? offset : 1f + heights[a.id] + offset;
+                float bh = heights == null ? offset : 1f + heights[b.id] + offset;
+
+                vptr = lineVertex(vertices, vptr, a.v.x * ah, a.v.y * ah, a.v.z * ah, colorBits);
+                vptr = lineVertex(vertices, vptr, b.v.x * bh, b.v.y * bh, b.v.z * bh, colorBits);
+            }
+        }
+
+        Mesh mesh = new Mesh(true, Math.max(1, vptr / 4), 0,
+            new VertexAttribute(Usage.Position, 3, "a_position"),
+            new VertexAttribute(Usage.ColorPacked, 4, "a_color")
+        );
+
+        mesh.setVertices(vertices, 0, vptr);
+        return mesh;
+    }
+
+    /** Legacy name used by the old preview renderer; now produces the same geodesic mesh. */
+    public static Mesh buildPlanet(HexMesher mesher, int divisions, float radius, float intensity){
+        return buildHex(mesher, divisions, radius, intensity);
+    }
+
+    private static int vertex(float[] out, int p, float x, float y, float z, Vector3 normal, float color, float emissive){
+        out[p++] = x;
+        out[p++] = y;
+        out[p++] = z;
+        out[p++] = normal.x;
+        out[p++] = normal.y;
+        out[p++] = normal.z;
+        out[p++] = color;
+        out[p++] = emissive;
         return p;
     }
 
-    private static Vector3 orthogonal(Vector3 n){
-        return Math.abs(n.y) < 0.99f ? new Vector3(0, 1, 0).crs(n) : new Vector3(1, 0, 0).crs(n);
+    private static int lineVertex(float[] out, int p, float x, float y, float z, float color){
+        out[p++] = x;
+        out[p++] = y;
+        out[p++] = z;
+        out[p++] = color;
+        return p;
     }
 
-    private static void buildIcosphere(int subdivisions, Array<Vector3> vertices, Array<short[]> faces){
-        float t = (1f + (float)Math.sqrt(5f)) / 2f;
-        addVertex(vertices, -1, t, 0); addVertex(vertices, 1, t, 0); addVertex(vertices, -1, -t, 0); addVertex(vertices, 1, -t, 0);
-        addVertex(vertices, 0, -1, t); addVertex(vertices, 0, 1, t); addVertex(vertices, 0, -1, -t); addVertex(vertices, 0, 1, -t);
-        addVertex(vertices, t, 0, -1); addVertex(vertices, t, 0, 1); addVertex(vertices, -t, 0, -1); addVertex(vertices, -t, 0, 1);
+    private static void normal(float v1x, float v1y, float v1z, float v2x, float v2y, float v2z, float v3x, float v3y, float v3z, Vector3 out){
+        float x = v2x - v1x, y = v2y - v1y, z = v2z - v1z;
+        float vx = v3x - v1x, vy = v3y - v1y, vz = v3z - v1z;
 
-        short[][] base = {
-            {0,11,5},{0,5,1},{0,1,7},{0,7,10},{0,10,11},
-            {1,5,9},{5,11,4},{11,10,2},{10,7,6},{7,1,8},
-            {3,9,4},{3,4,2},{3,2,6},{3,6,8},{3,8,9},
-            {4,9,5},{2,4,11},{6,2,10},{8,6,7},{9,8,1}
-        };
-        for(short[] f : base) faces.add(new short[]{f[0], f[1], f[2]});
-
-        for(int s = 0; s < subdivisions; s++){
-            LongMap<Short> cache = new LongMap<>();
-            Array<short[]> newFaces = new Array<>();
-            for(short[] f : faces){
-                short a = midpoint(vertices, cache, f[0], f[1]);
-                short b = midpoint(vertices, cache, f[1], f[2]);
-                short c = midpoint(vertices, cache, f[2], f[0]);
-                newFaces.add(new short[]{f[0], a, c});
-                newFaces.add(new short[]{f[1], b, a});
-                newFaces.add(new short[]{f[2], c, b});
-                newFaces.add(new short[]{a, b, c});
-            }
-            faces.clear();
-            faces.addAll(newFaces);
+        out.set(y * vz - z * vy, z * vx - x * vz, x * vy - y * vx).nor();
+        if(out.len2() < 0.000001f){
+            out.set(v1x, v1y, v1z).nor();
         }
-    }
-
-    private static short midpoint(Array<Vector3> verts, LongMap<Short> cache, short i1, short i2){
-        int a = Math.min(i1, i2), b = Math.max(i1, i2);
-        long key = (((long)a) << 32) | (b & 0xffffffffL);
-        Short idx = cache.get(key);
-        if(idx != null) return idx;
-        short out = (short)verts.size;
-        verts.add(new Vector3(verts.get(i1)).add(verts.get(i2)).scl(0.5f).nor());
-        cache.put(key, out);
-        return out;
-    }
-
-    private static void addVertex(Array<Vector3> verts, float x, float y, float z){
-        verts.add(new Vector3(x, y, z).nor());
     }
 }

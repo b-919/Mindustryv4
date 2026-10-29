@@ -6,20 +6,20 @@ import com.badlogic.gdx.utils.ObjectMap;
 public class CampaignRegistry{
     public static final String serpulo = "Serpulo";
 
-    private static final ObjectMap<String, CampaignSectorGenerator> registered = new ObjectMap<>();
+    private static final ObjectMap<String, PlanetGenerator> registered = new ObjectMap<>();
     private static final Array<PlanetDefinition> planets = new Array<>();
+    private static final ObjectMap<String, PlanetMap> planetMaps = new ObjectMap<>();
 
     static{
-        register(serpulo, new SerpuloSectorGenerator());
-        planets.add(new PlanetDefinition("Serpulo", serpulo, 0.22f, 0.44f, 0.85f, 48, 24, 3, 0.95f, 1.15f, 0.9f));
+        register(serpulo, new SerpuloPlanetGenerator());
     }
 
-    public static void register(String name, CampaignSectorGenerator generator){
+    public static void register(String name, PlanetGenerator generator){
         registered.put(name, generator);
     }
 
-    public static CampaignSectorGenerator generator(String name){
-        CampaignSectorGenerator gen = registered.get(name);
+    public static PlanetGenerator generator(String name){
+        PlanetGenerator gen = registered.get(name);
         if(gen != null) return gen;
         return registered.get(serpulo);
     }
@@ -32,19 +32,9 @@ public class CampaignRegistry{
         return names;
     }
 
-    public static class Definition{
-        public final String name;
-        public final CampaignSectorGenerator generator;
-
-        public Definition(String name, CampaignSectorGenerator generator){
-            this.name = name;
-            this.generator = generator;
-        }
-    }
-
     public static Array<Definition> definitions(){
         Array<Definition> defs = new Array<>();
-        for(ObjectMap.Entry<String, CampaignSectorGenerator> entry : registered.entries()){
+        for(ObjectMap.Entry<String, PlanetGenerator> entry : registered.entries()){
             defs.add(new Definition(entry.key, entry.value));
         }
         return defs;
@@ -55,40 +45,45 @@ public class CampaignRegistry{
     }
 
     public static Array<PlanetDefinition> planets(){
+        ensurePlanets();
         return planets;
     }
 
     public static PlanetDefinition planetForCampaign(String campaignName){
+        ensurePlanets();
         for(PlanetDefinition def : planets){
-            if(def.campaign.equals(campaignName)){
+            if(def.campaign != null && def.campaign.equals(campaignName)){
                 return def;
             }
         }
         return planets.size == 0 ? null : planets.first();
     }
 
-    public static class PlanetDefinition{
-        public final String name;
-        public final String campaign;
-        public final float colorR, colorG, colorB;
-        public final int gridLongitude, gridLatitude;
-        public final int subdivisions;
-        public final float meshHeightIntensity;
-        public final float liquidDepthScale;
-        public final float snowHeightScale;
+    /** Cached client-side region map for a campaign planet. */
+    public static PlanetMap planetMap(String campaignName){
+        PlanetMap map = planetMaps.get(campaignName);
+        if(map == null){
+            PlanetDefinition definition = planetForCampaign(campaignName);
+            if(definition == null) return null;
+            map = new PlanetMap(definition);
+            planetMaps.put(campaignName, map);
+        }
+        return map;
+    }
 
-        public PlanetDefinition(String name, String campaign, float colorR, float colorG, float colorB, int gridLongitude, int gridLatitude, int subdivisions, float meshHeightIntensity, float liquidDepthScale, float snowHeightScale){
-            this.name = name;
-            this.campaign = campaign;
-            this.colorR = colorR;
-            this.colorG = colorG;
-            this.colorB = colorB;
-            this.gridLongitude = gridLongitude;
-            this.gridLatitude = gridLatitude;
-            this.subdivisions = subdivisions;
-            this.meshHeightIntensity = meshHeightIntensity;
-            this.liquidDepthScale = liquidDepthScale;
-            this.snowHeightScale = snowHeightScale;
+    public static void addPlanet(PlanetDefinition definition){
+        if(definition.generator == null && definition.campaign != null){
+            if(!registered.containsKey(definition.campaign)){
+                io.anuke.ucore.util.Log.warn("No planet generator registered for campaign '{0}'; falling back to Serpulo.", definition.campaign);
+            }
+            definition.generator = generator(definition.campaign);
+        }
+        planets.add(definition);
+    }
+
+    private static void ensurePlanets(){
+        if(planets.size == 0){
+            io.anuke.mindustry.content.Planets.load();
         }
     }
 

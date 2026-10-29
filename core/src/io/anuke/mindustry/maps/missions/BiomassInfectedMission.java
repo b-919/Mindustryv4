@@ -33,6 +33,11 @@ public class BiomassInfectedMission extends MissionWithStartingCore{
     }
 
     @Override
+    public boolean isAttack(){
+        return true;
+    }
+
+    @Override
     public String getIcon(){
         return "icon-mission-infected";
     }

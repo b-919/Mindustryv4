@@ -20,6 +20,8 @@ public class Sector{
     public short x, y;
     /**Whether this sector has already been completed.*/
     public boolean complete;
+    /**Whether this sector's terrain has been infected by biomass. Persisted across sessions.*/
+    public boolean infected;
     /**Slot ID of this sector's save. -1 means no save has been created.*/
     public int saveID = -1;
     /**Num of missions in this sector that have been completed so far.*/
@@ -67,8 +69,23 @@ public class Sector{
         return currentMission().isInfectable();
     }
 
+    /** Whether this sector is an attack sector with an enemy base. */
+    public boolean isAttack(){
+        return currentMission().isAttack();
+    }
+
+    /** Whether the player has a base here (captured or has a save). */
+    public boolean hasBase(){
+        return complete || hasSave();
+    }
+
+    /** Whether this sector has an enemy base and is not player-owned. */
+    public boolean hasEnemyBase(){
+        return !hasBase() && isAttack();
+    }
+
     public boolean isInfected(){
-        return currentMission().isInfected();
+        return infected || currentMission().isInfected();
     }
 
     public int getSeed(){

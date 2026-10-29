@@ -14,7 +14,11 @@ import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.maps.campaign.CampaignManager;
 import io.anuke.mindustry.maps.campaign.CampaignRegistry;
 import io.anuke.mindustry.maps.campaign.CampaignSectorGenerator;
+import io.anuke.mindustry.maps.campaign.PlanetGenerator;
+import io.anuke.mindustry.maps.campaign.PlanetMap;
+import io.anuke.mindustry.maps.campaign.PlanetMap.Region;
 import io.anuke.mindustry.io.SaveIO;
+import io.anuke.mindustry.maps.generation.WorldGenerator;
 import io.anuke.mindustry.maps.generation.WorldGenerator.GenResult;
 import io.anuke.mindustry.maps.missions.BiomassInfectableMission;
 import io.anuke.mindustry.maps.missions.BiomassInfectedBattleMission;
@@ -35,6 +39,12 @@ public class Sectors {
     public static final String defaultCampaign = CampaignRegistry.serpulo;
 
     private final ObjectMap<String, GridMap<Sector>> campaignGrids = new ObjectMap<>();
+    /** Incremented whenever campaign sector state changes; renderers can use this to refresh. */
+    private int version;
+
+    public int version(){
+        return version;
+    }
     private Array<Item> cachedOres = null;
     private String cachedOreTech = null;
     private final AsyncExecutor executor = new AsyncExecutor(6);
@@ -142,21 +152,34 @@ public class Sectors {
 
     /** Unlocks a sector. This shows nearby sectors. */
     public void completeSector(int x, int y) {
-        createSector(x, y);
         Sector sector = get(x, y);
+        if(sector == null){
+            sector = createSectorSilent(x, y);
+        }
         if(sector == null) return;
         sector.complete = true;
 
-        for (GridPoint2 g : Geometry.d4) {
-            createSector(x + g.x, y + g.y);
+        PlanetMap map = CampaignRegistry.planetMap(activeCampaign);
+        Region region = map == null ? null : map.regionFor(sector);
+        if(region != null){
+            for(Region neighbor : region.neighbors){
+                if(get(neighbor.x, neighbor.y) == null){
+                    createSectorSilent(neighbor.x, neighbor.y);
+                }
+            }
         }
     }
 
     /** Creates a sector at a location if it is not present, but does not complete it. */
     public void createSector(int x, int y) {
+        createSectorSilent(x, y);
+    }
+
+    /** Creates a sector without generating a 2D preview texture. Returns the existing sector if present. */
+    public Sector createSectorSilent(int x, int y) {
         GridMap<Sector> grid = activeGrid();
 
-        if (grid.containsKey(x, y)) return;
+        if (grid.containsKey(x, y)) return grid.get(x, y);
 
         Sector sector = new Sector();
         sector.x = (short) x;
@@ -166,9 +189,7 @@ public class Sectors {
 
         grid.put(sector.x, sector.y, sector);
 
-        if (sector.texture == null) {
-            threads.runGraphics(() -> createTexture(sector));
-        }
+        return sector;
     }
 
     public void abandonSector(Sector sector) {
@@ -181,6 +202,7 @@ public class Sectors {
         }
         sector.completedMissions = 0;
         sector.complete = false;
+        sector.infected = false;
 
         if(changeMissions){
             if(sector.isInfectable()){
@@ -196,43 +218,37 @@ public class Sectors {
 
         activeGrid().put(sector.x, sector.y, sector);
 
-        threads.runGraphics(() -> createTexture(sector));
-
         save();
     }
 
     private void infectNeighbors(Sector sector, float chance){
-        for(int x = -1; x <= 1; x++){
-            for(int y = -1; y <= 1; y++){
-                if(x == 0 && y == 0) continue;
+        PlanetMap map = CampaignRegistry.planetMap(activeCampaign);
+        Region region = map == null ? null : map.regionFor(sector);
+        if(region == null) return;
 
-                if(Mathf.chance(chance)){
-                    int nx = sector.x + x;
-                    int ny = sector.y + y;
+        for(Region neighbor : region.neighbors){
+            if(!Mathf.chance(chance)) continue;
 
-                    Sector other = get(nx, ny);
-                    if(other == null){
-                        createSector(nx, ny);
-                        other = get(nx, ny);
-                    }
+            Sector other = get(neighbor.x, neighbor.y);
+            if(other == null){
+                other = createSectorSilent(neighbor.x, neighbor.y);
+            }
 
-                    boolean alreadyInfected = false;
-                    for(Mission m : other.missions){
-                        if(m.isInfectable() || m.isInfected()){
-                            alreadyInfected = true;
-                            break;
-                        }
-                    }
-
-                    if(!alreadyInfected){
-                        other.missions.clear();
-                        other.missions.add(new BiomassInfectableMission(other.difficulty * 5 + Mathf.randomSeed(other.getSeed(), 1, 4) * 5));
-                        other.complete = false;
-                        other.completedMissions = 0;
-                        activeGenerator().initSector(other);
-                        refreshSectorPreview(other);
-                    }
+            boolean alreadyInfected = false;
+            for(Mission m : other.missions){
+                if(m.isInfectable() || m.isInfected()){
+                    alreadyInfected = true;
+                    break;
                 }
+            }
+
+            if(!alreadyInfected){
+                other.missions.clear();
+                other.missions.add(new BiomassInfectableMission(other.difficulty * 5 + Mathf.randomSeed(other.getSeed(), 1, 4) * 5));
+                other.complete = false;
+                other.completedMissions = 0;
+                activeGenerator().initSector(other);
+                refreshSectorPreview(other);
             }
         }
     }
@@ -255,6 +271,8 @@ public class Sectors {
     }
 
     public void save() {
+        version++;
+
         Array<Sector> out = new Array<>();
         GridMap<Sector> grid = activeGrid();
 
@@ -279,15 +297,11 @@ public class Sectors {
     }
 
     public void refreshSectorPreview(Sector sector){
-        if(sector == null || headless) return;
-        threads.runGraphics(() -> createTexture(sector));
+        //2D sector previews are no longer used
     }
 
     public void refreshActiveCampaignPreviews(){
-        if(headless) return;
-        for(Sector sector : activeGrid().values()){
-            refreshSectorPreview(sector);
-        }
+        //2D sector previews are no longer used
     }
 
     private void initSector(Sector sector) {
@@ -301,6 +315,10 @@ public class Sectors {
             sector.texture.dispose();
         }
 
+        PlanetGenerator generator = CampaignRegistry.generator(activeCampaign);
+        WorldGenerator terrain = generator.terrain();
+        int mapSize = generator.sectorSize();
+
         executor.submit(() -> {
             Pixmap pixmap = new Pixmap(sectorImageSize, sectorImageSize, Format.RGBA8888);
             GenResult result = new GenResult();
@@ -308,11 +326,11 @@ public class Sectors {
 
             for (int x = 0; x < pixmap.getWidth(); x++) {
                 for (int y = 0; y < pixmap.getHeight(); y++) {
-                    int toX = x * sectorSize / sectorImageSize;
-                    int toY = y * sectorSize / sectorImageSize;
+                    int toX = x * mapSize / sectorImageSize;
+                    int toY = y * mapSize / sectorImageSize;
 
-                    world.generator.generateTile(result, sector.x, sector.y, toX, toY, false, null, null);
-                    world.generator.generateTile(secResult, sector.x, sector.y, toX, ((y + 1) * sectorSize / sectorImageSize), false, null, null);
+                    terrain.generateTile(result, sector.x, sector.y, toX, toY, false, null, null);
+                    terrain.generateTile(secResult, sector.x, sector.y, toX, ((y + 1) * mapSize / sectorImageSize), false, null, null);
 
                     int color = ColorMapper.colorFor(result.floor, result.wall, Team.none, result.elevation, secResult.elevation > result.elevation ? (byte) (1 << 6) : (byte) 0);
 
@@ -355,7 +373,7 @@ public class Sectors {
     }
 
     private String campaignSettingsKey(String campaignName){
-        return "sector-data-2-" + campaignName;
+        return "sector-data-3-" + campaignName;
     }
 
     private void loadCampaignSectors(String campaignName){
@@ -375,7 +393,6 @@ public class Sectors {
         Array<Sector> out = Settings.getObject(campaignSettingsKey(campaignName), Array.class, Array::new);
 
         for(Sector sector : out){
-            createTexture(sector);
             initSector(sector);
             grid.put(sector.x, sector.y, sector);
         }

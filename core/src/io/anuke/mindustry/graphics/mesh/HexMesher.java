@@ -13,6 +13,11 @@ public interface HexMesher{
         out.set(Color.WHITE);
     }
 
+    /** Emissive color used by the planet shader. Alpha is the emissive strength. */
+    default void getEmissiveColor(Vector3 position, Color out){
+        out.set(0f, 0f, 0f, 0f);
+    }
+
     default boolean skip(Vector3 position){
         return false;
     }

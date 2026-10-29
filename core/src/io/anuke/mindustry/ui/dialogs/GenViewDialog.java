@@ -8,6 +8,8 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.async.AsyncExecutor;
 import io.anuke.mindustry.content.Items;
 import io.anuke.mindustry.game.Team;
+import io.anuke.mindustry.maps.campaign.CampaignRegistry;
+import io.anuke.mindustry.maps.campaign.PlanetGenerator;
 import io.anuke.mindustry.maps.generation.WorldGenerator.GenResult;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.ColorMapper;
@@ -19,7 +21,6 @@ import io.anuke.ucore.scene.utils.Cursors;
 import io.anuke.ucore.util.GridMap;
 import io.anuke.ucore.util.Mathf;
 
-import static io.anuke.mindustry.Vars.sectorSize;
 import static io.anuke.mindustry.Vars.world;
 
 public class GenViewDialog extends FloatingDialog{
@@ -82,11 +83,13 @@ public class GenViewDialog extends FloatingDialog{
                         processing.put(wx, wy, true);
                         async.submit(() -> {
                             GenResult result = new GenResult();
-                            Pixmap pixmap = new Pixmap(sectorSize, sectorSize, Format.RGBA8888);
-                            for(int i = 0; i < sectorSize; i++){
-                                for(int j = 0; j < sectorSize; j++){
-                                    world.generator.generateTile(result, wx, wy, i, j, true, null, ores);
-                                    pixmap.drawPixel(i, sectorSize - 1 - j, ColorMapper.colorFor(result.floor, result.wall, Team.none, result.elevation, (byte)0));
+                            PlanetGenerator generator = CampaignRegistry.generator(CampaignRegistry.serpulo);
+                            int size = generator.sectorSize();
+                            Pixmap pixmap = new Pixmap(size, size, Format.RGBA8888);
+                            for(int i = 0; i < size; i++){
+                                for(int j = 0; j < size; j++){
+                                    generator.terrain().generateTile(result, wx, wy, i, j, true, null, ores);
+                                    pixmap.drawPixel(i, size - 1 - j, ColorMapper.colorFor(result.floor, result.wall, Team.none, result.elevation, (byte)0));
                                 }
                             }
                             Gdx.app.postRunnable(() -> map.put(wx, wy, new Texture(pixmap)));

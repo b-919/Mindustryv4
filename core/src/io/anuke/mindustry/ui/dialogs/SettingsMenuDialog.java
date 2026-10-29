@@ -161,7 +161,7 @@ public class SettingsMenuDialog extends SettingsDialog{
             game.sliderPref("maxzoomingamemultiplier", 100, 100, 200, 25, i -> (i / 100f) + "x");
         }
         game.sliderPref("saveinterval", 120, 10, 5 * 120, i -> Bundles.format("setting.seconds", i));
-        game.checkPref("planet3d", true);
+        //game.checkPref("planet3d", true); for now deleted maybe future implementation with actual hex look
 
         game.pref(new SettingsTable.Setting(){
             @Override

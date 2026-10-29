@@ -3,6 +3,7 @@ package io.anuke.mindustry.core;
 import com.badlogic.gdx.utils.LongSet;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.maps.Sector;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.Rock;
 import io.anuke.ucore.core.Timers;
@@ -59,6 +60,8 @@ public class InfectionManager extends Module {
                 }
             }
         }
+
+        markSectorInfected();
     }
 
     private void infectInternal(Tile tile) {
@@ -71,6 +74,17 @@ public class InfectionManager extends Module {
         if (tile.block() instanceof Rock rock) {
             if (rock.infectedVariant != null) {
                 tile.setBlock(rock.infectedVariant);
+            }
+        }
+
+        markSectorInfected();
+    }
+    private void markSectorInfected(){
+        Sector sector = Vars.world.getSector();
+        if(sector != null && !sector.infected){
+            sector.infected = true;
+            if(!Vars.headless){
+                Vars.world.sectors.save();
             }
         }
     }

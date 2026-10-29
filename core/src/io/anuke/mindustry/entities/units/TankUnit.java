@@ -80,7 +80,7 @@ public class TankUnit extends BaseUnit{
                 if(target == null) targetClosestEnemyFlag(BlockFlag.turret);
                 if(target == null) targetClosestEnemyFlag(BlockFlag.target);
                 if(target != null){
-                    moveTo(target.getX(), target.getY());
+                    moveWithPathfinding(target.getX(), target.getY());
                     return;
                 }
             }
@@ -321,6 +321,11 @@ public class TankUnit extends BaseUnit{
                 return;
             }
 
+            if(!hopClear(core.getX(), core.getY())){
+                recenter();
+                return;
+            }
+
             float angle = avoidAngle(angleTo(core));
             velocity.add(vec.trns(angle, type.speed * Timers.delta()));
             return;
@@ -456,12 +461,40 @@ public class TankUnit extends BaseUnit{
         movePathRepath = 0;
     }
 
+    /**Straight-line fallback for an order: only used when the body can actually traverse it.*/
+    private void moveOrHoldOrder(Tile goal){
+        if(goal != null && hopClear(goal)){
+            moveTo(goal.worldx(), goal.worldy());
+            return;
+        }
+        orderPathRepath = 0;
+        recenter();
+    }
+
+    /**Straight-line fallback for combat movement: only used when the body can traverse it.*/
+    private void moveOrHoldMove(float wx, float wy){
+        if(hopClear(wx, wy)){
+            moveTo(wx, wy);
+            return;
+        }
+        movePathRepath = 0;
+        recenter();
+    }
+
+    /**Re-aligns on the current tile so the next repath starts from a known, safe spot.*/
+    private void recenter(){
+        Tile here = world.tileWorld(x, y);
+        if(here != null && Mathf.dst(x - here.worldx(), y - here.worldy()) > 1f){
+            moveTo(here.worldx(), here.worldy());
+        }
+    }
+
     protected void moveWithPathfinding(float targetX, float targetY){
         Tile start = world.tileWorld(x, y);
         Tile goal = world.tileWorld(targetX, targetY);
 
         if(start == null || goal == null){
-            moveTo(targetX, targetY);
+            moveOrHoldMove(targetX, targetY);
             return;
         }
 
@@ -481,25 +514,26 @@ public class TankUnit extends BaseUnit{
         }
 
         if(movePath.size == 0 || movePathCursor >= movePath.size){
-            moveTo(targetX, targetY);
+            moveOrHoldMove(targetX, targetY);
             return;
         }
 
         Tile waypoint = world.tile(movePath.get(movePathCursor));
         if(waypoint == null){
-            moveTo(targetX, targetY);
+            moveOrHoldMove(targetX, targetY);
             return;
         }
 
-        if(Mathf.dst(x - waypoint.worldx(), y - waypoint.worldy()) <= tilesize * 0.55f){
+        if(Mathf.dst(x - waypoint.worldx(), y - waypoint.worldy()) <= tilesize * 0.4f
+            && (movePathCursor + 1 >= movePath.size || hopClear(world.tile(movePath.get(movePathCursor + 1))))){
             movePathCursor++;
             if(movePathCursor >= movePath.size){
-                moveTo(targetX, targetY);
+                moveOrHoldMove(targetX, targetY);
                 return;
             }
             waypoint = world.tile(movePath.get(movePathCursor));
             if(waypoint == null){
-                moveTo(targetX, targetY);
+                moveOrHoldMove(targetX, targetY);
                 return;
             }
         }
@@ -508,6 +542,12 @@ public class TankUnit extends BaseUnit{
             clearMovePath();
             float jitterAngle = Mathf.atan2(targetX - x, targetY - y) + Mathf.range(120f);
             velocity.add(vec.trns(jitterAngle, type.speed * 0.7f * Timers.delta()));
+            return;
+        }
+
+        if(!hopClear(waypoint)){
+            movePathRepath = 0;
+            recenter();
             return;
         }
 
@@ -622,7 +662,7 @@ public class TankUnit extends BaseUnit{
         Tile goal = world.tileWorld(getOrderX(), getOrderY());
 
         if(start == null || goal == null){
-            moveTo(getOrderX(), getOrderY());
+            moveOrHoldOrder(goal);
             return;
         }
 
@@ -639,10 +679,10 @@ public class TankUnit extends BaseUnit{
         }
 
         if(orderPath.size == 0 || orderPathCursor >= orderPath.size){
-            if(steerAlongChunkPath(goal.worldx() + tilesize / 2f, goal.worldy() + tilesize / 2f)){
+            if(steerAlongChunkPath(goal.worldx(), goal.worldy())){
                 return;
             }
-            moveTo(goal.worldx() + tilesize / 2f, goal.worldy() + tilesize / 2f);
+            moveOrHoldOrder(goal);
             return;
         }
 
@@ -650,27 +690,34 @@ public class TankUnit extends BaseUnit{
         if(waypoint == null){
             buildOrderPath(start, goal);
             if(orderPath.size == 0){
-                moveTo(goal.worldx() + tilesize / 2f, goal.worldy() + tilesize / 2f);
+                moveOrHoldOrder(goal);
                 return;
             }
             waypoint = world.tile(orderPath.get(orderPathCursor));
             if(waypoint == null){
-                moveTo(goal.worldx() + tilesize / 2f, goal.worldy() + tilesize / 2f);
+                moveOrHoldOrder(goal);
                 return;
             }
         }
 
-        if(Mathf.dst(x - waypoint.worldx(), y - waypoint.worldy()) <= tilesize * 0.55f){
+        if(Mathf.dst(x - waypoint.worldx(), y - waypoint.worldy()) <= tilesize * 0.4f
+            && (orderPathCursor + 1 >= orderPath.size || hopClear(world.tile(orderPath.get(orderPathCursor + 1))))){
             orderPathCursor++;
             if(orderPathCursor >= orderPath.size){
-                moveTo(goal.worldx() + tilesize / 2f, goal.worldy() + tilesize / 2f);
+                moveOrHoldOrder(goal);
                 return;
             }
             waypoint = world.tile(orderPath.get(orderPathCursor));
             if(waypoint == null){
-                moveTo(goal.worldx() + tilesize / 2f, goal.worldy() + tilesize / 2f);
+                moveOrHoldOrder(goal);
                 return;
             }
+        }
+
+        if(!hopClear(waypoint)){
+            orderPathRepath = 0;
+            recenter();
+            return;
         }
 
         moveTo(waypoint.worldx(), waypoint.worldy());
