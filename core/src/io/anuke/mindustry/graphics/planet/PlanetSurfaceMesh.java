@@ -33,6 +33,7 @@ public class PlanetSurfaceMesh implements GenericMesh{
         shader.setUniformf("u_campos", params.camPos.x, params.camPos.y, params.camPos.z);
         shader.setUniformf("u_ambientColor", AMBIENT_R, AMBIENT_G, AMBIENT_B);
         shader.setUniformf("u_emissive", emissive);
+        setJitter(shader, params);
         mesh.render(shader, GL20.GL_TRIANGLES);
         shader.end();
     }
@@ -42,8 +43,14 @@ public class PlanetSurfaceMesh implements GenericMesh{
         emissiveShader.begin();
         emissiveShader.setUniformMatrix("u_proj", params.projection);
         emissiveShader.setUniformMatrix("u_trans", transform);
+        setJitter(emissiveShader, params);
         mesh.render(emissiveShader, GL20.GL_TRIANGLES);
         emissiveShader.end();
+    }
+
+    protected static void setJitter(ShaderProgram shader, PlanetParams params){
+        shader.setUniformf("u_jitter", params.jitter);
+        shader.setUniformf("u_jitterResolution", params.jitterResolutionX, params.jitterResolutionY);
     }
 
     @Override

@@ -21,6 +21,8 @@ public class Bloom{
 
     private ShaderProgram thresholdShader, gaussianShader, bloomShader;
     private FrameBuffer pingPong1, pingPong2;
+    private boolean ps1;
+    private float ps1Width, ps1Height;
 
     private boolean ready;
 
@@ -59,6 +61,8 @@ public class Bloom{
         bloomShader.setUniformi("u_texture1", 1);
         bloomShader.end();
 
+        setPS1(false, 0f, 0f);
+
         ready = true;
     }
 
@@ -94,6 +98,20 @@ public class Bloom{
         bloomShader.begin();
         bloomShader.setUniformf("OriginalIntensity", intensity);
         bloomShader.end();
+    }
+
+    /** Enables planet-only PS1 pixelation/quantization in the final bloom composite. */
+    public void setPS1(boolean enabled, float width, float height){
+        this.ps1 = enabled;
+        this.ps1Width = width;
+        this.ps1Height = height;
+
+        if(bloomShader != null){
+            bloomShader.begin();
+            bloomShader.setUniformf("u_ps1", enabled ? 1f : 0f);
+            bloomShader.setUniformf("u_ps1Resolution", width, height);
+            bloomShader.end();
+        }
     }
 
     /** Applies the bloom to the given scene texture and draws the result onto the current framebuffer target. */

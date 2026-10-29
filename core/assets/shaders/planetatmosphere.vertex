@@ -7,6 +7,8 @@ attribute vec3 a_normal;
 
 uniform mat4 u_proj;
 uniform mat4 u_trans;
+uniform float u_jitter;
+uniform vec2 u_jitterResolution;
 
 varying vec3 v_world;
 varying vec3 v_normal;
@@ -14,5 +16,12 @@ varying vec3 v_normal;
 void main(){
     v_world = (u_trans * a_position).xyz;
     v_normal = normalize(a_normal);
-    gl_Position = u_proj * u_trans * a_position;
+
+    vec4 pos = u_proj * u_trans * a_position;
+    if(u_jitter > 0.0){
+        vec2 ndc = pos.xy / pos.w;
+        ndc = floor(ndc * u_jitterResolution + 0.5) / u_jitterResolution;
+        pos.xy = ndc * pos.w;
+    }
+    gl_Position = pos;
 }

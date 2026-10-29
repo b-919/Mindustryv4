@@ -27,6 +27,9 @@ public class PlanetParams{
 
     /** Projection matrix for this frame (camera.combined snapshot). */
     public final Matrix4 projection = new Matrix4();
+    /** Vertex jitter amount and screen-space grid resolution. */
+    public float jitter;
+    public float jitterResolutionX = 1f, jitterResolutionY = 1f;
     /** Direction *towards* the light source, in world space. */
     public final Vector3 light = new Vector3();
     public final Vector3 camPos = new Vector3();

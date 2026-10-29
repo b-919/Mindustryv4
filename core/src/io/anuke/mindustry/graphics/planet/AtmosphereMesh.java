@@ -39,6 +39,7 @@ public class AtmosphereMesh implements GenericMesh{
         shader.setUniformf("u_outer", outerRadius);
         shader.setUniformf("u_intensity", intensity);
         shader.setUniformf("u_alpha", params.atmosphereAlpha * alphaScale * color.a);
+        PlanetSurfaceMesh.setJitter(shader, params);
         mesh.render(shader, GL20.GL_TRIANGLES);
         shader.end();
     }

@@ -7,6 +7,8 @@ uniform mat4 u_trans;
 uniform vec3 u_lightdir;
 uniform vec3 u_ambientColor;
 uniform float u_alpha;
+uniform float u_jitter;
+uniform vec2 u_jitterResolution;
 
 varying vec4 v_col;
 
@@ -16,5 +18,12 @@ void main(){
     vec3 normal = normalize((u_trans * vec4(a_normal, 0.0)).xyz);
     vec3 norc = u_ambientColor * (diffuse + vec3(clamp((dot(normal, u_lightdir) + 1.0) / 2.0, 0.0, 1.0)));
     v_col = a_color * vec4(norc, u_alpha);
-    gl_Position = u_proj * u_trans * a_position;
+
+    vec4 pos = u_proj * u_trans * a_position;
+    if(u_jitter > 0.0){
+        vec2 ndc = pos.xy / pos.w;
+        ndc = floor(ndc * u_jitterResolution + 0.5) / u_jitterResolution;
+        pos.xy = ndc * pos.w;
+    }
+    gl_Position = pos;
 }

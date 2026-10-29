@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.glutils.FrameBuffer;
+import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.MathUtils;
@@ -21,6 +22,7 @@ import io.anuke.mindustry.maps.campaign.PlanetMap.Region;
 import io.anuke.mindustry.maps.campaign.PlanetVisual;
 import io.anuke.ucore.core.Core;
 import io.anuke.ucore.core.Graphics;
+import io.anuke.ucore.core.Settings;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Mathf;
 
@@ -45,6 +47,7 @@ public class PlanetRenderer implements Disposable{
 
     private FrameBuffer buffer;
     private FrameBuffer emissionBuffer;
+    private ShaderProgram ps1Shader;
     private Bloom bloom;
     private SpriteBatch bufferBatch;
     private Texture starTexture;
@@ -64,6 +67,33 @@ public class PlanetRenderer implements Disposable{
         bufferBatch = new SpriteBatch();
         starTexture = createStarTexture();
         shaders.build();
+
+        Settings.defaults("planetps1", false);
+        Settings.defaults("planetps1size", 3);
+
+        ps1Shader = loadPostShader();
+    }
+
+    private ShaderProgram loadPostShader(){
+        try{
+            ShaderProgram program = new ShaderProgram(
+                Gdx.files.internal("shaders/ps1.vertex").readString(),
+                Gdx.files.internal("shaders/ps1.fragment").readString());
+
+            if(!program.isCompiled()){
+                Gdx.app.error("Planet3D", "PS1 shader failed: " + program.getLog());
+                program.dispose();
+                return null;
+            }
+            return program;
+        }catch(Exception e){
+            Gdx.app.error("Planet3D", "Could not load PS1 shader.", e);
+            return null;
+        }
+    }
+
+    private boolean ps1Active(){
+        return ps1Shader != null && Settings.getBool("planetps1");
     }
 
     /** Rebuilds all geometry for a planet. This is intentionally client-side only. */
@@ -159,15 +189,42 @@ public class PlanetRenderer implements Disposable{
         }
 
         if(!bloomed){
-            Draw.color(Color.WHITE);
-            Draw.alpha(1f);
-            Core.batch.draw(buffer.getColorBufferTexture(), x, y + height, width, -height);
-            Draw.reset();
+            drawFinal(buffer.getColorBufferTexture(), x, y, width, height);
         }
 
         markers.draw(model.map, model.regionHeights, model.gridLift, sectorAlpha, camera,
             x, y, width, height, selected, hover.sector);
         return hover;
+    }
+
+    /** Draws the final planet image, optionally through the PS1 pixelation/quantization shader. */
+    private void drawFinal(Texture texture, float x, float y, float width, float height){
+        boolean ps1 = ps1Active();
+        TextureFilter oldMin = texture.getMinFilter();
+        TextureFilter oldMag = texture.getMagFilter();
+
+        if(ps1){
+            int pixelSize = Mathf.clamp(Settings.getInt("planetps1size", 3), 1, 16);
+
+            ps1Shader.begin();
+            ps1Shader.setUniformi("u_texture", 0);
+            ps1Shader.setUniformf("u_resolution", Math.max(1f, width / pixelSize), Math.max(1f, height / pixelSize));
+            ps1Shader.setUniformf("u_levels", 24f);
+            ps1Shader.end();
+
+            texture.setFilter(TextureFilter.Nearest, TextureFilter.Nearest);
+            Core.batch.setShader(ps1Shader);
+        }
+
+        Draw.color(Color.WHITE);
+        Draw.alpha(1f);
+        Core.batch.draw(texture, x, y + height, width, -height);
+        Draw.reset();
+
+        if(ps1){
+            Core.batch.setShader(null);
+            texture.setFilter(oldMin, oldMag);
+        }
     }
 
     private void fillParams(float x, float y, float width, float height, PlanetDefinition planet, Sector selected){
@@ -187,6 +244,16 @@ public class PlanetRenderer implements Disposable{
         params.light.set(model.system.light);
         params.camPos.set(camera.cam.position);
         params.camDir.set(camera.cam.direction);
+
+        int jitter = Settings.getInt("planetps1jitter", 0);
+        if(jitter > 0){
+            float pixelSize = Math.max(1f, jitter * 2f);
+            params.jitter = 1f;
+            params.jitterResolutionX = Math.max(1f, width / pixelSize);
+            params.jitterResolutionY = Math.max(1f, height / pixelSize);
+        }else{
+            params.jitter = 0f;
+        }
     }
 
     private void updateZoomVisibility(float zoom){
@@ -315,6 +382,14 @@ public class PlanetRenderer implements Disposable{
         emissionBuffer.end();
 
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
+
+        if(ps1Active()){
+            int pixelSize = Mathf.clamp(Settings.getInt("planetps1size", 3), 1, 16);
+            bloom.setPS1(true, Math.max(1f, width / pixelSize), Math.max(1f, height / pixelSize));
+        }else{
+            bloom.setPS1(false, 0f, 0f);
+        }
+
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
         bloom.render(buffer.getColorBufferTexture(), emissionBuffer.getColorBufferTexture());
         return true;
@@ -443,6 +518,7 @@ public class PlanetRenderer implements Disposable{
         if(buffer != null) buffer.dispose();
         if(bloom != null) bloom.dispose();
         if(emissionBuffer != null) emissionBuffer.dispose();
+        if(ps1Shader != null) ps1Shader.dispose();
         if(bufferBatch != null) bufferBatch.dispose();
         if(starTexture != null) starTexture.dispose();
         skybox.dispose();
@@ -450,6 +526,7 @@ public class PlanetRenderer implements Disposable{
         buffer = null;
         bloom = null;
         emissionBuffer = null;
+        ps1Shader = null;
         bufferBatch = null;
         starTexture = null;
     }

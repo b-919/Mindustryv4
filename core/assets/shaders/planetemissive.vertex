@@ -3,10 +3,19 @@ attribute vec4 a_emissive;
 
 uniform mat4 u_proj;
 uniform mat4 u_trans;
+uniform float u_jitter;
+uniform vec2 u_jitterResolution;
 
 varying vec4 v_emissive;
 
 void main(){
     v_emissive = a_emissive;
-    gl_Position = u_proj * u_trans * a_position;
+
+    vec4 pos = u_proj * u_trans * a_position;
+    if(u_jitter > 0.0){
+        vec2 ndc = pos.xy / pos.w;
+        ndc = floor(ndc * u_jitterResolution + 0.5) / u_jitterResolution;
+        pos.xy = ndc * pos.w;
+    }
+    gl_Position = pos;
 }

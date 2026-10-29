@@ -29,6 +29,7 @@ public class CloudMesh implements GenericMesh{
         shader.setUniformf("u_lightdir", params.light.x, params.light.y, params.light.z);
         shader.setUniformf("u_ambientColor", PlanetSurfaceMesh.AMBIENT_R, PlanetSurfaceMesh.AMBIENT_G, PlanetSurfaceMesh.AMBIENT_B);
         shader.setUniformf("u_alpha", params.cloudAlpha);
+        PlanetSurfaceMesh.setJitter(shader, params);
         mesh.render(shader, GL20.GL_TRIANGLES);
         shader.end();
     }

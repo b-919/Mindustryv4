@@ -4,10 +4,19 @@ attribute vec4 a_color;
 
 uniform mat4 u_proj;
 uniform mat4 u_trans;
+uniform float u_jitter;
+uniform vec2 u_jitterResolution;
 
 varying vec4 v_col;
 
 void main(){
     v_col = a_color;
-    gl_Position = u_proj * u_trans * a_position;
+
+    vec4 pos = u_proj * u_trans * a_position;
+    if(u_jitter > 0.0){
+        vec2 ndc = pos.xy / pos.w;
+        ndc = floor(ndc * u_jitterResolution + 0.5) / u_jitterResolution;
+        pos.xy = ndc * pos.w;
+    }
+    gl_Position = pos;
 }

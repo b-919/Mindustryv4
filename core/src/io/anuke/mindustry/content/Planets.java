@@ -82,10 +82,10 @@ public class Planets{
         v.sunDistance = 20f;
         v.orbitColor.set(0.62f, 0.74f, 1f, 0.12f);
         v.clouds.clear();
-        v.clouds.add(new CloudDef(11, 1.11f, 0.08f, 0.38f,
-            new Color(0.780f, 0.957f, 1f, 0.78f)));
+        v.clouds.add(new CloudDef(11, 1.11f, 1.18f, 0.38f,
+            new Color(0.780f, 0.957f, 1f, 0.58f)));
         v.clouds.add(new CloudDef(1, 1.14f, 1.24f, 0.41f,
-            new Color(0.671f, 0.918f, 0.984f, 0.72f)));
+            new Color(0.671f, 0.918f, 0.984f, 0.52f)));
         v.moonPosition.set(-4.5f, 3.2f, -6f);
         v.moonRadius = 0.55f;
         v.moonColor.set(0.55f, 0.62f, 0.78f, 1f);

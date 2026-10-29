@@ -82,6 +82,7 @@ public class SunMesh implements GenericMesh{
         shader.begin();
         shader.setUniformMatrix("u_proj", params.projection);
         shader.setUniformMatrix("u_trans", transform);
+        PlanetSurfaceMesh.setJitter(shader, params);
     }
 
     @Override

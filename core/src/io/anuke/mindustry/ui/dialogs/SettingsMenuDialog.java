@@ -234,6 +234,9 @@ public class SettingsMenuDialog extends SettingsDialog{
         graphics.sliderPref("bloomintensity", "Bloom Intensity", 10, 5, 40, i -> (i / 10f) + "x");
         graphics.sliderPref("bloomblur", "Bloom Blur", 2, 1, 16, s -> s + "x");
         graphics.sliderPref("bloomthreshold", "Bloom Threshold", 15, 5, 80, i -> (i / 100f) + "");
+        graphics.checkPref("planetps1", "Planet PS1 Post FX", true);
+        graphics.sliderPref("planetps1size", "Planet PS1 Pixel Size", 3, 1, 10, i -> i + "x");
+        graphics.sliderPref("planetps1jitter", "Planet PS1 Jitter", 6, 0, 16, i -> i == 0 ? "Off" : i + "x");
 
         developer.checkPref("massai-debug", false, MassAI::setDebug);
         developer.checkPref("massai-path-debug", false);
