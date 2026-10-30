@@ -671,6 +671,8 @@ public class Renderer extends RendererModule{
         Shaders.light.ditherSize = Settings.getInt("lightdithersize", 2);
         Shaders.light.ditherStrength = Settings.getInt("lightditherstrength", 50) / 100f;
         Shaders.light.ambient.set(ambient);
+        //all lights use the circle region; set it before apply() so u_uv/u_uv2 are correct
+        Shaders.light.region = circleRegion();
         Graphics.shader(Shaders.light);
 
         //Blocks

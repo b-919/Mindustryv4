@@ -23,16 +23,17 @@ uniform sampler2D u_dither;
 
 void main(){
     if(u_type == 0){
-        vec2 coords = (v_texCoord - u_uv) / (u_uv2 - u_uv);
+        vec2 coords = (v_texCoord - u_uv) / max(u_uv2 - u_uv, vec2(0.0001));
         float dist = distance(coords, vec2(0.5));
         float falloff = clamp(1.0 - dist * 2.0, 0.0, 1.0);
-        float smoothCoverage = clamp(v_color.a * falloff * falloff * 4.0, 0.0, 1.0);
+        float texAlpha = texture2D(u_texture0, v_texCoord).a;
+        float smoothCoverage = clamp(v_color.a * texAlpha * falloff * falloff * 4.0, 0.0, 1.0);
         float coverage;
 
         if(u_ditherEnabled == 1){
             vec2 ditherCoords = floor(gl_FragCoord.xy / u_ditherSize);
             float threshold = texture2D(u_dither, ditherCoords / 4.0).r;
-            float stipple = falloff > threshold ? clamp(v_color.a * 4.0, 0.0, 1.0) : 0.0;
+            float stipple = falloff > threshold ? clamp(v_color.a * texAlpha * 4.0, 0.0, 1.0) : 0.0;
 
             //keep the center smooth; the stipple only ramps in toward the light edge
             float ditherMix = smoothstep(0.20, 0.65, dist);

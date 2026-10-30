@@ -88,6 +88,10 @@ public class Shaders{
                     shader.setUniformf("u_uv", region.getU(), region.getV());
                     shader.setUniformf("u_uv2", region.getU2(), region.getV2());
                     shader.setUniformf("u_texsize", region.getTexture().getWidth(), region.getTexture().getHeight());
+                }else{
+                    //avoid a zero-sized UV range producing a square light
+                    shader.setUniformf("u_uv", 0f, 0f);
+                    shader.setUniformf("u_uv2", 1f, 1f);
                 }
 
                 shader.setUniformi("u_ditherEnabled", dither ? 1 : 0);
