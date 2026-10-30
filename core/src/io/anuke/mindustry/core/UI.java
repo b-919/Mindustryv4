@@ -59,6 +59,8 @@ public class UI extends SceneModule{
     public DiscordDialog discord;
     public JoinDialog join;
     public HostDialog host;
+    public ClajDialog claj;
+    public ClajJoinDialog clajJoin;
     public PausedDialog paused;
     public SettingsMenuDialog settings;
     public ControlsDialog controls;
@@ -180,6 +182,8 @@ public class UI extends SceneModule{
         settings = new SettingsMenuDialog();
         schematics = new SchematicsDialog();
         host = new HostDialog();
+        claj = new ClajDialog();
+        clajJoin = new ClajJoinDialog();
         paused = new PausedDialog();
         changelog = new ChangelogDialog();
         about = new AboutDialog();

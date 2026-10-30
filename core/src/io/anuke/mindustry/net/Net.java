@@ -9,6 +9,9 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.ObjectMap;
 import io.anuke.mindustry.core.Platform;
+import io.anuke.mindustry.claj.Claj;
+import io.anuke.mindustry.claj.ClajClientProvider;
+import io.anuke.mindustry.claj.ClajServerProvider;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.net.Packets.KickReason;
 import io.anuke.mindustry.net.Packets.StreamBegin;
@@ -220,14 +223,22 @@ public class Net{
      * Sets the net clientProvider, e.g. what handles sending, recieving and connecting to a server.
      */
     public static void setClientProvider(ClientProvider provider){
-        Net.clientProvider = provider;
+        if(provider == null){
+            Net.clientProvider = null;
+        }else{
+            Net.clientProvider = provider instanceof ClajClientProvider ? provider : new ClajClientProvider(provider);
+        }
     }
 
     /**
      * Sets the net serverProvider, e.g. what handles hosting a server.
      */
     public static void setServerProvider(ServerProvider provider){
-        Net.serverProvider = provider;
+        if(provider == null){
+            Net.serverProvider = null;
+        }else{
+            Net.serverProvider = provider instanceof ClajServerProvider ? provider : new ClajServerProvider(provider);
+        }
     }
 
     /**
@@ -337,6 +348,7 @@ public class Net{
     }
 
     public static void dispose(){
+        Claj.dispose();
         if(clientProvider != null) clientProvider.dispose();
         if(serverProvider != null) serverProvider.dispose();
         clientProvider = null;

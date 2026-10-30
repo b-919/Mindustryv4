@@ -218,6 +218,7 @@ public class JoinDialog extends FloatingDialog{
                 });
             }).size(54f).get();
             button.update(() -> button.getStyle().imageUpColor = player.color);
+            t.addButton("$text.claj", ui.clajJoin::show).size(90f, 54f).padLeft(6f);
         }).width(w).height(70f).pad(4);
         content().row();
         content().add(pane).width(w + 38).pad(0);

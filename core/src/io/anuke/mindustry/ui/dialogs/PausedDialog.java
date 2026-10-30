@@ -79,6 +79,10 @@ public class PausedDialog extends FloatingDialog{
 
             content().row();
 
+            content().addButton("$text.claj.manage", ui.claj::show).disabled(b -> !Net.server()).colspan(2).width(dw*2 + 20f);
+
+            content().row();
+
             content().addButton("$text.quit", () -> {
                 ui.showConfirm("$text.confirm", "$text.quit.confirm", () -> {
                     if(Net.client()) netClient.disconnectQuietly();
@@ -113,6 +117,7 @@ public class PausedDialog extends FloatingDialog{
 
             content().addRowImageTextButton("$text.load", "icon-load", isize, load::show).disabled(b -> Net.active() || world.isOpenWorld());
             content().addRowImageTextButton("$text.hostserver.mobile", "icon-host", isize, ui.host::show).disabled(b -> Net.active());
+            content().addRowImageTextButton("$text.claj.manage", "icon-host", isize, ui.claj::show).disabled(b -> !Net.server());
             content().addRowImageTextButton("$text.quit", "icon-quit", isize, () -> {
                 ui.showConfirm("$text.confirm", "$text.quit.confirm", () -> {
                     if(Net.client()) netClient.disconnectQuietly();

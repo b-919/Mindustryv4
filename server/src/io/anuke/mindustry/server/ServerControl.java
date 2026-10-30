@@ -7,6 +7,8 @@ import com.badlogic.gdx.utils.ObjectSet;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.Timer.Task;
 import io.anuke.mindustry.core.GameState.State;
+import io.anuke.mindustry.claj.Claj;
+import io.anuke.mindustry.claj.ClajProtocol;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.EventType.GameOverEvent;
@@ -283,6 +285,34 @@ public class ServerControl extends Module{
                 Settings.putInt("port", port);
                 Settings.save();
             }
+        });
+
+        handler.register("claj", "[relay] [password]", "Create a CLaJ room and print its link.", arg -> {
+            if(!Net.server()){
+                err("Host a game before creating a CLaJ room.");
+                return;
+            }
+
+            String address = arg.length > 0 ? arg[0] : "localhost:7000";
+            short password = ClajProtocol.NO_PASSWORD;
+            if(arg.length > 1){
+                try{
+                    int parsed = Integer.parseInt(arg[1]);
+                    if(parsed >= 0 && parsed <= 9999) password = (short)parsed;
+                }catch(NumberFormatException ignored){
+                }
+            }
+
+            info("Connecting to CLaJ relay &lc{0}&fr...", address);
+            Claj.createRoom(address, password != ClajProtocol.NO_PASSWORD, password,
+                link -> info("&lgCLaJ room created. Link: &lc{0}", link),
+                reason -> info("&lyCLaJ room closed: {0}", reason),
+                error -> err("CLaJ room error: {0}", error.getMessage() == null ? error : error.getMessage()));
+        });
+
+        handler.register("claj-stop", "Close the current CLaJ room.", arg -> {
+            Claj.closeRoom();
+            info("CLaJ room closed.");
         });
 
         handler.register("maps", "Display all available maps.", arg -> {
