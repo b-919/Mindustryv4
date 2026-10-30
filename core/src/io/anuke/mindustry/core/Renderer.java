@@ -483,6 +483,7 @@ public class Renderer extends RendererModule{
 
         blocks.processBlocks();
         blocks.drawShadows();
+        blocks.drawCachedLayers();
         for(Team team : Team.all){
             if(blocks.isTeamShown(team)){
                 boolean outline = team != players[0].getTeam() && team != Team.none;
@@ -493,7 +494,7 @@ public class Renderer extends RendererModule{
                     Graphics.beginShaders(Shaders.outline);
                 }
 
-                blocks.drawTeamBlocks(Layer.block, team);
+                blocks.drawTeamBlocks(Layer.block, team, outline);
 
                 if(outline){
                     Graphics.endShaders();

@@ -21,6 +21,8 @@ public class Router extends Block{
         itemCapacity = 1;
         group = BlockGroup.transportation;
         reflectYdisplace = 0.35f;
+        drawCached = true;
+        drawDynamic = false;
     }
 
     @Override

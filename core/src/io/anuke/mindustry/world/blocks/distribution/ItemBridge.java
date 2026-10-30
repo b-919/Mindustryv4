@@ -59,6 +59,8 @@ public class ItemBridge extends Block{
         hasItems = true;
         group = BlockGroup.transportation;
         reflectYdisplace = 0.35f;
+        drawCached = true;
+        drawDynamic = false;
     }
 
     @Remote(targets = Loc.both, called = Loc.both, forward = true)

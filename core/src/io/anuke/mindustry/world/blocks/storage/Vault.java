@@ -8,6 +8,8 @@ public class Vault extends StorageBlock{
         update = false;
         destructible = true;
         itemCapacity = 1000;
+        drawCached = true;
+        drawDynamic = false;
     }
 
 }

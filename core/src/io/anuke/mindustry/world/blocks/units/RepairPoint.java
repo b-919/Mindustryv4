@@ -44,6 +44,8 @@ public class RepairPoint extends Block{
         emitLight = true;
         lightColor = Color.valueOf("e8ffd7");
         lightOpacity = 0.4f;
+        drawCached = true;
+        drawDynamic = false;
     }
 
     @Override

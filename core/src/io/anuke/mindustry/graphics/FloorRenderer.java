@@ -11,6 +11,7 @@ import com.badlogic.gdx.utils.TimeUtils;
 import io.anuke.mindustry.game.EventType.TileChangeEvent;
 import io.anuke.mindustry.game.EventType.WorldLoadGraphicsEvent;
 import io.anuke.mindustry.maps.generation.ChunkManager;
+import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.ucore.core.Core;
@@ -117,6 +118,10 @@ public class FloorRenderer{
         for(int i = 0; i < numLayers; i++){
             CacheLayer layer = layers[i];
 
+            //the walls/buildings layers are drawn separately after shadows, so they can sit above
+            //puddles/weather and below the normal block passes
+            if(layer == CacheLayer.walls || layer == CacheLayer.buildings) continue;
+
             //layers with nothing cached in view (no water on the map, etc.) still cost a full
             //framebuffer clear and composite; skip them entirely
             if(!isLayerVisible(layer)) continue;
@@ -209,6 +214,8 @@ public class FloorRenderer{
         for(int i = 0; i < numLayers; i++){
             CacheLayer layer = layers[i];
 
+            if(layer == CacheLayer.walls || layer == CacheLayer.buildings) continue;
+
             if(!isLayerVisible(layer)) continue;
 
             layer.begin();
@@ -300,6 +307,20 @@ public class FloorRenderer{
             && world.peekTile(startX + chunksize / 2, startY + chunksize / 2) != null;
     }
 
+    /** Marks every cache layer used by this tile: its floor, its static block layer, and the
+     *  building cache layer if the block opts into {@link Block#drawCached}. */
+    private void markUsedLayers(Tile tile){
+        usedLayers[tile.floor().cacheLayer.ordinal()] = true;
+
+        Block block = tile.block();
+        if(block.cacheLayer != CacheLayer.normal){
+            usedLayers[block.cacheLayer.ordinal()] = true;
+        }
+        if(block.drawCached){
+            usedLayers[CacheLayer.buildings.ordinal()] = true;
+        }
+    }
+
     private boolean cacheChunkOpenWorld(int cx, int cy, Chunk chunk){
         java.util.Arrays.fill(usedLayers, false);
         //unused layers must be marked empty: a fresh Chunk's arrays default to 0, which is a valid
@@ -318,7 +339,7 @@ public class FloorRenderer{
                 //peek: never generate chunks from the render thread
                 Tile tile = world.peekTile(tilex, tiley);
                 if(tile != null){
-                    usedLayers[tile.floor().cacheLayer.ordinal()] = true;
+                    markUsedLayers(tile);
                 }else{
                     incomplete = true;
                 }
@@ -350,12 +371,26 @@ public class FloorRenderer{
 
                 if(tile == null) continue;
 
-                Floor floor = tile.floor();
+                Block block = tile.block();
 
-                if(floor.cacheLayer == layer){
-                    floor.draw(tile);
-                }else if(floor.cacheLayer.ordinal() < layer.ordinal()){
-                    floor.drawNonLayer(tile);
+                if(layer == CacheLayer.walls){
+                    if(block.cacheLayer == layer){
+                        Draw.reset();
+                        block.draw(tile);
+                    }
+                }else if(layer == CacheLayer.buildings){
+                    if(block.drawCached){
+                        Draw.reset();
+                        block.drawCached(tile);
+                    }
+                }else{
+                    Floor floor = tile.floor();
+
+                    if(floor.cacheLayer == layer){
+                        floor.draw(tile);
+                    }else if(floor.cacheLayer.ordinal() < layer.ordinal()){
+                        floor.drawNonLayer(tile);
+                    }
                 }
             }
         }
@@ -426,42 +461,52 @@ public class FloorRenderer{
         cbatch.endDraw();
     }
 
-    // unused code, relic from the past rn not deleted bc cna be usefull in posterior
-    /*
+    /** Draws a single cached layer for the current view. Must be called between
+     *  {@link #beginDraw()} and {@link #endDraw()}. Used for layers that need their own
+     *  draw order, such as walls (drawn above puddles/weather, below normal blocks). */
     public void drawLayer(CacheLayer layer){
-        if(cache == null) return;
+        if(cbatch == null || !isLayerVisible(layer)) return;
 
         OrthographicCamera camera = Core.camera;
-
-        int minx = Math.max((int)((camera.position.x - camera.viewportWidth / 2f) / (chunksize * tilesize)), 0);
-        int miny = Math.max((int)((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize)), 0);
-        int maxx = Math.min(Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize)), chunksx);
-        int maxy = Math.min(Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize)), chunksy);
-
         int layerOrd = layer.ordinal();
-
-        for(int x = minx; x < maxx; x++){
-            for(int y = miny; y < maxy; y++){
-                if(dirty[x][y]){
-                    dirty[x][y] = false;
-                    cacheChunk(x, y);
-                }
-            }
-        }
 
         layer.begin();
 
-        for(int x = minx; x < maxx; x++){
-            for(int y = miny; y < maxy; y++){
-                Chunk chunk = cache[x][y];
-                if(chunk == null || chunk.caches[layerOrd] == -1) continue;
-                cbatch.drawCache(chunk.caches[layerOrd]);
+        if(world.isOpenWorld()){
+            int minx = (int)Math.floor((camera.position.x - camera.viewportWidth / 2f) / (chunksize * tilesize));
+            int miny = (int)Math.floor((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize));
+            int maxx = Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize));
+            int maxy = Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize));
+
+            for(int x = minx; x <= maxx; x++){
+                for(int y = miny; y <= maxy; y++){
+                    Chunk chunk = openWorldCache.get(ChunkManager.packKey(x, y));
+                    if(chunk == null || chunk.caches[layerOrd] == -1) continue;
+                    cbatch.drawCache(chunk.caches[layerOrd]);
+                }
+            }
+        }else{
+            if(cache == null){
+                layer.end();
+                return;
+            }
+
+            int minx = Math.max((int)((camera.position.x - camera.viewportWidth / 2f) / (chunksize * tilesize)), 0);
+            int miny = Math.max((int)((camera.position.y - camera.viewportHeight / 2f) / (chunksize * tilesize)), 0);
+            int maxx = Math.min(Mathf.ceil((camera.position.x + camera.viewportWidth / 2f) / (chunksize * tilesize)), chunksx);
+            int maxy = Math.min(Mathf.ceil((camera.position.y + camera.viewportHeight / 2f) / (chunksize * tilesize)), chunksy);
+
+            for(int x = minx; x < maxx; x++){
+                for(int y = miny; y < maxy; y++){
+                    Chunk chunk = cache[x][y];
+                    if(chunk == null || chunk.caches[layerOrd] == -1) continue;
+                    cbatch.drawCache(chunk.caches[layerOrd]);
+                }
             }
         }
 
         layer.end();
     }
-    */
 
     private void cacheChunk(int cx, int cy){
         Chunk chunk = cache[cx][cy];
@@ -481,7 +526,7 @@ public class FloorRenderer{
             for(int tiley = startY; tiley < endY; tiley++){
                 Tile tile = world.rawTile(tilex, tiley);
                 if(tile != null){
-                    usedLayers[tile.floor().cacheLayer.ordinal()] = true;
+                    markUsedLayers(tile);
                 }
             }
         }
@@ -508,12 +553,26 @@ public class FloorRenderer{
 
                 if(tile == null) continue;
 
-                Floor floor = tile.floor();
+                Block block = tile.block();
 
-                if(floor.cacheLayer == layer){
-                    floor.draw(tile);
-                }else if(floor.cacheLayer.ordinal() < layer.ordinal()){
-                    floor.drawNonLayer(tile);
+                if(layer == CacheLayer.walls){
+                    if(block.cacheLayer == layer){
+                        Draw.reset();
+                        block.draw(tile);
+                    }
+                }else if(layer == CacheLayer.buildings){
+                    if(block.drawCached){
+                        Draw.reset();
+                        block.drawCached(tile);
+                    }
+                }else{
+                    Floor floor = tile.floor();
+
+                    if(floor.cacheLayer == layer){
+                        floor.draw(tile);
+                    }else if(floor.cacheLayer.ordinal() < layer.ordinal()){
+                        floor.drawNonLayer(tile);
+                    }
                 }
             }
         }

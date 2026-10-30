@@ -17,6 +17,8 @@ public class SolarGenerator extends PowerGenerator{
     public SolarGenerator(String name){
         super(name);
         flags = EnumSet.of();
+        drawCached = true;
+        drawDynamic = false;
     }
 
     @Override

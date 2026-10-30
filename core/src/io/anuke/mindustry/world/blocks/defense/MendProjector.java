@@ -52,6 +52,8 @@ public class MendProjector extends Block{
         emitLight = true;
         lightColor = color;
         lightOpacity = 0.4f;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -112,8 +114,17 @@ public class MendProjector extends Block{
 
     @Override
     public void draw(Tile tile){
-        super.draw(tile);
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         MendEntity entity = tile.entity();
         float f = 1f - (Timers.time() / 100f) % 1f;
 

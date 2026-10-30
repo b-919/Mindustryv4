@@ -117,6 +117,8 @@ public class LaunchPad extends Block {
         size = 3;
 
         consumes.power(0.5f);
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -128,9 +130,18 @@ public class LaunchPad extends Block {
 
     @Override
     public void draw(Tile tile) {
-        LaunchPadEntity entity = (LaunchPadEntity)tile.entity;
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawCached(Tile tile) {
         super.draw(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile) {
+        LaunchPadEntity entity = (LaunchPadEntity)tile.entity;
 
         Draw.color(color);
         Draw.alpha(entity.progress / launchTime);

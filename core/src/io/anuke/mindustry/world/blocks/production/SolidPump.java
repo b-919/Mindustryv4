@@ -44,9 +44,14 @@ public class SolidPump extends Pump{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         SolidPumpEntity entity = tile.entity();
 
-        Draw.rect(region, tile.drawx(), tile.drawy());
         drawLiquid(tile);
         Draw.rect(name + "-rotator", tile.drawx(), tile.drawy(), entity.pumpTime * rotateSpeed);
         Draw.rect(name + "-top", tile.drawx(), tile.drawy());

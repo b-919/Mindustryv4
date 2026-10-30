@@ -37,9 +37,18 @@ public class PhaseWeaver extends GenericCrafter{
 
     @Override
     public void draw(Tile tile){
-        GenericCrafterEntity entity = tile.entity();
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawCached(Tile tile){
         Draw.rect(bottomRegion, tile.drawx(), tile.drawy());
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
+        GenericCrafterEntity entity = tile.entity();
 
         float progress = 0.5f;
 

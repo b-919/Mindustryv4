@@ -1,5 +1,6 @@
 package io.anuke.mindustry.world.blocks.defense;
 
+import io.anuke.mindustry.graphics.CacheLayer;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.meta.BlockGroup;
 
@@ -10,6 +11,7 @@ public class Wall extends Block{
         solid = true;
         destructible = true;
         group = BlockGroup.walls;
+        cacheLayer = CacheLayer.walls;
     }
 
     @Override

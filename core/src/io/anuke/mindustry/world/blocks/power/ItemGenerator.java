@@ -44,6 +44,8 @@ public abstract class ItemGenerator extends PowerGenerator{
         hasItems = true;
         setAmbientSound("loopCombustion");
         consumes.add(new ConsumeItemFilter(item -> getItemEfficiency(item) >= minItemEfficiency)).update(false).optional(true);
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -71,8 +73,17 @@ public abstract class ItemGenerator extends PowerGenerator{
 
     @Override
     public void draw(Tile tile){
-        super.draw(tile);
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         GeneratorEntity entity = tile.entity();
 
         if(entity.generateTime > 0){

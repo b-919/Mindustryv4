@@ -36,6 +36,8 @@ public class Conduit extends LiquidBlock implements Autotiler{
         solid = false;
         floating = true;
         reflectYdisplace = 0.25f;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -248,6 +250,9 @@ public class Conduit extends LiquidBlock implements Autotiler{
             entity.blendbits = 1;
             entity.blendshadowrot = 1;
         }
+
+        //blend sprites changed; rebuild the cached base
+        recache(tile);
     }
 
     @Override
@@ -259,15 +264,27 @@ public class Conduit extends LiquidBlock implements Autotiler{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawCached(Tile tile){
         ConduitEntity entity = tile.entity();
-        int rotation = tile.getRotation() * 90;
 
         Draw.colorl(0.34f);
-        Draw.rect(botRegions[entity.blendbits], tile.drawx(), tile.drawy(), rotation);
+        Draw.rect(botRegions[entity.blendbits], tile.drawx(), tile.drawy(), tile.getRotation() * 90);
+        Draw.color();
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
+        ConduitEntity entity = tile.entity();
 
         drawLiquid(tile);
 
-        Draw.rect(topRegions[entity.blendbits], tile.drawx(), tile.drawy(), rotation);
+        Draw.color();
+        Draw.rect(topRegions[entity.blendbits], tile.drawx(), tile.drawy(), tile.getRotation() * 90);
     }
 
     @Override

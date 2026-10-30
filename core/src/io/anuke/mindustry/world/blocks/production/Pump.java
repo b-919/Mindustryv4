@@ -29,6 +29,8 @@ public class Pump extends LiquidBlock{
         liquidFlowFactor = 3f;
         group = BlockGroup.liquids;
         floating = true;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -46,7 +48,17 @@ public class Pump extends LiquidBlock{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawCached(Tile tile){
         Draw.rect(name(), tile.drawx(), tile.drawy());
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         drawLiquid(tile);
     }
 

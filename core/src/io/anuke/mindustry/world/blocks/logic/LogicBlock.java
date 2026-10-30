@@ -23,6 +23,8 @@ public class LogicBlock extends Block {
         update = true;
         solid = true;
         configurable = true;
+        drawCached = true;
+        drawDynamic = false;
     }
 
     @Remote(targets = Loc.both, called = Loc.both, forward = true)

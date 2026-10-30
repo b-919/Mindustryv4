@@ -130,8 +130,8 @@ public abstract class ItemLiquidGenerator extends ItemGenerator{
     }
 
     @Override
-    public void draw(Tile tile){
-        super.draw(tile);
+    public void drawDynamic(Tile tile){
+        super.drawDynamic(tile);
         drawLiquid(tile);
     }
 

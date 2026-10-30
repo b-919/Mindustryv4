@@ -67,6 +67,8 @@ public class UnitFactory extends Block{
         setBuildUnitSound("unitCreate");
 
         consumes.require(ConsumeItems.class);
+        drawCached = true;
+        drawDynamic = true;
     }
 
     public void setBuildUnitSound(String name){
@@ -144,10 +146,19 @@ public class UnitFactory extends Block{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawCached(Tile tile){
+        Draw.rect(name(), tile.drawx(), tile.drawy());
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         UnitFactoryEntity entity = tile.entity();
         TextureRegion region = type.iconRegion;
-
-        Draw.rect(name(), tile.drawx(), tile.drawy());
 
         Shaders.build.region = region;
         Shaders.build.progress = entity.buildTime / produceTime;

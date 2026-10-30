@@ -48,6 +48,8 @@ public class StackConveyor extends Block implements Autotiler{
         ambientSound = Sounds.loopConveyor;
         ambientSoundVolume = 0.004f;
         reflectYdisplace = 0.25f;
+        drawCached = true;
+        drawDynamic = false;
     }
 
     @Override
@@ -136,6 +138,7 @@ public class StackConveyor extends Block implements Autotiler{
                 near.block().onProximityUpdate(near);
             }
         }
+        recache(tile);
     }
 
     @Override

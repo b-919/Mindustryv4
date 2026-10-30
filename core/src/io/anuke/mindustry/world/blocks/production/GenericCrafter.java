@@ -93,6 +93,8 @@ public class GenericCrafter extends Block{
         update = true;
         solid = true;
         health = 60;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -178,8 +180,17 @@ public class GenericCrafter extends Block{
 
     @Override
     public void draw(Tile tile){
-        Draw.rect(name(), tile.drawx(), tile.drawy());
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawCached(Tile tile){
+        Draw.rect(name(), tile.drawx(), tile.drawy());
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         if(smelter){
             GenericCrafterEntity entity = tile.entity();
 

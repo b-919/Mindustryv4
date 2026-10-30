@@ -418,6 +418,9 @@ public class Tile implements PosTrait, TargetTrait{
     }
 
     private void preChanged(){
+        if(entity != null){
+            block().stopAmbientSound(this);
+        }
         block().removed(this);
         if(entity != null){
             entity.removeFromProximity();

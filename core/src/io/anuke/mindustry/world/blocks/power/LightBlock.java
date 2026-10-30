@@ -32,6 +32,8 @@ public class LightBlock extends PowerBlock {
         update = true;
         configurable = true;
         consumes.power(0.05f);
+        drawCached = true;
+        drawDynamic = false;
     }
 
     @Override

@@ -14,6 +14,8 @@ public class LiquidJunction extends LiquidBlock{
         super(name);
         hasLiquids = true;
         reflectYdisplace = 0.35f;
+        drawCached = true;
+        drawDynamic = false;
     }
 
     @Override

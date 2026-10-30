@@ -8,5 +8,7 @@ public class Rock extends Prop{
     public Rock(String name){
         super(name);
         deconstructDrop(new DeconstructDrop(Items.stone, 4, 12));
+        drawCached = true;
+        drawDynamic = false;
     }
 }

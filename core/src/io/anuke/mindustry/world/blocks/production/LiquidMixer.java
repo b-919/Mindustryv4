@@ -23,6 +23,8 @@ public class LiquidMixer extends LiquidBlock{
         solid = true;
         singleLiquid = false;
         outputsLiquid = true;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -74,9 +76,19 @@ public class LiquidMixer extends LiquidBlock{
 
     @Override
     public void draw(Tile tile){
-        int rotation = rotate ? tile.getRotation() * 90 : 0;
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawCached(Tile tile){
+        int rotation = rotate ? tile.getRotation() * 90 : 0;
         Draw.rect(bottomRegion, tile.drawx(), tile.drawy(), rotation);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
+        int rotation = rotate ? tile.getRotation() * 90 : 0;
         drawLiquid(tile);
         Draw.rect(topRegion, tile.drawx(), tile.drawy(), rotation);
     }

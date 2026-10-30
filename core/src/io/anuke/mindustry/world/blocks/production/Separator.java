@@ -45,6 +45,8 @@ public class Separator extends Block{
 
         consumes.item(Items.stone);
         consumes.liquid(Liquids.water, 0.1f);
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -68,8 +70,12 @@ public class Separator extends Block{
 
     @Override
     public void draw(Tile tile){
-        super.draw(tile);
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawDynamic(Tile tile){
         GenericCrafterEntity entity = tile.entity();
 
         Draw.color(color);

@@ -43,6 +43,8 @@ public class CommandCenter extends Block{
         destructible = true;
         solid = true;
         configurable = true;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -67,8 +69,13 @@ public class CommandCenter extends Block{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         CommandCenterEntity entity = tile.entity();
-        super.draw(tile);
 
         Draw.color(bottomColor);
         Draw.rect(commandRegions[entity.command.ordinal()], tile.drawx(), tile.drawy() - 1);

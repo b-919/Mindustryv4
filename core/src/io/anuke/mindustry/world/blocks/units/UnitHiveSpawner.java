@@ -49,6 +49,8 @@ public class UnitHiveSpawner extends Block {
         configurable = true;
         flags = EnumSet.of(BlockFlag.producer, BlockFlag.target);
         layer = Layer.back;
+        drawCached = false;
+        drawDynamic = false;
     }
 
     @Override

@@ -65,9 +65,13 @@ public class Cultivator extends Drill{
 
     @Override
     public void draw(Tile tile){
-        CultivatorEntity entity = tile.entity();
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
-        Draw.rect(region, tile.drawx(), tile.drawy());
+    @Override
+    public void drawDynamic(Tile tile){
+        CultivatorEntity entity = tile.entity();
 
         Draw.color(plantColor);
         Draw.alpha(entity.warmup);

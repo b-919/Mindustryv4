@@ -6,6 +6,7 @@ import com.badlogic.gdx.math.Vector2;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.bullet.Bullet;
 import io.anuke.mindustry.game.Team;
+import io.anuke.mindustry.graphics.CacheLayer;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Graphics;
 import io.anuke.ucore.core.Timers;
@@ -24,6 +25,7 @@ public class DeflectorWall extends Wall{
 
     public DeflectorWall(String name){
         super(name);
+        cacheLayer = CacheLayer.normal;
     }
 
     @Override

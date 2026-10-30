@@ -115,11 +115,28 @@ public class CoreBlock extends StorageBlock{
     @Override
     public void removed(Tile tile){
         state.teams.get(tile.getTeam()).cores.remove(tile);
+        if(tile.entity instanceof CoreEntity){
+            ((CoreEntity) tile.entity).releaseCurrentUnit();
+        }
     }
 
     @Override
     public void placed(Tile tile){
         state.teams.get(tile.getTeam()).cores.add(tile);
+    }
+
+    @Override
+    public void unitRemoved(Tile tile, Unit unit){
+        if(!(tile.entity instanceof CoreEntity entity)) return;
+
+        if(entity.droneID == unit.getID() ||
+                (droneType != null && unit instanceof BaseUnit && ((BaseUnit) unit).getType().id == droneType.id)){
+            entity.droneID = -1;
+        }
+        if(entity.currentUnit == unit){
+            entity.currentUnit = null;
+            entity.progress = 0f;
+        }
     }
 
     @Override
@@ -246,19 +263,8 @@ public class CoreBlock extends StorageBlock{
         }else if(!netServer.isWaitingForPlayers()){
             entity.warmup += Timers.delta();
 
-            if(droneType != null && entity.solid && entity.warmup > 60f && unitGroups[tile.getTeamID()].getByID(entity.droneID) == null && !Net.client()){
-
-                boolean found = false;
-                for(BaseUnit unit : unitGroups[tile.getTeamID()].all()){
-                    if(unit.getType().id == droneType.id){
-                        entity.droneID = unit.id;
-                        found = true;
-                        entity.ambientSoundEnabled = false;
-                        break;
-                    }
-                }
-
-                if(!found && !TutorialSector.supressDrone()){
+            if(droneType != null && entity.solid && entity.warmup > 60f && !Net.client() && entity.getDrone() == null){
+                if(!TutorialSector.supressDrone()){
                     BaseUnit unit = droneType.create(tile.getTeam());
                     unit.setSpawner(tile);
                     unit.setDead(true);
@@ -301,6 +307,57 @@ public class CoreBlock extends StorageBlock{
         @Override
         public float getSpawnProgress(){
             return progress;
+        }
+
+        BaseUnit getDrone(){
+            if(droneType == null) return null;
+
+            BaseUnit drone = unitGroups[tile.getTeamID()].getByID(droneID);
+
+            if(drone != null && drone.getType().id == droneType.id && isSpawnerOf(drone)){
+                return drone;
+            }
+
+            for(BaseUnit unit : unitGroups[tile.getTeamID()].all()){
+                if(unit.getType().id == droneType.id && isSpawnerOf(unit)){
+                    droneID = unit.id;
+                    return unit;
+                }
+            }
+
+            droneID = -1;
+            return null;
+        }
+
+        private boolean isSpawnerOf(BaseUnit unit){
+            Tile spawner = unit.getSpawner();
+            return spawner != null && spawner.packedPosition() == tile.packedPosition();
+        }
+
+        void releaseCurrentUnit(){
+            if(droneType != null){
+                BaseUnit drone = getDrone();
+                if(drone != null){
+                    drone.remove();
+                    if(currentUnit == drone){
+                        currentUnit = null;
+                    }
+                }
+                droneID = -1;
+            }
+            if(currentUnit != null){
+                if(currentUnit instanceof Player){
+                    ((Player) currentUnit).endRespawning();
+                }else{
+                    currentUnit.remove();
+                }
+                currentUnit = null;
+            }
+
+            progress = 0f;
+            time = 0f;
+            heat = 0f;
+            ambientSoundEnabled = false;
         }
 
         @Override

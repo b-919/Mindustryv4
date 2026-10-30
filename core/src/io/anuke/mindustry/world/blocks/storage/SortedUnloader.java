@@ -26,6 +26,8 @@ public class SortedUnloader extends Unloader implements SelectionTrait{
     public SortedUnloader(String name){
         super(name);
         configurable = true;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Remote(targets = Loc.both, called = Loc.both, forward = true)
@@ -120,8 +122,12 @@ public class SortedUnloader extends Unloader implements SelectionTrait{
 
     @Override
     public void draw(Tile tile){
-        super.draw(tile);
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawDynamic(Tile tile){
         SortedUnloaderEntity entity = tile.entity();
 
         Draw.color(entity.sortItem == null ? Color.WHITE : entity.sortItem.color);

@@ -23,6 +23,8 @@ public abstract class LiquidGenerator extends PowerGenerator{
         liquidCapacity = 30f;
         hasLiquids = true;
         hasLiquidLayer = true;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -33,7 +35,12 @@ public abstract class LiquidGenerator extends PowerGenerator{
 
     @Override
     public void draw(Tile tile){
-        super.draw(tile);
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         drawLiquid(tile);
     }
 

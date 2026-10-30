@@ -28,6 +28,8 @@ public class StackRouter extends Block{
         itemCapacity = 10;
         group = BlockGroup.transportation;
         reflectYdisplace = 0.35f;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -136,8 +138,17 @@ public class StackRouter extends Block{
 
     @Override
     public void draw(Tile tile){
-        super.draw(tile);
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         StackRouterEntity entity = tile.entity();
         if(entity.current != null){
             float fill = (float)entity.items.total() / itemCapacity;

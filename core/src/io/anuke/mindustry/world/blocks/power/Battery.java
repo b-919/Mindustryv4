@@ -6,5 +6,7 @@ public class Battery extends PowerDistributor{
         super(name);
         outputsPower = true;
         consumesPower = true;
+        drawCached = true;
+        drawDynamic = false;
     }
 }

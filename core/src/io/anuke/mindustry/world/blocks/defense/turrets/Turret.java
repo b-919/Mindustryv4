@@ -95,6 +95,8 @@ public abstract class Turret extends Block{
         group = BlockGroup.turrets;
         turretIcon = true;
         flags = EnumSet.of(BlockFlag.turret);
+        drawCached = true;
+        drawDynamic = true;
     }
 
     public void setShootSound(String name){
@@ -120,6 +122,7 @@ public abstract class Turret extends Block{
         if(!living)baseRegion = Draw.region("block-" + size); else baseRegion = Draw.region("mass-" + size);
         if(!living)baseTopRegion = Draw.region("block-" + size + "-top");
         heatRegion = Draw.region(name + "-heat");
+        drawDynamic = baseTopRegion != null;
     }
 
     @Override
@@ -140,9 +143,19 @@ public abstract class Turret extends Block{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawCached(Tile tile){
         Draw.rect(baseRegion, tile.drawx(), tile.drawy());
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         Draw.color(tile.getTeam().color, Color.WHITE, 0.45f);
-        if(baseTopRegion != null)Draw.rect(baseTopRegion, tile.drawx(), tile.drawy());
+        if(baseTopRegion != null) Draw.rect(baseTopRegion, tile.drawx(), tile.drawy());
         Draw.color();
     }
 

@@ -74,6 +74,8 @@ public class Drill extends Block{
         hasItems = true;
         setAmbientSound("loopDrill", 0.019f);
         consumes.add(new ConsumeLiquid(Liquids.water, 0.05f)).optional(true);
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -86,12 +88,21 @@ public class Drill extends Block{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawCached(Tile tile){
+        Draw.rect(region, tile.drawx(), tile.drawy());
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         float s = 0.3f;
         float ts = 0.6f;
 
         DrillEntity entity = tile.entity();
-
-        Draw.rect(region, tile.drawx(), tile.drawy());
 
         if(drawRim){
             Graphics.setAdditiveBlending();

@@ -78,8 +78,29 @@ public class BlockRenderer{
         Draw.color();
     }
 
+    /** Draws the cached wall and building layers. Called after shadows, so they sit above floors,
+     *  puddles and weather, but before the normal block/team passes. */
+    public void drawCachedLayers(){
+        boolean walls = floorRenderer.isLayerVisible(CacheLayer.walls);
+        boolean buildings = floorRenderer.isLayerVisible(CacheLayer.buildings);
+
+        if(walls || buildings){
+            Graphics.end();
+            floorRenderer.beginDraw();
+            if(walls) floorRenderer.drawLayer(CacheLayer.walls);
+            if(buildings) floorRenderer.drawLayer(CacheLayer.buildings);
+            floorRenderer.endDraw();
+            Graphics.begin();
+        }
+    }
+
     public boolean isTeamShown(Team team){
         return teamChecks[team.ordinal()];
+    }
+
+    /** Forces the chunk containing this tile to rebuild its cached layers. */
+    public void recacheTile(Tile tile){
+        floorRenderer.recacheTile(tile.x, tile.y);
     }
 
     public Array<Tile> getVisibleTiles(){
@@ -275,6 +296,10 @@ public class BlockRenderer{
     }
 
     public void drawTeamBlocks(Layer layer, Team team){
+        drawTeamBlocks(layer, team, true);
+    }
+
+    public void drawTeamBlocks(Layer layer, Team team, boolean outline){
         int index = this.iterateidx;
         int end = layerEnd(layer.ordinal());
         BlockRequest[] items = requests.items;
@@ -285,6 +310,23 @@ public class BlockRenderer{
             if(req.tile.getTeam() != team) continue;
 
             Block block = req.tile.block();
+
+            boolean cached = block.cacheLayer != CacheLayer.normal || block.drawCached;
+
+            if(req.layer == Layer.block && cached){
+                if(outline){
+                    if(block.cacheLayer != CacheLayer.normal){
+                        block.draw(req.tile);
+                    }else{
+                        block.drawCached(req.tile);
+                    }
+                }
+
+                if(block.drawCached && block.drawDynamic){
+                    block.drawDynamic(req.tile);
+                }
+                continue;
+            }
 
             if(req.layer == Layer.block){
                 block.draw(req.tile);

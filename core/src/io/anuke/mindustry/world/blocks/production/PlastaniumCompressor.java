@@ -21,7 +21,13 @@ public class PlastaniumCompressor extends GenericCrafter{
 
     @Override
     public void draw(Tile tile){
-        super.draw(tile);
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
+        super.drawDynamic(tile);
 
         GenericCrafterEntity entity = tile.entity();
 

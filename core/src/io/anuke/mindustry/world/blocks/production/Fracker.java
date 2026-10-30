@@ -35,9 +35,14 @@ public class Fracker extends SolidPump{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         FrackerEntity entity = tile.entity();
 
-        Draw.rect(region, tile.drawx(), tile.drawy());
         drawLiquid(tile);
         Draw.rect(rotatorRegion, tile.drawx(), tile.drawy(), entity.pumpTime);
         Draw.rect(topRegion, tile.drawx(), tile.drawy());

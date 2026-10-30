@@ -54,7 +54,9 @@ public enum CacheLayer{
             endShader(Shaders.space);
         }
     },
-    normal;
+    normal,
+    walls,
+    buildings;
 
     private static final Color clearColor = new Color(0, 0, 0, 0);
 

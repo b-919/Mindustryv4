@@ -93,6 +93,10 @@ public class Block extends BaseBlock {
     public int timers = 0;
     /** Cache layer. Only used for 'cached' rendering. */
     public CacheLayer cacheLayer = CacheLayer.normal;
+    /** If true, this block's base draw is baked into the chunk cache. */
+    public boolean drawCached = false;
+    /** If true, drawDynamic() runs every frame on top of the cached base. */
+    public boolean drawDynamic = true;
     /** Layer to draw extra stuff on. */
     public Layer layer = null;
     /** Extra layer to draw extra extra stuff on. */
@@ -800,6 +804,24 @@ public class Block extends BaseBlock {
 
     public void draw(Tile tile){
         Draw.rect(region, tile.drawx(), tile.drawy(), rotate ? tile.getRotation() * 90 : 0);
+    }
+
+    /** Draws only the static base of this block while its chunk cache is being built.
+     *  Override if draw() also contains dynamic visuals. */
+    public void drawCached(Tile tile){
+        draw(tile);
+    }
+
+    /** Draws the live overlay of a cached block. Only called when {@link #drawCached} and
+     *  {@link #drawDynamic} are both true. */
+    public void drawDynamic(Tile tile){
+    }
+
+    /** Marks this tile's cached chunk dirty so it is rebuilt next frame. */
+    public void recache(Tile tile){
+        if(!headless && renderer != null){
+            renderer.blocks.recacheTile(tile);
+        }
     }
 
     public void drawNonLayer(Tile tile){

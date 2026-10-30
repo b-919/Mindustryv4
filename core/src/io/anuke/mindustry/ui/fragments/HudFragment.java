@@ -458,7 +458,7 @@ public class HudFragment extends Fragment{
 
         table.labelWrap(() ->
             world.getSector() == null ?
-                ((state.enemies() > 0 && state.mode.disableWaveTimer ?
+                ((state.enemies() > 0 ?
                 wavef.get(state.wave) + "\n" + (state.enemies() == 1 ?
                     enemyf.get(state.enemies()) :
                     enemiesf.get(state.enemies())) :

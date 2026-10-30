@@ -104,6 +104,8 @@ public class LandingPad extends Block {
         size = 3;
 
         consumes.liquid(Liquids.water, 0.05f);
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -124,8 +126,17 @@ public class LandingPad extends Block {
 
     @Override
     public void draw(Tile tile) {
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawCached(Tile tile) {
         super.draw(tile);
-        
+    }
+
+    @Override
+    public void drawDynamic(Tile tile) {
         LandingPadEntity entity = (LandingPadEntity)tile.entity;
         if(entity.hasPod && entity.items.total() > 0){
             float alpha = 1f;
@@ -133,7 +144,7 @@ public class LandingPad extends Block {
             if(entity.items.total() < threshold){
                 alpha = entity.items.total() / threshold;
             }
-            
+
             Draw.color(Color.WHITE);
             Draw.alpha(alpha);
             Draw.rect(pod, tile.drawx(), tile.drawy());

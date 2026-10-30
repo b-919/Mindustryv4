@@ -79,6 +79,8 @@ public class UnitFactoryAdvanced extends Block{
         consumes.power(0);
         setAmbientSound("loopUnitBuilding", 0.09f);
         setBuildUnitSound("unitCreate");
+        drawCached = true;
+        drawDynamic = true;
     }
 
     public void setBuildUnitSound(String name){
@@ -201,14 +203,23 @@ public class UnitFactoryAdvanced extends Block{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawCached(Tile tile){
+        Draw.rect(name(), tile.drawx(), tile.drawy());
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         UnitFactoryAdvancedEntity entity = tile.entity();
         UnitType selectedType = getSelectedType(entity);
         if(selectedType == null) return;
 
         TextureRegion region = selectedType.iconRegion;
         float selectedProduceTime = getSelectedProduceTime(entity);
-
-        Draw.rect(name(), tile.drawx(), tile.drawy());
 
         Shaders.build.region = region;
         Shaders.build.progress = selectedProduceTime <= 0f ? 0f : entity.buildTime / selectedProduceTime;

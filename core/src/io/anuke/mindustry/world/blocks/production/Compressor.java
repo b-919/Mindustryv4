@@ -35,9 +35,14 @@ public class Compressor extends GenericCrafter{
 
     @Override
     public void draw(Tile tile){
+        drawCached(tile);
+        drawDynamic(tile);
+    }
+
+    @Override
+    public void drawDynamic(Tile tile){
         GenericCrafterEntity entity = tile.entity();
 
-        Draw.rect(region, tile.drawx(), tile.drawy());
         Draw.rect(frameRegions[(int) Mathf.absin(entity.totalProgress, 5f, 2.999f)], tile.drawx(), tile.drawy());
         drawLiquid(tile);
         Draw.rect(topRegion, tile.drawx(), tile.drawy());

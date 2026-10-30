@@ -34,6 +34,8 @@ public class Sorter extends Block implements SelectionTrait{
         group = BlockGroup.transportation;
         configurable = true;
         reflectYdisplace = 0.35f;
+        drawCached = true;
+        drawDynamic = true;
     }
 
     @Override
@@ -62,8 +64,12 @@ public class Sorter extends Block implements SelectionTrait{
 
     @Override
     public void draw(Tile tile){
-        super.draw(tile);
+        drawCached(tile);
+        drawDynamic(tile);
+    }
 
+    @Override
+    public void drawDynamic(Tile tile){
         SorterEntity entity = tile.entity();
 
         Draw.color(entity.sortItem.color);
