@@ -42,7 +42,7 @@ void main(){
             coverage = smoothCoverage;
         }
 
-        gl_FragColor = vec4(mix(u_ambient.rgb, v_color.rgb, coverage), 0.5);
+        gl_FragColor = vec4(mix(u_ambient.rgb, v_color.rgb, coverage), coverage);
     }else{
         vec4 colors = texture2D(u_texture0, v_texCoord);
         vec4 light = texture2D(u_lightmap, v_texCoord);
