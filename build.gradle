@@ -217,6 +217,10 @@ project(":core") {
         implementation "com.badlogicgames.gdx:gdx-controllers:$gdxControllersVersion"
         implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
 
+        // Official CLaJ relay transport (Arc Net). Used only when connecting to public CLaJ relays.
+        implementation "com.github.Anuken.Arc:arc-core:v159.5"
+        implementation "com.github.Anuken.Arc:arcnet:v159.5"
+
         compileOnly project(":annotations")
         annotationProcessor project(":annotations")
     }
@@ -265,6 +269,8 @@ project(":tests"){
         testRuntimeOnly('org.junit.platform:junit-platform-launcher:1.7.1')
         testImplementation "com.badlogicgames.gdx:gdx-backend-headless:$gdxVersion"
         testImplementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+        testImplementation "com.github.Anuken.Arc:arc-core:v159.5"
+        testImplementation "com.github.Anuken.Arc:arcnet:v159.5"
     }
 
     test {
@@ -324,41 +330,5 @@ project(":kryonet") {
         implementation "org.lz4:lz4-java:1.4.1"
         implementation 'com.github.Anuken:kryonet:a64d2280880e80566ca1bdaffa55de43e51cad38'
         implementation 'com.github.Anuken:WaifUPnP:05eb46bc577fd7674596946ba288c96c0cedd893'
-    }
-}
-
-tasks.register('runRelay', JavaExec) {
-    group = 'run'
-    description = 'Runs the CLaJ relay server. Use -Pport=7000 to change the port.'
-    dependsOn ':server:classes', ':core:classes'
-    classpath = files(project(':server').sourceSets.main.output, project(':core').sourceSets.main.output)
-    mainClass = 'io.anuke.mindustry.server.ClajRelayLauncher'
-    args project.hasProperty('port') ? [project.property('port').toString()] : ['7000']
-}
-
-tasks.register('relayJar', Jar) {
-    group = 'build'
-    description = 'Builds a standalone CLaJ relay jar in build/release/.'
-    dependsOn ':server:classes', ':core:classes'
-    archiveFileName = 'claj-relay.jar'
-    destinationDirectory = file("$buildDir/release")
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    manifest {
-        attributes 'Main-Class': 'io.anuke.mindustry.server.ClajRelayLauncher'
-    }
-
-    from(project(':server').sourceSets.main.output) {
-        include 'io/anuke/mindustry/server/ClajRelayLauncher.class'
-        include 'io/anuke/mindustry/server/ClajRelayLauncher$*.class'
-    }
-    from(project(':core').sourceSets.main.output) {
-        include 'io/anuke/mindustry/claj/ClajRelayServer.class'
-        include 'io/anuke/mindustry/claj/ClajRelayServer$*.class'
-        include 'io/anuke/mindustry/claj/ClajSocket.class'
-        include 'io/anuke/mindustry/claj/ClajSocket$*.class'
-        include 'io/anuke/mindustry/claj/ClajProtocol.class'
-        include 'io/anuke/mindustry/claj/ClajProtocol$*.class'
-        include 'io/anuke/mindustry/claj/ClajLink.class'
-        include 'io/anuke/mindustry/claj/ClajLink$*.class'
     }
 }

@@ -53,7 +53,7 @@ public final class Claj{
             return;
         }
 
-        ClajHost current = new ClajHost();
+        ClajHost current = new OfficialRelayHost();
         host = current;
         current.createRoom(relay.host, relay.port, isProtected, password, link -> {
             if(created != null) created.accept(link);

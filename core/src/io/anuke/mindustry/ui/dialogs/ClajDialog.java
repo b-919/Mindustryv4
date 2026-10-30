@@ -6,6 +6,7 @@ import io.anuke.mindustry.claj.Claj;
 import io.anuke.mindustry.claj.ClajHost;
 import io.anuke.mindustry.claj.ClajProtocol;
 import io.anuke.mindustry.claj.ClajLink;
+import io.anuke.mindustry.claj.ClajPublicRelays;
 import io.anuke.mindustry.core.Platform;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.net.Net;
@@ -15,8 +16,12 @@ import io.anuke.ucore.scene.event.InputEvent;
 import io.anuke.ucore.scene.event.Touchable;
 import io.anuke.ucore.scene.ui.Dialog;
 import io.anuke.ucore.scene.ui.Label;
+import io.anuke.ucore.scene.ui.ScrollPane;
 import io.anuke.ucore.scene.ui.TextField;
+import io.anuke.ucore.scene.ui.layout.Table;
 import io.anuke.ucore.util.Bundles;
+
+import java.util.Map;
 
 import static io.anuke.mindustry.Vars.ui;
 
@@ -35,7 +40,12 @@ public class ClajDialog extends FloatingDialog{
         content().defaults().pad(4f);
 
         content().add("$text.claj.server").colspan(2).left().row();
-        addressField = content().addField(Settings.getString("claj-server", "localhost:7000"), text -> {
+        String savedAddress = Settings.getString("claj-server", "");
+        if(savedAddress.isEmpty() || !savedAddress.contains(":") || savedAddress.startsWith("localhost")
+            || savedAddress.startsWith("127.0.0.1")){
+            savedAddress = ClajPublicRelays.defaultAddress();
+        }
+        addressField = content().addField(savedAddress, text -> {
             Settings.putString("claj-server", text);
             Settings.save();
         }).colspan(2).width(330f).get();
@@ -52,6 +62,9 @@ public class ClajDialog extends FloatingDialog{
         passwordField.setMessageText("$text.claj.password.optional");
         Platform.instance.addDialog(passwordField, 4);
         content().row();
+
+        content().add("$text.claj.public-relays").colspan(2).left().row();
+        content().addButton("$text.claj.browse-relays", this::showRelays).colspan(2).width(330f).left().row();
 
         status = new Label("");
         content().add(status).colspan(2).left().row();
@@ -128,6 +141,29 @@ public class ClajDialog extends FloatingDialog{
             refresh();
             ui.showError(Bundles.format("text.claj.error", message(error)));
         });
+    }
+
+    private void showRelays(){
+        Dialog dialog = new Dialog("$text.claj.public-relays", "dialog");
+        dialog.content().margin(10f);
+
+        Table list = new Table();
+        ScrollPane pane = new ScrollPane(list);
+        pane.setFadeScrollBars(false);
+
+        for(Map.Entry<String, String> entry : ClajPublicRelays.SERVERS.entrySet()){
+            String address = entry.getValue();
+            String name = entry.getKey();
+            list.addButton(name + "\n[lightgray]" + address, "clear", () -> {
+                addressField.setText(address);
+                dialog.hide();
+            }).width(340f).pad(2f).row();
+        }
+
+        dialog.content().add(pane).width(360f).height(260f);
+        dialog.buttons().defaults().size(160f, 54f).pad(4f);
+        dialog.buttons().addButton("$text.cancel", dialog::hide);
+        dialog.show();
     }
 
     private void closeRoom(){

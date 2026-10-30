@@ -10,7 +10,7 @@ import java.io.IOException;
 /** Wraps the real client provider and switches to the CLaJ transport for room links. */
 public class ClajClientProvider implements Net.ClientProvider{
     private final Net.ClientProvider delegate;
-    private volatile ClajJoin current;
+    private volatile ClajJoinConnection current;
 
     public ClajClientProvider(Net.ClientProvider delegate){
         this.delegate = delegate;
@@ -24,7 +24,7 @@ public class ClajClientProvider implements Net.ClientProvider{
     public void connect(String ip, int port, Runnable success) throws IOException{
         Claj.PendingJoin pending = Claj.takePendingJoin();
         if(pending != null){
-            ClajJoin join = new ClajJoin(pending.link, pending.password,
+            ClajJoinConnection join = new OfficialRelayJoin(pending.link, pending.password,
                 pending.success == null ? success : pending.success, pending.reject, pending.failed);
             current = join;
             join.start();
@@ -35,7 +35,7 @@ public class ClajClientProvider implements Net.ClientProvider{
 
     @Override
     public void send(Object object, Net.SendMode mode){
-        ClajJoin join = current;
+        ClajJoinConnection join = current;
         if(join != null){
             if(join.isJoined() && object instanceof Packet){
                 join.send((Packet)object);
@@ -48,21 +48,21 @@ public class ClajClientProvider implements Net.ClientProvider{
 
     @Override
     public void updatePing(){
-        ClajJoin join = current;
+        ClajJoinConnection join = current;
         if(join != null) return;
         delegate.updatePing();
     }
 
     @Override
     public int getPing(){
-        ClajJoin join = current;
+        ClajJoinConnection join = current;
         if(join != null) return Math.max(0, join.getPing());
         return delegate.getPing();
     }
 
     @Override
     public void disconnect(){
-        ClajJoin join = current;
+        ClajJoinConnection join = current;
         current = null;
         if(join != null) join.close();
 
@@ -86,7 +86,7 @@ public class ClajClientProvider implements Net.ClientProvider{
 
     @Override
     public void dispose(){
-        ClajJoin join = current;
+        ClajJoinConnection join = current;
         current = null;
         if(join != null) join.close();
 

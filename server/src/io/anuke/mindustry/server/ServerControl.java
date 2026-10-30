@@ -9,6 +9,7 @@ import com.badlogic.gdx.utils.Timer.Task;
 import io.anuke.mindustry.core.GameState.State;
 import io.anuke.mindustry.claj.Claj;
 import io.anuke.mindustry.claj.ClajProtocol;
+import io.anuke.mindustry.claj.ClajPublicRelays;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.EventType.GameOverEvent;
@@ -195,6 +196,29 @@ public class ServerControl extends Module{
         System.out.print("> ");
     }
 
+    private void createClajRoom(String[] arg){
+        if(!Net.server()){
+            err("Host a game before creating a CLaJ room.");
+            return;
+        }
+
+        String address = arg.length > 0 ? arg[0] : ClajPublicRelays.defaultAddress();
+        short password = ClajProtocol.NO_PASSWORD;
+        if(arg.length > 1){
+            try{
+                int parsed = Integer.parseInt(arg[1]);
+                if(parsed >= 0 && parsed <= 9999) password = (short)parsed;
+            }catch(NumberFormatException ignored){
+            }
+        }
+
+        info("Connecting to CLaJ relay &lc{0}&fr...", address);
+        Claj.createRoom(address, password != ClajProtocol.NO_PASSWORD, password,
+            link -> info("&lgCLaJ room created. Link: &lc{0}", link),
+            reason -> info("&lyCLaJ room closed: {0}", reason),
+            error -> err("CLaJ room error: {0}", error.getMessage() == null ? error : error.getMessage()));
+    }
+
     private void registerCommands(){
         handler.register("help", "Displays this command list.", arg -> {
             info("Commands:");
@@ -287,28 +311,8 @@ public class ServerControl extends Module{
             }
         });
 
-        handler.register("claj", "[relay] [password]", "Create a CLaJ room and print its link.", arg -> {
-            if(!Net.server()){
-                err("Host a game before creating a CLaJ room.");
-                return;
-            }
-
-            String address = arg.length > 0 ? arg[0] : "localhost:7000";
-            short password = ClajProtocol.NO_PASSWORD;
-            if(arg.length > 1){
-                try{
-                    int parsed = Integer.parseInt(arg[1]);
-                    if(parsed >= 0 && parsed <= 9999) password = (short)parsed;
-                }catch(NumberFormatException ignored){
-                }
-            }
-
-            info("Connecting to CLaJ relay &lc{0}&fr...", address);
-            Claj.createRoom(address, password != ClajProtocol.NO_PASSWORD, password,
-                link -> info("&lgCLaJ room created. Link: &lc{0}", link),
-                reason -> info("&lyCLaJ room closed: {0}", reason),
-                error -> err("CLaJ room error: {0}", error.getMessage() == null ? error : error.getMessage()));
-        });
+        handler.register("claj", "[relay] [password]", "Create a CLaJ room on a relay and print its link.",
+            arg -> createClajRoom(arg));
 
         handler.register("claj-stop", "Close the current CLaJ room.", arg -> {
             Claj.closeRoom();
