@@ -245,6 +245,13 @@ public class Logic extends Module{
                     weather.update();
                 }
 
+                //sector maps run on the planet's orbit/rotation instead of the automatic cycle
+                if(world.getSector() != null){
+                    world.sectors.advancePlanetTime(Timers.delta() / 60f);
+                    world.sectors.updateSectorLight(world.getSector());
+                    state.darkness = Mathf.clamp(1f - world.getSector().light, 0f, 1f);
+                }
+
                 boolean SiegeModeTimer = state.mode == GameMode.SiegeMode;
                 boolean canTickWaveTimer = !state.mode.disableWaves && !state.gameOver &&
                         (!state.mode.disableWaveTimer || SiegeModeTimer) &&

@@ -219,8 +219,10 @@ public class MapView extends Element implements GestureListener{
     public void act(float delta){
         super.act(delta);
 
-        if(Core.scene.getKeyboardFocus() == null || !(Core.scene.getKeyboardFocus() instanceof TextField) &&
-                !Inputs.keyDown(io.anuke.ucore.input.Input.CONTROL_LEFT)){
+        if(!SpaceCameraDialog.isOpen &&
+                (Core.scene.getKeyboardFocus() == null || !(Core.scene.getKeyboardFocus() instanceof TextField) &&
+                !Inputs.keyDown(io.anuke.ucore.input.Input.CONTROL_LEFT))){
+
             float ax = Inputs.getAxis("move_x");
             float ay = Inputs.getAxis("move_y");
             offsetx -= ax * 15f / zoom;

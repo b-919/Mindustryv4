@@ -330,6 +330,7 @@ public class World extends Module{
 
             if(weather != null){
                 weather.setRain(map.meta.tags.get("rain", "0").equals("1"));
+                weather.setDayNight(true);
             }
         } catch(Exception e){
             Log.err(e);

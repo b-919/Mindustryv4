@@ -1,20 +1,27 @@
 package io.anuke.mindustry.content;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.maps.campaign.CampaignRegistry;
 import io.anuke.mindustry.maps.campaign.CloudDef;
 import io.anuke.mindustry.maps.campaign.PlanetDefinition;
 import io.anuke.mindustry.maps.campaign.PlanetVisual;
+import io.anuke.mindustry.maps.campaign.SolarSystemDefinition;
 import io.anuke.mindustry.graphics.planet.SunGlowDef;
 
 /** Content definitions for planets and campaigns.*/
 public class Planets{
     public static PlanetDefinition sun, serpulo, moon;
+    public static SolarSystemDefinition serpuloSystem;
+    private static final Array<SolarSystemDefinition> systems = new Array<>();
 
     public static void load(){
         if(serpulo != null) return;
+
+        serpuloSystem = new SolarSystemDefinition("Serpulo");
+        systems.add(serpuloSystem);
 
         sun = new PlanetDefinition("Sun", null,
             1f, 0.62f, 0.18f,
@@ -54,6 +61,8 @@ public class Planets{
             parent = serpulo;
             radius = 0.55f;
             displayOrbit = true;
+            orbitSpeed = 0.15f;
+            rotationSpeed = 0.27f;
             visual.moonPosition.set(-4.5f, 3.2f, -6f);
             visual.moonRadius = 0.55f;
             visual.moonColor.set(0.55f, 0.62f, 0.78f, 1f);
@@ -90,7 +99,54 @@ public class Planets{
         v.moonRadius = 0.55f;
         v.moonColor.set(0.55f, 0.62f, 0.78f, 1f);
 
+        serpuloSystem.add(sun);
+        serpuloSystem.add(serpulo);
+        serpuloSystem.add(moon);
+
         CampaignRegistry.addPlanet(serpulo);
+    }
+    //TODO refactor
+    /** All registered solar systems. */
+    public static Array<SolarSystemDefinition> systems(){
+        load();
+        return systems;
+    }
+
+    /** Registers a new empty system. Content can then add its bodies with {@link SolarSystemDefinition#add}. */
+    public static SolarSystemDefinition addSystem(String name){
+        load();
+
+        SolarSystemDefinition system = new SolarSystemDefinition(name);
+        systems.add(system);
+        return system;
+    }
+
+    /** Resolves a system by name, falling back to the first one. */
+    public static SolarSystemDefinition system(String name){
+        load();
+
+        for(SolarSystemDefinition system : systems){
+            if(system.name != null && system.name.equals(name)){
+                return system;
+            }
+        }
+        return systems.size == 0 ? null : systems.first();
+    }
+
+    public static SolarSystemDefinition defaultSystem(){
+        load();
+        return systems.size == 0 ? null : systems.first();
+    }
+
+    /** All defined bodies across every system. */
+    public static Array<PlanetDefinition> all(){
+        load();
+
+        Array<PlanetDefinition> bodies = new Array<>();
+        for(SolarSystemDefinition system : systems){
+            bodies.addAll(system.bodies);
+        }
+        return bodies;
     }
 
     private Planets(){}

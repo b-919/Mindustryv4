@@ -50,6 +50,7 @@ public class ContentLoader{
         new Fx(),
         new ShootFx(),
         new UnitFx(),
+        new CoreFx(),
 
         //items
         new Items(),

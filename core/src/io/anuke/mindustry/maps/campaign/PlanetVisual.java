@@ -57,8 +57,9 @@ public class PlanetVisual{
     public final Vector3 sunDirection = new Vector3(0.82f, 0.34f, 0.48f).nor();
     public float sunDistance = 20f;
     public float sunRadius = 2f;
-    public final Vector3 moonPosition = new Vector3(-4.5f, 3.2f, -6f);
+    public final Vector3 moonPosition = new Vector3();
     public float moonRadius = 0.55f;
+    public final Vector3 orbitPosition = new Vector3();
     public final Color moonColor = new Color(0.55f, 0.62f, 0.78f, 1f);
     public final Color orbitColor = new Color(0.62f, 0.74f, 1f, 0.12f);
     public final Color atmosphereColor = new Color(0.36f, 0.55f, 0.95f, 1f);

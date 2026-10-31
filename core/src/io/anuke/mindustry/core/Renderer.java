@@ -7,11 +7,13 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.PixmapIO;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.BufferUtils;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -37,7 +39,11 @@ import io.anuke.mindustry.game.EventType.WorldLoadGraphicsEvent;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.Teams.BlockPlan;
 import io.anuke.mindustry.graphics.*;
+import io.anuke.mindustry.graphics.planet.PlanetRenderer;
 import io.anuke.mindustry.input.InputHandler;
+import io.anuke.mindustry.maps.SpaceCamera;
+import io.anuke.mindustry.maps.campaign.PlanetDefinition;
+import io.anuke.mindustry.maps.campaign.SolarSystemDefinition;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.Floor;
@@ -82,6 +88,11 @@ public class Renderer extends RendererModule{
 
     private Bloom bloom;
     private boolean lastBloom;
+    /** 3D space/planet background, only created when the current map defines a space camera. */
+    private PlanetRenderer spaceRenderer;
+    private SpaceCamera spaceCamera;
+    private final Vector3 spaceCameraPos = new Vector3();
+    private final Vector3 spaceCameraDir = new Vector3();
     /** Fade factor for destroyed-block rebuild ghosts. */
     private float brokenFade;
 
@@ -176,7 +187,10 @@ public class Renderer extends RendererModule{
 
         //the float scale is the source of truth, so the int mirror starts at its rounded value
         Core.cameraScale = Math.max(1, Math.round(baseCameraScale));
-        Events.on(WorldLoadGraphicsEvent.class, event -> snapToSpawn = true);
+        Events.on(WorldLoadGraphicsEvent.class, event -> {
+            snapToSpawn = true;
+            loadSpaceCamera();
+        });
         Effects.setEffectProvider((effect, color, x, y, rotation, data) -> {
             if(effect == Fx.none) return;
             if(Settings.getBool("effects")){
@@ -439,6 +453,74 @@ public class Renderer extends RendererModule{
         }
     }
 
+    private void loadSpaceCamera(){
+        spaceCamera = world.getMap() == null ? null : SpaceCamera.read(world.getMap().meta.tags);
+
+        if(spaceRenderer != null){
+            spaceRenderer.dispose();
+            spaceRenderer = null;
+        }
+    }
+
+    /** Draws the saved 3D space/planet scene as the background. */
+    private void drawSpaceBackground(){
+        if(spaceCamera == null) return;
+
+        SolarSystemDefinition system = spaceCamera.solarSystem();
+        PlanetDefinition planet = spaceCamera.planetDefinition();
+        if(system == null || planet == null) return;
+
+        if(spaceRenderer == null){
+            spaceRenderer = new PlanetRenderer();
+            spaceRenderer.setSpaceAngles(spaceCamera.planetOrbitAngles, spaceCamera.planetRotationAngles);
+        }
+
+        if(world.getSector() != null){
+            spaceRenderer.setSpaceTime(world.sectors.getPlanetTime());
+        }
+
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+
+        Texture texture;
+        try{
+            if(spaceCamera.attached){
+                if(!spaceRenderer.spaceOrbitPose(system, planet, spaceCamera.lon, spaceCamera.lat, spaceCamera.zoom,
+                        true, spaceCameraPos, spaceCameraDir)){
+                    return;
+                }
+                float yaw = (float)Math.atan2(spaceCameraDir.z, spaceCameraDir.x);
+                float pitch = (float)Math.asin(Mathf.clamp(spaceCameraDir.y, -1f, 1f));
+                texture = spaceRenderer.renderSpaceToTexture(system, w, h,
+                        spaceCameraPos.x, spaceCameraPos.y, spaceCameraPos.z, yaw, pitch);
+            }else{
+                texture = spaceRenderer.renderSpaceToTexture(system, w, h,
+                        spaceCamera.x, spaceCamera.y, spaceCamera.z, spaceCamera.yaw, spaceCamera.pitch);
+            }
+        }catch(Throwable t){
+            Log.err("Failed to render the space background; disabling it for this map.");
+            Log.err(t);
+            spaceCamera = null;
+            if(spaceRenderer != null){
+                spaceRenderer.dispose();
+                spaceRenderer = null;
+            }
+            return;
+        }
+
+        if(texture == null) return;
+        if(Graphics.drawing()){
+            Graphics.end();
+        }
+        pixelSurface.begin(false, true);
+        batch.setProjectionMatrix(camera.combined);
+        Graphics.begin();
+
+        Draw.color();
+        Draw.rect(texture, camera.position.x, camera.position.y, camera.viewportWidth, -camera.viewportHeight);
+        Draw.reset();
+    }
+
     @Override
     public void draw(){
         PerfCounter.render.begin();
@@ -480,6 +562,8 @@ public class Renderer extends RendererModule{
         drawAndInterpolate(puddleGroup);
         drawAndInterpolate(groundEffectGroup, e -> !(e instanceof BelowLiquidTrait));
         control.input(0).drawUnderUnitsAndBlocks();
+
+        drawSpaceBackground();
 
         blocks.processBlocks();
         blocks.drawShadows();
@@ -1307,6 +1391,7 @@ public class Renderer extends RendererModule{
         bloomSurface.dispose();
         lavaBloomSurface.dispose();
         if(bloom != null) bloom.dispose();
+        if(spaceRenderer != null) spaceRenderer.dispose();
     }
 
     private void checkPostSettings(){

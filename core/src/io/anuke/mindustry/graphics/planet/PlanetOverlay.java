@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.graphics.Palette;
@@ -22,6 +23,8 @@ import io.anuke.ucore.util.Mathf;
  * sector outlines and the connection arcs.
  */
 public class PlanetOverlay{
+    private static final Matrix4 IDENTITY = new Matrix4();
+
     private final PlanetMap map;
     private final ShaderProgram shader;
 
@@ -79,6 +82,7 @@ public class PlanetOverlay{
 
         shader.begin();
         shader.setUniformMatrix("u_proj", params.projection);
+        shader.setUniformMatrix("u_trans", IDENTITY);
         shader.setUniformf("u_alpha", params.gridAlpha);
         gridMesh.render(shader, GL20.GL_LINES);
         shader.end();
@@ -119,6 +123,15 @@ public class PlanetOverlay{
                 alpha = tmpColor.a;
             }
 
+            boolean highlighted = (selected != null && sector == selected) || (hovered != null && sector == hovered);
+            if(!highlighted){
+                float light = Mathf.clamp(sector.light, 0f, 1f);
+                float mul = 0.30f + 0.70f * light;
+                tmpColor.r *= mul;
+                tmpColor.g *= mul;
+                tmpColor.b *= mul;
+            }
+
             if(alpha > 0f){
                 Corner[] corners = region.tile.corners;
                 for(int i = 1; i < corners.length - 1; i++){
@@ -128,7 +141,7 @@ public class PlanetOverlay{
                 }
             }
 
-            if((selected != null && sector == selected) || (hovered != null && sector == hovered)){
+            if(highlighted){
                 tmpColor.set(sector == selected ? Palette.accent : Color.WHITE);
                 tmpColor.a = 0.9f;
                 Corner[] corners = region.tile.corners;
@@ -152,6 +165,7 @@ public class PlanetOverlay{
             overlayMesh.setVertices(overlayVertices, 0, overlayCount);
             shader.begin();
             shader.setUniformMatrix("u_proj", params.projection);
+            shader.setUniformMatrix("u_trans", IDENTITY);
             shader.setUniformf("u_alpha", params.sectorAlpha);
             overlayMesh.render(shader, GL20.GL_TRIANGLES);
             shader.end();
@@ -161,6 +175,7 @@ public class PlanetOverlay{
             highlightMesh.setVertices(lineVertices, 0, lineCount);
             shader.begin();
             shader.setUniformMatrix("u_proj", params.projection);
+            shader.setUniformMatrix("u_trans", IDENTITY);
             shader.setUniformf("u_alpha", params.sectorAlpha);
             highlightMesh.render(shader, GL20.GL_LINES);
             shader.end();
@@ -211,6 +226,7 @@ public class PlanetOverlay{
         arcMesh.setVertices(arcVertices, 0, arcCount);
         shader.begin();
         shader.setUniformMatrix("u_proj", params.projection);
+        shader.setUniformMatrix("u_trans", IDENTITY);
         shader.setUniformf("u_alpha", params.sectorAlpha);
         arcMesh.render(shader, GL20.GL_LINES);
         shader.end();

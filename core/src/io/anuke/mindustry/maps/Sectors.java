@@ -14,8 +14,10 @@ import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.maps.campaign.CampaignManager;
 import io.anuke.mindustry.maps.campaign.CampaignRegistry;
 import io.anuke.mindustry.maps.campaign.CampaignSectorGenerator;
+import io.anuke.mindustry.maps.campaign.PlanetDefinition;
 import io.anuke.mindustry.maps.campaign.PlanetGenerator;
 import io.anuke.mindustry.maps.campaign.PlanetMap;
+import io.anuke.mindustry.maps.campaign.PlanetOrbit;
 import io.anuke.mindustry.maps.campaign.PlanetMap.Region;
 import io.anuke.mindustry.io.SaveIO;
 import io.anuke.mindustry.maps.generation.WorldGenerator;
@@ -27,6 +29,7 @@ import io.anuke.mindustry.maps.missions.Mission;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.ColorMapper;
+import io.anuke.mindustry.world.blocks.storage.CoreBlock;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.mindustry.world.blocks.Rock;
 import io.anuke.ucore.core.Settings;
@@ -41,9 +44,39 @@ public class Sectors {
     private final ObjectMap<String, GridMap<Sector>> campaignGrids = new ObjectMap<>();
     /** Incremented whenever campaign sector state changes; renderers can use this to refresh. */
     private int version;
+    /** Shared planet/orbit time for the active campaign, in seconds. Advanced while playing. */
+    private float planetTime;
 
     public int version(){
         return version;
+    }
+
+    public float getPlanetTime(){
+        return planetTime;
+    }
+
+    public void setPlanetTime(float time){
+        planetTime = time;
+    }
+
+    public void advancePlanetTime(float seconds){
+        planetTime += seconds;
+    }
+
+    public void updateSectorLight(Sector sector){
+        PlanetDefinition planet = CampaignRegistry.planetForCampaign(activeCampaign);
+        if(sector != null && planet != null){
+            sector.light = PlanetOrbit.sectorLight(planet, sector, planetTime);
+        }
+    }
+
+    public void updateAllSectorLights(){
+        PlanetDefinition planet = CampaignRegistry.planetForCampaign(activeCampaign);
+        if(planet == null) return;
+
+        for(Sector sector : activeGrid().values()){
+            sector.light = PlanetOrbit.sectorLight(planet, sector, planetTime);
+        }
     }
     private Array<Item> cachedOres = null;
     private String cachedOreTech = null;
@@ -84,6 +117,8 @@ public class Sectors {
             }
             world.sectors.save();
             world.setSector(sector);
+            startPlanetCycle(sector);
+            //if(!headless) CoreBlock.startLandingForTeam(defaultTeam);
             if (!sector.complete) sector.currentMission().onBegin();
         } else if (SaveIO.breakingVersions.contains(sector.getSave().getBuild())) {
             ui.showInfo("$text.save.old");
@@ -91,6 +126,7 @@ public class Sectors {
             sector.getSave().load();
             world.setSector(sector);
             state.set(State.playing);
+            startPlanetCycle(sector);
             if (!sector.complete) sector.currentMission().onBegin();
         } catch (Exception e) {
             Log.err(e);
@@ -102,6 +138,15 @@ public class Sectors {
                 threads.runGraphics(() -> ui.showError("$text.sector.corrupted"));
             }
         }
+    }
+
+    /** Sector maps use the planet's sun/rotation state instead of the automatic day/night cycle. */
+    private void startPlanetCycle(Sector sector){
+        updateSectorLight(sector);
+        if(weather != null){
+            weather.setDayNight(false);
+        }
+        state.darkness = Mathf.clamp(1f - sector.light, 0f, 1f);
     }
 
     /** If a sector is not yet unlocked, returns null. */
@@ -282,6 +327,8 @@ public class Sectors {
             }
         }
 
+        updateAllSectorLights();
+        Settings.putFloat("sector-planet-time-" + activeCampaign, planetTime);
         Settings.putObject(campaignSettingsKey(activeCampaign), out);
         launchManager.save();
         Settings.save();
@@ -297,11 +344,12 @@ public class Sectors {
     }
 
     public void refreshSectorPreview(Sector sector){
-        //2D sector previews are no longer used
+        updateSectorLight(sector);
+        save();
     }
 
     public void refreshActiveCampaignPreviews(){
-        //2D sector previews are no longer used
+        updateAllSectorLights();
     }
 
     private void initSector(Sector sector) {
@@ -373,10 +421,11 @@ public class Sectors {
     }
 
     private String campaignSettingsKey(String campaignName){
-        return "sector-data-3-" + campaignName;
+        return "sector-data-4-" + campaignName;
     }
 
     private void loadCampaignSectors(String campaignName){
+        planetTime = Settings.getFloat("sector-planet-time-" + campaignName, 0f);
         GridMap<Sector> grid = campaignGrids.get(campaignName);
         if(grid == null){
             grid = new GridMap<>();

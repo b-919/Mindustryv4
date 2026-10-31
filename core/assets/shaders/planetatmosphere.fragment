@@ -24,6 +24,7 @@ varying vec3 v_world;
 varying vec3 v_normal;
 
 uniform vec3 u_campos;
+uniform vec3 u_center;
 uniform vec3 u_light;
 uniform vec3 u_color;
 uniform float u_inner;
@@ -93,7 +94,7 @@ vec3 inScatter(vec3 eye, vec3 ray, vec2 bound, vec3 light){
 }
 
 void main(){
-    vec3 eye = u_campos;
+    vec3 eye = u_campos - u_center;
     vec3 ray = normalize(v_world - u_campos);
 
     vec2 bound = intersectSphere(eye, ray, u_outer);

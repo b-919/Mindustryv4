@@ -12,6 +12,7 @@ import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.maps.generation.ChunkManager;
 import io.anuke.mindustry.maps.generation.OpenWorldSaveManager;
 import io.anuke.mindustry.world.Tile;
+import io.anuke.mindustry.world.blocks.storage.CoreBlock;
 import io.anuke.ucore.core.Events;
 import io.anuke.ucore.core.Settings;
 import io.anuke.ucore.util.Mathf;
@@ -230,6 +231,8 @@ public class OpenWorldStartDialog extends FloatingDialog{
             Events.fire(new WorldLoadEvent());
 
             logic.play();
+            //Core landing animation is disabled for now.
+            //CoreBlock.startLandingForTeam(Team.blue);
         });
     }
 

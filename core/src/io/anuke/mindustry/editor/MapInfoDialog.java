@@ -10,6 +10,7 @@ import io.anuke.ucore.scene.ui.TextField;
 
 public class MapInfoDialog extends FloatingDialog{
     private final MapEditor editor;
+    private final SpaceCameraDialog spaceCamera;
 
     private TextArea description;
     private TextField author;
@@ -18,6 +19,7 @@ public class MapInfoDialog extends FloatingDialog{
     public MapInfoDialog(MapEditor editor){
         super("$text.editor.mapinfo");
         this.editor = editor;
+        this.spaceCamera = new SpaceCameraDialog(editor);
 
         addCloseButton();
 
@@ -70,6 +72,9 @@ public class MapInfoDialog extends FloatingDialog{
 
         content().row();
         content().add("$text.editor.oregen.info").color(Color.GRAY).wrap().width(400f).left();
+
+        content().row();
+        content().addButton("Space Camera", () -> spaceCamera.show()).size(400f, 55f).left();
 
         name.change();
         description.change();

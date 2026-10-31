@@ -17,6 +17,7 @@ import io.anuke.mindustry.maps.campaign.PlanetDefinition;
 import io.anuke.mindustry.maps.campaign.PlanetGenerator;
 import io.anuke.mindustry.maps.campaign.PlanetMap;
 import io.anuke.mindustry.maps.campaign.PlanetMap.Region;
+import io.anuke.mindustry.maps.campaign.PlanetOrbit;
 import io.anuke.mindustry.maps.campaign.PlanetVisual;
 import io.anuke.ucore.noise.Simplex;
 import io.anuke.ucore.util.Mathf;
@@ -39,6 +40,7 @@ public class PlanetModel implements Disposable{
     public final AtmosphereMesh atmosphere;
     public final CloudMesh[] clouds;
     public final OrbitMesh[] orbits;
+    public final PlanetDefinition[] orbitParents;
     public final SunMesh sun;
     public final MoonMesh moon;
     public final PlanetOverlay overlay;
@@ -50,6 +52,7 @@ public class PlanetModel implements Disposable{
 
     private final Simplex cloudNoise = new Simplex(0x5e7f31);
     private final Simplex glowNoise = new Simplex(0x51c3a9);
+    private final Array<PlanetDefinition> orbitParentList = new Array<>();
 
     public static PlanetModel build(PlanetDefinition planet, PlanetShaders shaders){
         PlanetMap map = CampaignRegistry.planetMap(planet.campaign);
@@ -130,6 +133,7 @@ public class PlanetModel implements Disposable{
         }
 
         orbits = buildOrbits(shaders);
+        orbitParents = orbitParentList.toArray(PlanetDefinition.class);
         sun = SunMesh.create(sunVisual, cloudNoise, shaders.sun);
         moon = new MoonMesh(buildMoonMesh(moonVisual), shaders.planet);
 
@@ -139,6 +143,7 @@ public class PlanetModel implements Disposable{
 
     private OrbitMesh[] buildOrbits(PlanetShaders shaders){
         Array<OrbitMesh> rings = new Array<>();
+        orbitParentList.clear();
 
         if(planet.displayOrbit && planet.parent != null){
             addOrbit(rings, planet, shaders);
@@ -156,11 +161,13 @@ public class PlanetModel implements Disposable{
     }
 
     private void addOrbit(Array<OrbitMesh> rings, PlanetDefinition body, PlanetShaders shaders){
-        Vector3 bodyPos = system.positionOf(body);
-        Vector3 parentPos = system.positionOf(body.parent);
-        if(bodyPos == null || parentPos == null) return;
+        Vector3 base = new Vector3();
+        Vector3 tangent = new Vector3();
+        PlanetOrbit.orbitBasis(body, base, tangent);
+        float radius = PlanetOrbit.orbitRadius(body);
 
-        rings.add(OrbitMesh.create(parentPos, bodyPos, body.visual.orbitColor, shaders.overlay));
+        rings.add(OrbitMesh.createLocal(radius, base, tangent, body.visual.orbitColor, shaders.overlay));
+        orbitParentList.add(body.parent);
     }
 
     private Mesh buildCloudMesh(CloudDef def, int divisions){

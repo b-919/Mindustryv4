@@ -55,7 +55,7 @@ public class Blocks extends BlockList implements ContentList{
             placeableOn = false;
             variants = 0;
             cacheLayer = CacheLayer.space;
-            solid = true;
+            //solid = true;
             blend = false;
             minimapColor = Color.valueOf("000001");
         }};

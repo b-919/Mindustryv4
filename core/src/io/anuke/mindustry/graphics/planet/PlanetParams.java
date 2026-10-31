@@ -21,6 +21,10 @@ public class PlanetParams{
     public float time;
     /** Accumulated cloud rotation in radians. */
     public float cloudRotation;
+    /** Frame delta used to integrate per-layer cloud rotation. */
+    public float cloudDelta;
+    /** Per-planet multiplier for cloud rotation; 0 freezes clouds. */
+    public float cloudSpeedMultiplier = 1f;
 
     /** Zoom-dependent alphas. */
     public float gridAlpha = 1f, sectorAlpha = 1f, cloudAlpha = 0f, atmosphereAlpha = 0f;

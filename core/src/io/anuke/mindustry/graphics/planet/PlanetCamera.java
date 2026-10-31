@@ -23,4 +23,19 @@ public class PlanetCamera{
         cam.viewportHeight = height;
         cam.update();
     }
+
+    /** Free-camera mode: explicit position and look direction, no orbit target. */
+    public void updateFree(int width, int height, float x, float y, float z, float yaw, float pitch, float fov){
+        float cp = MathUtils.cos(pitch);
+
+        cam.position.set(x, y, z);
+        cam.direction.set(cp * MathUtils.cos(yaw), MathUtils.sin(pitch), cp * MathUtils.sin(yaw)).nor();
+        cam.up.set(0f, 1f, 0f);
+        cam.near = 0.1f;
+        cam.far = 500f;
+        cam.fieldOfView = fov;
+        cam.viewportWidth = width;
+        cam.viewportHeight = height;
+        cam.update();
+    }
 }

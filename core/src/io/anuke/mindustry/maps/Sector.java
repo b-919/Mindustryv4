@@ -22,6 +22,8 @@ public class Sector{
     public boolean complete;
     /**Whether this sector's terrain has been infected by biomass. Persisted across sessions.*/
     public boolean infected;
+    /**Stored campaign-view lighting: 0 = dark side, 1 = fully facing the sun.*/
+    public float light = 1f;
     /**Slot ID of this sector's save. -1 means no save has been created.*/
     public int saveID = -1;
     /**Num of missions in this sector that have been completed so far.*/

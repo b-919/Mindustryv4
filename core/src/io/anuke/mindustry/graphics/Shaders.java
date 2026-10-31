@@ -5,6 +5,8 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Texture.TextureFilter;
+import com.badlogic.gdx.graphics.Texture.TextureWrap;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import io.anuke.ucore.core.Core;
 import io.anuke.ucore.core.Timers;
@@ -150,15 +152,26 @@ public class Shaders{
     }
 
     public static class Space extends SurfaceShader{
+        public final Texture stars;
 
         public Space(){
-            super("space2");
+            super("space");
+
+            stars = new Texture(Gdx.files.internal("sprites/space.png"), true);
+            stars.setFilter(TextureFilter.MipMapLinearLinear, TextureFilter.Linear);
+            stars.setWrap(TextureWrap.MirroredRepeat, TextureWrap.MirroredRepeat);
         }
 
         @Override
         public void apply(){
-            super.apply();
-            shader.setUniformf("u_center", world.width() * tilesize / 2f, world.height() * tilesize / 2f);
+            shader.setUniformf("u_campos", Core.camera.position.x, Core.camera.position.y);
+            shader.setUniformf("u_ccampos", Core.camera.position);
+            shader.setUniformf("u_resolution", Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            shader.setUniformf("u_time", Timers.time());
+
+            stars.bind(1);
+            shader.setUniformi("u_stars", 1);
+            Gdx.gl.glActiveTexture(GL20.GL_TEXTURE0);
         }
     }
 

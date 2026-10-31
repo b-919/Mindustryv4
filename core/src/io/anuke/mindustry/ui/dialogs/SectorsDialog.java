@@ -101,6 +101,7 @@ public class SectorsDialog extends FloatingDialog{
         teardown3dScene();
         selected = null;
         selectedPlanet = CampaignRegistry.planetForCampaign(world.sectors.getActiveCampaign());
+        world.sectors.updateAllSectorLights();
 
         sectorTable.clear();
         campaignTable.clear();
@@ -132,6 +133,7 @@ public class SectorsDialog extends FloatingDialog{
                     world.sectors.setActiveCampaign(planet.campaign);
                     selectedPlanet = planet;
                     selected = null;
+                    world.sectors.updateAllSectorLights();
                     sectorTable.clear();
                     view.resetCamera();
                     view.rebuildPlanetModels();
@@ -240,7 +242,7 @@ public class SectorsDialog extends FloatingDialog{
     class SectorView extends Element{
         float lastX, lastY;
         float rotLon = 0f, rotLat = 0f;
-        float zoom = 1f;
+        float zoom = 1f, targetZoom = 1f;
         float pendingScroll = 0f;
         float downX, downY;
         boolean dragged;
@@ -253,6 +255,7 @@ public class SectorsDialog extends FloatingDialog{
             rotLon = 0f;
             rotLat = 0f;
             zoom = 1f;
+            targetZoom = 1f;
         }
 
         void rebuildPlanetModels(){
@@ -262,21 +265,36 @@ public class SectorsDialog extends FloatingDialog{
 
         SectorView(){
             addListener(new InputListener(){
-                float lastZoomDistance = -1f;
+                float pinchStartDistance = -1f;
+                float pinchStartZoom = 1f;
+
+                void updatePinch(){
+                    if(pinchStartDistance <= 0f) return;
+
+                    float newDistance = Vector2.dst(Gdx.input.getX(0), Gdx.input.getY(0),
+                        Gdx.input.getX(1), Gdx.input.getY(1));
+
+                    targetZoom = Mathf.clamp(pinchStartZoom * pinchStartDistance / Math.max(1f, newDistance), 0.75f, 2.1f);
+                    zoom = targetZoom;
+                    dragged = true;
+                }
 
                 @Override
                 public boolean touchDown(InputEvent event, float x, float y, int pointer, int button){
                     if(pointer > 1) return false;
+
+                    if(pointer == 1){
+                        pinchStartDistance = Vector2.dst(Gdx.input.getX(0), Gdx.input.getY(0), Gdx.input.getX(1), Gdx.input.getY(1));
+                        pinchStartZoom = zoom;
+                        dragged = true;
+                        return true;
+                    }
                     lastX = x;
                     lastY = y;
                     downX = x;
                     downY = y;
                     dragged = false;
                     pendingClick = false;
-
-                    if(pointer == 1){
-                        lastZoomDistance = Vector2.dst(Gdx.input.getX(0), Gdx.input.getY(0), Gdx.input.getX(1), Gdx.input.getY(1));
-                    }
 
                     return true;
                 }
@@ -286,13 +304,12 @@ public class SectorsDialog extends FloatingDialog{
                     if(pointer > 1) return;
 
                     if(pointer == 1){
-                        float newDistance = Vector2.dst(Gdx.input.getX(0), Gdx.input.getY(0), Gdx.input.getX(1), Gdx.input.getY(1));
-                        if(lastZoomDistance > 0){
-                            float amount = (newDistance - lastZoomDistance) * 0.01f;
-                            pendingScroll -= amount;
-                        }
-                        lastZoomDistance = newDistance;
-                        dragged = true;
+                        updatePinch();
+                        return;
+                    }
+
+                    if(pinchStartDistance > 0f){
+                        updatePinch();
                         return;
                     }
 
@@ -321,7 +338,7 @@ public class SectorsDialog extends FloatingDialog{
                         pendingClick = !dragged;
                     }
                     if(pointer == 1){
-                        lastZoomDistance = -1f;
+                        pinchStartDistance = -1f;
                     }
                     Cursors.restoreCursor();
                 }
@@ -331,8 +348,13 @@ public class SectorsDialog extends FloatingDialog{
         @Override
         public void draw(){
             if(pendingScroll != 0f){
-                zoom = Mathf.clamp(zoom + pendingScroll, 0.75f, 2.1f);
+                targetZoom = Mathf.clamp(targetZoom + pendingScroll, 0.75f, 2.1f);
                 pendingScroll = 0f;
+            }
+
+            zoom = Mathf.lerpDelta(zoom, targetZoom, 0.4f);
+            if(Mathf.in(zoom, targetZoom, 0.001f)){
+                zoom = targetZoom;
             }
 
             Draw.color(0.02f, 0.03f, 0.06f, 1f);
@@ -342,7 +364,8 @@ public class SectorsDialog extends FloatingDialog{
             PlanetDefinition planet = selectedPlanet == null ? CampaignRegistry.planetForCampaign(world.sectors.getActiveCampaign()) : selectedPlanet;
             PlanetHover hovered;
             try{
-                hovered = planetRenderer.render(x, y, width, height, planet, rotLon, rotLat, zoom, selected);
+                hovered = planetRenderer.render(x, y, width, height, planet, rotLon, rotLat, zoom, selected,
+                    world.sectors.getPlanetTime());
                 meshFailed = false;
             }catch(Throwable t){
                 if(!meshFailed){

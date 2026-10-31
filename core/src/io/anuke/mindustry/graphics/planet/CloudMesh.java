@@ -12,6 +12,7 @@ public class CloudMesh implements GenericMesh{
     private final float speed;
     private final ShaderProgram shader;
     private final Matrix4 transform = new Matrix4();
+    private float angle;
 
     public CloudMesh(Mesh mesh, float speed, ShaderProgram shader){
         this.mesh = mesh;
@@ -20,8 +21,17 @@ public class CloudMesh implements GenericMesh{
     }
 
     @Override
-    public void render(PlanetParams params, Matrix4 ignored){
-        transform.setToRotation(Vector3.Y, params.cloudRotation * speed);
+    public void render(PlanetParams params, Matrix4 bodyTransform){
+        angle += params.cloudDelta * speed * params.cloudSpeedMultiplier;
+        angle %= 360f;
+        if(angle < 0f) angle += 360f;
+
+        if(bodyTransform == null){
+            transform.idt();
+        }else{
+            transform.set(bodyTransform);
+        }
+        transform.rotate(Vector3.Y, angle);
 
         shader.begin();
         shader.setUniformMatrix("u_proj", params.projection);

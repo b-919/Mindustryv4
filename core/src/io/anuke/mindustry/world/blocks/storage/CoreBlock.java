@@ -3,11 +3,14 @@ package io.anuke.mindustry.world.blocks.storage;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Interpolation;
 import io.anuke.annotations.Annotations.Loc;
 import io.anuke.annotations.Annotations.Remote;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.UnitTypes;
+import io.anuke.mindustry.content.fx.CoreFx;
 import io.anuke.mindustry.content.fx.Fx;
+import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.Unit;
@@ -30,6 +33,7 @@ import io.anuke.ucore.core.Graphics;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Lines;
+import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.EnumSet;
 import io.anuke.ucore.util.Mathf;
 
@@ -45,8 +49,16 @@ public class CoreBlock extends StorageBlock{
 
     protected TextureRegion openRegion;
     protected TextureRegion topRegion;
+    public TextureRegion thruster1, thruster2;
     public Sound buildPlayerSound;
     public String buildPlayerSoundName;
+    //TODO finish someday but not here
+    public float landDuration = 160f;
+    public float landShake = 5f;
+    public float thrusterLength = 14f / 4f;
+    public String landSoundName = "explosionArtilleryShock";
+
+    private static final float[] thrusterSizes = {0f, 0f, 0f, 0f, 0.3f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 0f};
 
     public CoreBlock(String name){
         super(name);
@@ -123,6 +135,27 @@ public class CoreBlock extends StorageBlock{
     @Override
     public void placed(Tile tile){
         state.teams.get(tile.getTeam()).cores.add(tile);
+        //Core landing animation is disabled for now; see ai_audit/CORE_LANDING_ANIMATION.md.
+        //startLanding(tile);
+    }
+
+    public void startLanding(Tile tile){
+        if(headless || tile == null || !(tile.entity instanceof CoreEntity)) return;
+
+        CoreEntity entity = tile.entity();
+        entity.landing = 1f;
+        entity.thrusterTime = 0f;
+        entity.landParticleTimer = 0f;
+        entity.landImpacted = false;
+    }
+    public static void startLandingForTeam(Team team){
+        if(headless || team == null) return;
+
+        for(Tile tile : state.teams.get(team).cores){
+            if(tile.block() instanceof CoreBlock){
+                ((CoreBlock)tile.block()).startLanding(tile);
+            }
+        }
     }
 
     @Override
@@ -152,11 +185,18 @@ public class CoreBlock extends StorageBlock{
 
         openRegion = Draw.region(name + "-open");
         topRegion = Draw.region(name + "-top");
+        thruster1 = Draw.region(name + "-thruster1");
+        thruster2 = Draw.region(name + "-thruster2");
     }
 
     @Override
     public void draw(Tile tile){
         CoreEntity entity = tile.entity();
+
+        /*if(entity.landing > 0f || entity.thrusterTime > 0f){
+            drawLanding(tile, entity);
+            return;
+        }*/
 
         Draw.rect(entity.solid ? Draw.region(name) : openRegion, tile.drawx(), tile.drawy());
 
@@ -189,6 +229,91 @@ public class CoreBlock extends StorageBlock{
 
             Draw.reset();
         }
+    }
+
+    private void drawLanding(Tile tile, CoreEntity entity){
+        float x = tile.drawx(), y = tile.drawy();
+        TextureRegion base = Draw.region(name);
+        float w = base.getRegionWidth(), h = base.getRegionHeight();
+        float land = Mathf.clamp(entity.landing);
+        float fin = 1f - land;
+        float offset = Interpolation.pow3Out.apply(land) * tilesize * 8f;
+        float rotation = Interpolation.pow2In.apply(land) * 135f;
+        float frame = fin >= 0.25f ? 1f : fin / 0.25f;
+        float strength = sampleThruster(fin);
+
+        if(land > 0f){
+            Draw.color(0f, 0f, 0f, 0.30f * land);
+            float shadow = size * tilesize * (2.2f + land * 1.4f);
+            Draw.rect("circle", x, y, shadow, shadow);
+            Draw.reset();
+
+            if(strength > 0.01f && thruster1 != null && thruster2 != null){
+                drawLandingThrusters(x, y + offset, rotation, frame, strength, 0);
+                Draw.rect(base, x, y + offset, w, h, rotation);
+                drawLandingThrusters(x, y + offset, rotation, frame, strength, 1);
+            }else{
+                Draw.rect(base, x, y + offset, w, h, rotation);
+            }
+
+            if(topRegion != null){
+                Draw.alpha(1f);
+                Draw.rect(topRegion, x, y + offset, w, h, rotation);
+            }
+        }else{
+            if(entity.thrusterTime > 0f && thruster1 != null && thruster2 != null){
+                drawThrusters(x, y, entity.thrusterTime);
+            }
+
+            Draw.rect(entity.solid ? base : openRegion, x, y);
+            if(topRegion != null){
+                Draw.alpha(entity.heat);
+                Draw.rect(topRegion, x, y);
+            }
+        }
+
+        Draw.reset();
+    }
+
+    private void drawLandingThrusters(float x, float y, float rotation, float frame, float strength, int pass){
+        float length = thrusterLength * (frame - 1f) - 0.25f;
+
+        for(int i = 0; i < 4; i++){
+            TextureRegion reg = i >= 2 ? thruster2 : thruster1;
+            float rot = i * 90f + rotation % 90f;
+            float dx = Angles.trnsx(rot, length);
+            float dy = Angles.trnsy(rot, length);
+
+            if(pass == 1){
+                float nx = dy, ny = -dx;
+                dx = nx;
+                dy = ny;
+                rot -= 90f;
+                Draw.alpha((rotation % 90f) / 90f * strength);
+            }else{
+                Draw.alpha(strength);
+            }
+
+            Draw.rect(reg, x + dx, y + dy, rot);
+        }
+
+        Draw.alpha(1f);
+    }
+
+    private void drawThrusters(float x, float y, float frame){
+        float length = thrusterLength * (frame - 1f) - 0.25f;
+
+        for(int i = 0; i < 4; i++){
+            TextureRegion reg = i >= 2 ? thruster2 : thruster1;
+            Draw.rect(reg, x + Angles.trnsx(i * 90f, length), y + Angles.trnsy(i * 90f, length), i * 90f);
+        }
+    }
+
+    private static float sampleThruster(float progress){
+        float f = Mathf.clamp(progress, 0f, 1f) * (thrusterSizes.length - 1);
+        int i = (int)f;
+        int j = Math.min(i + 1, thrusterSizes.length - 1);
+        return Mathf.lerp(thrusterSizes[i], thrusterSizes[j], f - i);
     }
 
     @Override
@@ -240,6 +365,8 @@ public class CoreBlock extends StorageBlock{
     public void update(Tile tile){
         CoreEntity entity = tile.entity();
 
+        //updateLanding(tile, entity);
+
         if(!entity.solid && !Units.anyEntities(tile)){
             Call.setCoreSolid(tile, true);
         }
@@ -281,6 +408,59 @@ public class CoreBlock extends StorageBlock{
         }
     }
 
+    private void updateLanding(Tile tile, CoreEntity entity){
+        if(entity.landing > 0f){
+            entity.landing = Mathf.clamp(entity.landing - entity.delta() / landDuration, 0f, 1f);
+            entity.landParticleTimer += entity.delta() * (1f + (1f - entity.landing) * 3f);
+
+            if(entity.landParticleTimer >= 1f){
+                entity.landParticleTimer = 0f;
+                spawnLandingDust(tile, 1);
+            }
+
+            if(entity.landing <= 0f && !entity.landImpacted){
+                entity.landImpacted = true;
+                landImpact(tile);
+            }
+        }
+
+        if(entity.thrusterTime > 0f){
+            entity.thrusterTime = Mathf.clamp(entity.thrusterTime - entity.delta() / 90f, 0f, 1f);
+        }
+    }
+
+    private void landImpact(Tile tile){
+        float x = tile.drawx(), y = tile.drawy();
+
+        Effects.effect(CoreFx.coreLand, x, y, size);
+        Effects.shake(landShake, landShake, x, y);
+        spawnLandingDust(tile, 8);
+
+        if(tile.entity instanceof CoreEntity){
+            ((CoreEntity)tile.entity).thrusterTime = 1f;
+        }
+
+        if(Vars.soundController != null){
+            Sound sound = Sounds.get(landSoundName);
+            if(sound != null){
+                Vars.soundController.at(sound, x, y, 1.1f, 0.8f);
+            }
+        }
+    }
+
+    private void spawnLandingDust(Tile tile, int count){
+        Color color = tile.floor().minimapColor;
+        if(color.a < 0.01f){
+            color = Palette.lightishGray;
+        }
+
+        for(int i = 0; i < count; i++){
+            float x = tile.drawx() + Mathf.range(size * tilesize / 2f);
+            float y = tile.drawy() + Mathf.range(size * tilesize / 2f);
+            Effects.effect(CoreFx.coreLandDust, color, x, y, Mathf.random(360f));
+        }
+    }
+
     @Override
     public TileEntity newEntity(){
         return new CoreEntity();
@@ -294,6 +474,10 @@ public class CoreBlock extends StorageBlock{
         float progress;
         float time;
         float heat;
+        float landing;
+        float thrusterTime;
+        float landParticleTimer;
+        boolean landImpacted;
 
         @Override
         public void updateSpawning(Unit unit){

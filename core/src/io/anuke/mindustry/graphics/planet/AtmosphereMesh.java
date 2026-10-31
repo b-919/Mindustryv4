@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Vector3;
 
 /** Additive atmospheric shell around the planet. */
 public class AtmosphereMesh implements GenericMesh{
@@ -15,6 +16,7 @@ public class AtmosphereMesh implements GenericMesh{
     private final float innerRadius, outerRadius;
     private final float alphaScale, intensity;
     private final Color color;
+    private final Vector3 center = new Vector3();
 
     public AtmosphereMesh(Mesh mesh, ShaderProgram shader, float innerRadius, float outerRadius,
                           float alphaScale, float intensity, Color color){
@@ -31,7 +33,13 @@ public class AtmosphereMesh implements GenericMesh{
     public void render(PlanetParams params, Matrix4 transform){
         shader.begin();
         shader.setUniformMatrix("u_proj", params.projection);
-        shader.setUniformMatrix("u_trans", IDENTITY);
+        shader.setUniformMatrix("u_trans", transform == null ? IDENTITY : transform);
+        if(transform != null){
+            transform.getTranslation(center);
+        }else{
+            center.setZero();
+        }
+        shader.setUniformf("u_center", center.x, center.y, center.z);
         shader.setUniformf("u_light", params.light.x, params.light.y, params.light.z);
         shader.setUniformf("u_campos", params.camPos.x, params.camPos.y, params.camPos.z);
         shader.setUniformf("u_color", color.r, color.g, color.b);

@@ -8,10 +8,26 @@ public class PlanetDefinition{
     public final int gridLongitude, gridLatitude;
     public final int subdivisions;
 
+    /** Solar system this body belongs to. Set when the body is added to its system. */
+    public SolarSystemDefinition system;
     /** Parent body in the solar system. Null for the root sun. */
     public PlanetDefinition parent;
     /** Render radius in world units. */
     public float radius = 1f;
+
+    // orbit controller.
+    /** Starting offset around the orbit axis, in degrees. */
+    public float orbitStart = 0f;
+    /** Orbit plane tilt in degrees. 0 orbits around the parent's Y axis. */
+    public float orbitTilt = 0f;
+    /** Orbit angular speed in degrees per second. Negative reverses the direction. */
+    public float orbitSpeed = 0f;
+    /** Planet self-rotation in degrees per second. 0.25 = one 24-minute day/night cycle. */
+    public float rotationSpeed = 0.25f;
+    /** Multiplier for cloud-layer rotation. 0 stops clouds, negative reverses them. */
+    public float cloudRotationMultiplier = 1f;
+    /** Orbit radius override. 0 derives the radius from sunDistance/moonPosition/orbitPosition. */
+    public float orbitDistance = 0f;
     /** Whether this body is a star (unlit/bloomed). */
     public boolean isSun;
     /** Whether this body's orbit ring around its parent is rendered. */
