@@ -110,6 +110,8 @@ public class SettingsMenuDialog extends SettingsDialog{
         menu.row();
         menu.addButton("$text.settings.language", ui.language::show);
         menu.row();
+        menu.addButton("$text.settings.background", () -> new BackgroundCustomizationDialog().show());
+        menu.row();
         menu.addButton("$text.settings.data", this::showDataDialog);
 
         prefs.clearChildren();

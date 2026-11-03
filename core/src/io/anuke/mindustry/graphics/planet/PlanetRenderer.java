@@ -53,6 +53,7 @@ public class PlanetRenderer implements Disposable{
 
     private FrameBuffer buffer;
     private FrameBuffer emissionBuffer;
+    private FrameBuffer outputBuffer;
     private ShaderProgram ps1Shader;
     private Bloom bloom;
     private SpriteBatch bufferBatch;
@@ -107,6 +108,8 @@ public class PlanetRenderer implements Disposable{
 
     /** Whether the next composited frame is allowed to use the PS1/jitter post effects. */
     private boolean postProcessing = true;
+    /** Whether orbit rings are drawn. Callers that own a space camera set this before rendering. */
+    public boolean renderOrbits = true;
 
     private float gridRadius = 1.10f;
     private float atmosphereRadius = 1.24f;
@@ -225,7 +228,7 @@ public class PlanetRenderer implements Disposable{
         try{
             Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
             renderScene(w, h);
-            bloomed = renderBloom(w, h);
+            bloomed = renderBloom(w, h, false);
         }finally{
             Gdx.gl.glDisable(GL20.GL_CULL_FACE);
             Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
@@ -297,7 +300,7 @@ public class PlanetRenderer implements Disposable{
         try{
             Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
             renderScene(w, h);
-            bloomed = renderBloom(w, h);
+            bloomed = renderBloom(w, h, false);
         }finally{
             Gdx.gl.glDisable(GL20.GL_CULL_FACE);
             Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
@@ -671,7 +674,7 @@ public class PlanetRenderer implements Disposable{
         try{
             Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
             renderSpaceScene(w, h);
-            bloomed = renderSpaceBloom(w, h);
+            bloomed = renderSpaceBloom(w, h, false);
         }finally{
             Gdx.gl.glDisable(GL20.GL_CULL_FACE);
             Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
@@ -693,10 +696,18 @@ public class PlanetRenderer implements Disposable{
         }
     }
 
-    /** Renders the space scene into the internal framebuffer and returns its texture. */
+    /** Renders the space scene into an off-screen buffer and returns its post-processed texture. */
     public Texture renderSpaceToTexture(SolarSystemDefinition system, float width, float height,
                                         float camX, float camY, float camZ, float yaw, float pitch){
-        postProcessing = false;
+        return renderSpaceToTexture(system, width, height, camX, camY, camZ, yaw, pitch, true);
+    }
+
+    /** Renders the space scene into an off-screen buffer and returns its post-processed texture.
+     *  @param postEffects whether the PS1 pixelation pass is allowed */
+    public Texture renderSpaceToTexture(SolarSystemDefinition system, float width, float height,
+                                        float camX, float camY, float camZ, float yaw, float pitch,
+                                        boolean postEffects){
+        postProcessing = postEffects;
 
         if(!shaders.isReady()){
             shaders.build();
@@ -726,14 +737,20 @@ public class PlanetRenderer implements Disposable{
         params.light.set(spaceLight);
 
         boolean drawing = Graphics.drawing();
+        boolean scissor = Gdx.gl.glIsEnabled(GL20.GL_SCISSOR_TEST);
 
         if(drawing){
             Graphics.end();
         }
 
+        boolean bloomed = false;
         try{
             Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
             renderSpaceScene(w, h);
+            bloomed = renderSpaceBloom(w, h, true);
+            if(!bloomed){
+                drawFinalToTexture(w, h);
+            }
         }finally{
             Gdx.gl.glDisable(GL20.GL_CULL_FACE);
             Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
@@ -742,12 +759,15 @@ public class PlanetRenderer implements Disposable{
             Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
             Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
             Gdx.gl.glActiveTexture(GL20.GL_TEXTURE0);
+            if(scissor){
+                Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+            }
             if(drawing){
                 Graphics.begin();
             }
         }
 
-        return buffer.getColorBufferTexture();
+        return outputBuffer.getColorBufferTexture();
     }
 
     private void renderSpaceScene(int w, int h){
@@ -799,11 +819,13 @@ public class PlanetRenderer implements Disposable{
             Gdx.gl.glEnable(GL20.GL_BLEND);
             Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
-            for(SpaceOrbit orbit : spaceOrbits){
-                SpaceBody parent = spaceBodyMap.get(orbit.parent);
-                if(parent == null) continue;
-                orbitTransform.setToTranslation(parent.position);
-                orbit.mesh.render(params, orbitTransform);
+            if(renderOrbits){
+                for(SpaceOrbit orbit : spaceOrbits){
+                    SpaceBody parent = spaceBodyMap.get(orbit.parent);
+                    if(parent == null) continue;
+                    orbitTransform.setToTranslation(parent.position);
+                    orbit.mesh.render(params, orbitTransform);
+                }
             }
 
             //clouds, then the atmosphere haze over them
@@ -833,7 +855,7 @@ public class PlanetRenderer implements Disposable{
         }
     }
 
-    private boolean renderSpaceBloom(int width, int height){
+    private boolean renderSpaceBloom(int width, int height, boolean toTexture){
         if(bloom == null || !bloom.isReady() || emissionBuffer == null) return false;
 
         emissionBuffer.begin();
@@ -881,8 +903,13 @@ public class PlanetRenderer implements Disposable{
             bloom.setPS1(false, 0f, 0f);
         }
 
-        Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
-        bloom.render(buffer.getColorBufferTexture(), emissionBuffer.getColorBufferTexture());
+        if(toTexture){
+            bloom.render(buffer.getColorBufferTexture(), emissionBuffer.getColorBufferTexture(), outputBuffer);
+        }else{
+            Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
+            bloom.render(buffer.getColorBufferTexture(), emissionBuffer.getColorBufferTexture());
+        }
+
         return true;
     }
 
@@ -928,9 +955,14 @@ public class PlanetRenderer implements Disposable{
             Graphics.end();
         }
 
+        boolean bloomed = false;
         try{
             Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
             renderScene(w, h);
+            bloomed = renderBloom(w, h, true);
+            if(!bloomed){
+                drawFinalToTexture(w, h);
+            }
         }finally{
             Gdx.gl.glDisable(GL20.GL_CULL_FACE);
             Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
@@ -944,7 +976,39 @@ public class PlanetRenderer implements Disposable{
             }
         }
 
-        return buffer.getColorBufferTexture();
+        return outputBuffer.getColorBufferTexture();
+    }
+
+    /** Copies the raw scene into the output buffer, optionally through the PS1 shader. */
+    private void drawFinalToTexture(int width, int height){
+        outputBuffer.begin();
+        try{
+            Gdx.gl.glViewport(0, 0, width, height);
+            Gdx.gl.glDisable(GL20.GL_BLEND);
+            Gdx.gl.glDisable(GL20.GL_DEPTH_TEST);
+            Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
+            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+            boolean ps1 = ps1Active();
+            if(ps1){
+                int pixelSize = Mathf.clamp(Settings.getInt("planetps1size", 3), 1, 16);
+
+                ps1Shader.begin();
+                ps1Shader.setUniformi("u_texture", 0);
+                ps1Shader.setUniformf("u_resolution", Math.max(1f, width / pixelSize), Math.max(1f, height / pixelSize));
+                ps1Shader.setUniformf("u_levels", 24f);
+                ps1Shader.end();
+            }
+
+            bufferBatch.setProjectionMatrix(tmp.ortho.setToOrtho2D(0, 0, width, height));
+            bufferBatch.setShader(ps1 ? ps1Shader : null);
+            bufferBatch.begin();
+            bufferBatch.draw(buffer.getColorBufferTexture(), 0f, 0f, width, height, 0f, 0f, 1f, 1f);
+            bufferBatch.end();
+            bufferBatch.setShader(null);
+        }finally{
+            outputBuffer.end();
+        }
     }
 
     /** Draws the final planet image, optionally through the PS1 pixelation/quantization shader. */
@@ -1064,10 +1128,12 @@ public class PlanetRenderer implements Disposable{
             Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
             model.overlay.renderGrid(params);
-            for(int i = 0; i < model.orbits.length; i++){
-                Vector3 parentPos = model.orbitParents[i] == null ? null : model.system.positionOf(model.orbitParents[i]);
-                orbitTransform.setToTranslation(parentPos == null ? Vector3.Zero : parentPos);
-                model.orbits[i].render(params, orbitTransform);
+            if(renderOrbits){
+                for(int i = 0; i < model.orbits.length; i++){
+                    Vector3 parentPos = model.orbitParents[i] == null ? null : model.system.positionOf(model.orbitParents[i]);
+                    orbitTransform.setToTranslation(parentPos == null ? Vector3.Zero : parentPos);
+                    model.orbits[i].render(params, orbitTransform);
+                }
             }
 
             model.overlay.buildGeometry(params.selected, hover.sector, time);
@@ -1104,7 +1170,7 @@ public class PlanetRenderer implements Disposable{
         }
     }
 
-    private boolean renderBloom(int width, int height){
+    private boolean renderBloom(int width, int height, boolean toTexture){
         if(bloom == null || !bloom.isReady() || emissionBuffer == null) return false;
         emissionBuffer.begin();
         Gdx.gl.glViewport(0, 0, width, height);
@@ -1144,8 +1210,13 @@ public class PlanetRenderer implements Disposable{
             bloom.setPS1(false, 0f, 0f);
         }
 
-        Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
-        bloom.render(buffer.getColorBufferTexture(), emissionBuffer.getColorBufferTexture());
+        if(toTexture){
+            bloom.render(buffer.getColorBufferTexture(), emissionBuffer.getColorBufferTexture(), outputBuffer);
+        }else{
+            Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
+            bloom.render(buffer.getColorBufferTexture(), emissionBuffer.getColorBufferTexture());
+        }
+
         return true;
     }
 
@@ -1196,12 +1267,18 @@ public class PlanetRenderer implements Disposable{
         if(emissionBuffer != null){
             emissionBuffer.dispose();
         }
+        if(outputBuffer != null){
+            outputBuffer.dispose();
+        }
 
         buffer = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, true);
         buffer.getColorBufferTexture().setFilter(TextureFilter.Linear, TextureFilter.Linear);
 
         emissionBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, true);
         emissionBuffer.getColorBufferTexture().setFilter(TextureFilter.Linear, TextureFilter.Linear);
+
+        outputBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, false);
+        outputBuffer.getColorBufferTexture().setFilter(TextureFilter.Linear, TextureFilter.Linear);
 
         PlanetVisual visual = currentPlanet == null ? null : currentPlanet.visual;
 
@@ -1306,6 +1383,7 @@ public class PlanetRenderer implements Disposable{
         if(buffer != null) buffer.dispose();
         if(bloom != null) bloom.dispose();
         if(emissionBuffer != null) emissionBuffer.dispose();
+        if(outputBuffer != null) outputBuffer.dispose();
         if(ps1Shader != null) ps1Shader.dispose();
         if(bufferBatch != null) bufferBatch.dispose();
         if(starTexture != null) starTexture.dispose();
@@ -1314,6 +1392,7 @@ public class PlanetRenderer implements Disposable{
         buffer = null;
         bloom = null;
         emissionBuffer = null;
+        outputBuffer = null;
         ps1Shader = null;
         bufferBatch = null;
         starTexture = null;

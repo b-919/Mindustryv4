@@ -121,6 +121,11 @@ public class Bloom{
 
     /** Applies selective bloom: thresholds from {@code emission} (only bloom sources), blurs, then composites onto {@code scene}. */
     public void render(Texture scene, Texture emission){
+        render(scene, emission, null);
+    }
+
+    /** Like {@link #render(Texture, Texture)}, but draws the composite into {@code target} instead of the screen. */
+    public void render(Texture scene, Texture emission, FrameBuffer target){
         if(!ready) return;
 
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -154,12 +159,20 @@ public class Bloom{
             pingPong1.end();
         }
 
-        // mix the original scene and the blurred threshold onto the current target (screen)
+        if(target != null){
+            target.begin();
+            Gdx.gl.glViewport(0, 0, target.getWidth(), target.getHeight());
+        }
+
         scene.bind(0);
         pingPong1.getColorBufferTexture().bind(1);
         bloomShader.begin();
         quad.render(bloomShader);
         bloomShader.end();
+
+        if(target != null){
+            target.end();
+        }
 
         Gdx.gl.glActiveTexture(GL20.GL_TEXTURE0);
         Gdx.gl.glDepthMask(true);

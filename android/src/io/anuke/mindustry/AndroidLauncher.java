@@ -75,7 +75,15 @@ public class AndroidLauncher extends PatchedAndroidApplication {
 
             @Override
             public void showFileChooser(String text, String content, Consumer<FileHandle> cons, boolean open, String filetype) {
-                chooser = new FileChooser(text, file -> file.extension().equalsIgnoreCase(filetype), open, cons);
+                String[] extensions = filetype.split(",");
+                chooser = new FileChooser(text, file -> {
+                    for(String extension : extensions){
+                        if(file.extension().equalsIgnoreCase(extension)){
+                            return true;
+                        }
+                    }
+                    return false;
+                }, open, cons);
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
                         checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)) {
                     chooser.show();

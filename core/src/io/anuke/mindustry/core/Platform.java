@@ -107,7 +107,7 @@ public abstract class Platform {
      * @param content Description of the type of files to be loaded
      * @param cons Selection listener
      * @param open Whether to open or save files
-     * @param filetype File extension to filter
+     * @param filetype File extension(s) to filter, comma-separated
      */
     public void showFileChooser(String text, String content, Consumer<FileHandle> cons, boolean open, String filetype){}
 

@@ -464,24 +464,27 @@ public class Renderer extends RendererModule{
     private void drawSpaceBackground(){
         if(spaceCamera == null) return;
 
-        SolarSystemDefinition system = spaceCamera.solarSystem();
-        PlanetDefinition planet = spaceCamera.planetDefinition();
-        if(system == null || planet == null) return;
-
-        if(spaceRenderer == null){
-            spaceRenderer = new PlanetRenderer();
-            spaceRenderer.setSpaceAngles(spaceCamera.planetOrbitAngles, spaceCamera.planetRotationAngles);
-        }
-
-        if(world.getSector() != null){
-            spaceRenderer.setSpaceTime(world.sectors.getPlanetTime());
-        }
-
-        int w = Gdx.graphics.getWidth();
-        int h = Gdx.graphics.getHeight();
-
-        Texture texture;
+        spaceCamera.applyOverrides();
         try{
+            SolarSystemDefinition system = spaceCamera.solarSystem();
+            PlanetDefinition planet = spaceCamera.planetDefinition();
+            if(system == null || planet == null) return;
+
+            if(spaceRenderer == null){
+                spaceRenderer = new PlanetRenderer();
+                spaceRenderer.setSpaceAngles(spaceCamera.planetOrbitAngles, spaceCamera.planetRotationAngles);
+            }
+
+            spaceRenderer.renderOrbits = spaceCamera.orbits;
+
+            if(world.getSector() != null){
+                spaceRenderer.setSpaceTime(world.sectors.getPlanetTime());
+            }
+
+            int w = Gdx.graphics.getWidth();
+            int h = Gdx.graphics.getHeight();
+
+            Texture texture;
             if(spaceCamera.attached){
                 if(!spaceRenderer.spaceOrbitPose(system, planet, spaceCamera.lon, spaceCamera.lat, spaceCamera.zoom,
                         true, spaceCameraPos, spaceCameraDir)){
@@ -490,11 +493,23 @@ public class Renderer extends RendererModule{
                 float yaw = (float)Math.atan2(spaceCameraDir.z, spaceCameraDir.x);
                 float pitch = (float)Math.asin(Mathf.clamp(spaceCameraDir.y, -1f, 1f));
                 texture = spaceRenderer.renderSpaceToTexture(system, w, h,
-                        spaceCameraPos.x, spaceCameraPos.y, spaceCameraPos.z, yaw, pitch);
+                        spaceCameraPos.x, spaceCameraPos.y, spaceCameraPos.z, yaw, pitch, spaceCamera.px1);
             }else{
                 texture = spaceRenderer.renderSpaceToTexture(system, w, h,
-                        spaceCamera.x, spaceCamera.y, spaceCamera.z, spaceCamera.yaw, spaceCamera.pitch);
+                        spaceCamera.x, spaceCamera.y, spaceCamera.z, spaceCamera.yaw, spaceCamera.pitch, spaceCamera.px1);
             }
+
+            if(texture == null) return;
+            if(Graphics.drawing()){
+                Graphics.end();
+            }
+            pixelSurface.begin(false, true);
+            batch.setProjectionMatrix(camera.combined);
+            Graphics.begin();
+
+            Draw.color();
+            Draw.rect(texture, camera.position.x, camera.position.y, camera.viewportWidth, -camera.viewportHeight);
+            Draw.reset();
         }catch(Throwable t){
             Log.err("Failed to render the space background; disabling it for this map.");
             Log.err(t);
@@ -503,20 +518,9 @@ public class Renderer extends RendererModule{
                 spaceRenderer.dispose();
                 spaceRenderer = null;
             }
-            return;
+        }finally{
+            SpaceCamera.restoreDefaults();
         }
-
-        if(texture == null) return;
-        if(Graphics.drawing()){
-            Graphics.end();
-        }
-        pixelSurface.begin(false, true);
-        batch.setProjectionMatrix(camera.combined);
-        Graphics.begin();
-
-        Draw.color();
-        Draw.rect(texture, camera.position.x, camera.position.y, camera.viewportWidth, -camera.viewportHeight);
-        Draw.reset();
     }
 
     @Override

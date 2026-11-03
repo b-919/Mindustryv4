@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.ObjectMap;
 import io.anuke.mindustry.graphics.planet.PlanetRenderer;
 import io.anuke.mindustry.maps.SpaceCamera;
 import io.anuke.mindustry.maps.campaign.PlanetDefinition;
@@ -35,7 +36,8 @@ public class SpaceCameraDialog extends FloatingDialog{
     /** Set while this editor is open so the map view does not also consume WASD for panning. */
     public static boolean isOpen;
 
-    private final MapEditor editor;
+    private final Supplier<ObjectMap<String, String>> tags;
+    private final Runnable saved;
     private final PlanetRenderer renderer = new PlanetRenderer();
 
     private SpaceCamera camera;
@@ -46,8 +48,17 @@ public class SpaceCameraDialog extends FloatingDialog{
     private final Vector3 dir = new Vector3();
 
     public SpaceCameraDialog(MapEditor editor){
+        this(editor::getTags, () -> {
+            ui.editor.resetSaved();
+            ui.showInfoFade("Space camera saved.");
+        });
+    }
+
+    /** Editor whose save callback stores the camera tags somewhere other than a map. */
+    public SpaceCameraDialog(Supplier<ObjectMap<String, String>> tags, Runnable saved){
         super("Space Camera");
-        this.editor = editor;
+        this.tags = tags;
+        this.saved = saved;
         this.preview = new Preview();
         setBackground((Drawable)null);
         margin(0);
@@ -63,13 +74,16 @@ public class SpaceCameraDialog extends FloatingDialog{
         });
 
         shown(this::setup);
-        hidden(() -> isOpen = false);
+        hidden(() -> {
+            isOpen = false;
+            SpaceCamera.restoreDefaults();
+        });
     }
 
     private void setup(){
         isOpen = true;
 
-        camera = SpaceCamera.read(editor.getTags());
+        camera = SpaceCamera.read(tags.get());
         boolean created = camera == null;
         if(created){
             camera = new SpaceCamera();
@@ -84,6 +98,7 @@ public class SpaceCameraDialog extends FloatingDialog{
             camera.planet = planet.name;
         }
 
+        camera.applyOverrides();
         renderer.setSpaceAngles(camera.planetOrbitAngles, camera.planetRotationAngles);
 
         if(created){
@@ -142,9 +157,10 @@ public class SpaceCameraDialog extends FloatingDialog{
         bottom.addButton("Focus Body", this::resetToPlanet).size(150f, 52f).pad(4f);
         bottom.addButton("Save", () -> {
             renderer.copySpaceAnglesTo(camera.planetOrbitAngles, camera.planetRotationAngles);
-            camera.write(editor.getTags());
-            ui.editor.resetSaved();
-            ui.showInfoFade("Space camera saved.");
+            camera.write(tags.get());
+            if(saved != null){
+                saved.run();
+            }
         }).size(130f, 52f).pad(4f);
 
         overlay.add(bottom).expandX().padBottom(12f);
@@ -182,6 +198,11 @@ public class SpaceCameraDialog extends FloatingDialog{
     private Table buildPlanetControls(){
         Table controls = new Table();
         controls.setTouchable(Touchable.childrenOnly);
+
+        controls.addButton("Orbit Rings: " + (camera.orbits ? "On" : "Off"), () -> {
+            camera.orbits = !camera.orbits;
+            buildUi();
+        }).size(240f, 46f).padBottom(8f).row();
 
         controls.addButton("PX1 Render: " + (camera.px1 ? "On" : "Off"), () -> {
             camera.px1 = !camera.px1;
@@ -270,7 +291,7 @@ public class SpaceCameraDialog extends FloatingDialog{
     private void clearTags(){
         String[] keys = {"system", "planet", "px1", "attached", "x", "y", "z", "yaw", "pitch", "lon", "lat", "zoom"};
         for(String key : keys){
-            editor.getTags().remove(SpaceCamera.PREFIX + key);
+            tags.get().remove(SpaceCamera.PREFIX + key);
         }
         camera = new SpaceCamera();
         camera.attached = false;
@@ -399,6 +420,7 @@ public class SpaceCameraDialog extends FloatingDialog{
 
             try{
                 SolarSystemDefinition system = camera.solarSystem();
+                renderer.renderOrbits = camera.orbits;
 
                 if(camera.attached){
                     if(planet == null || !renderer.spaceOrbitPose(system, planet, camera.lon, camera.lat, camera.zoom,

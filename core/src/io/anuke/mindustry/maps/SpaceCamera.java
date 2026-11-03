@@ -18,10 +18,24 @@ public class SpaceCamera{
     public String planet;
     /** Whether the space preview should use the PS1 post shaders. */
     public boolean px1 = true;
+    /** Whether orbit rings are rendered. */
+    public boolean orbits = true;
 
     /** Stored accumulated orbit/rotation angles, keyed by planet name. */
     public final ObjectMap<String, Float> planetOrbitAngles = new ObjectMap<>();
     public final ObjectMap<String, Float> planetRotationAngles = new ObjectMap<>();
+
+    private final ObjectMap<String, BodyOverrides> overrides = new ObjectMap<>();
+    private static final ObjectMap<PlanetDefinition, Defaults> defaultValues = new ObjectMap<>();
+
+    private static class Defaults{
+        float orbitStart, orbitTilt, orbitSpeed, rotationSpeed, cloudRotationMultiplier, orbitDistance;
+    }
+
+    private static class BodyOverrides{
+        boolean hasOrbitStart, hasOrbitTilt, hasOrbitSpeed, hasRotationSpeed, hasCloudMultiplier, hasOrbitDistance;
+        float orbitStart, orbitTilt, orbitSpeed, rotationSpeed, cloudRotationMultiplier, orbitDistance;
+    }
 
     /** Free-camera position, in scene units. */
     public float x, y, z = 4f;
@@ -41,6 +55,7 @@ public class SpaceCamera{
         camera.system = tags.get(PREFIX + "system");
         camera.planet = tags.get(PREFIX + "planet");
         camera.px1 = !"0".equals(tags.get(PREFIX + "px1", "1"));
+        camera.orbits = !"0".equals(tags.get(PREFIX + "orbits", "1"));
         camera.attached = !"0".equals(tags.get(PREFIX + "attached", "1"));
         camera.x = getFloat(tags, "x", camera.x);
         camera.y = getFloat(tags, "y", camera.y);
@@ -50,34 +65,128 @@ public class SpaceCamera{
         camera.lon = getFloat(tags, "lon", camera.lon);
         camera.lat = getFloat(tags, "lat", camera.lat);
         camera.zoom = getFloat(tags, "zoom", camera.zoom);
-        camera.applyPlanetOverrides(tags);
+        camera.readPlanetOverrides(tags);
         return camera;
     }
 
-    private void applyPlanetOverrides(ObjectMap<String, String> tags){
+    private void readPlanetOverrides(ObjectMap<String, String> tags){
+        overrides.clear();
         SolarSystemDefinition system = solarSystem();
         if(system == null) return;
 
         for(PlanetDefinition body : system.bodies){
-            String prefix = "def." + body.name + ".";
-            body.orbitStart = getFloat(tags, prefix + "orbitStart", body.orbitStart);
-            body.orbitTilt = getFloat(tags, prefix + "orbitTilt", body.orbitTilt);
-            body.orbitSpeed = getFloat(tags, prefix + "orbitSpeed", body.orbitSpeed);
-            body.rotationSpeed = getFloat(tags, prefix + "rotationSpeed", body.rotationSpeed);
-            body.cloudRotationMultiplier = getFloat(tags, prefix + "cloudMultiplier", body.cloudRotationMultiplier);
-            body.orbitDistance = getFloat(tags, prefix + "orbitDistance", body.orbitDistance);
+            String prefix = PREFIX + "def." + body.name + ".";
+            BodyOverrides override = new BodyOverrides();
+            boolean any = false;
+            Float value;
 
-            Float orbitAngle = parseFloat(tags.get(PREFIX + prefix + "orbitAngle"));
-            Float rotationAngle = parseFloat(tags.get(PREFIX + prefix + "rotationAngle"));
+            value = parseFloat(tags.get(prefix + "orbitStart"));
+            if(value != null){
+                override.orbitStart = value;
+                override.hasOrbitStart = true;
+                any = true;
+            }
+            value = parseFloat(tags.get(prefix + "orbitTilt"));
+            if(value != null){
+                override.orbitTilt = value;
+                override.hasOrbitTilt = true;
+                any = true;
+            }
+            value = parseFloat(tags.get(prefix + "orbitSpeed"));
+            if(value != null){
+                override.orbitSpeed = value;
+                override.hasOrbitSpeed = true;
+                any = true;
+            }
+            value = parseFloat(tags.get(prefix + "rotationSpeed"));
+            if(value != null){
+                override.rotationSpeed = value;
+                override.hasRotationSpeed = true;
+                any = true;
+            }
+            value = parseFloat(tags.get(prefix + "cloudMultiplier"));
+            if(value != null){
+                override.cloudRotationMultiplier = value;
+                override.hasCloudMultiplier = true;
+                any = true;
+            }
+            value = parseFloat(tags.get(prefix + "orbitDistance"));
+            if(value != null){
+                override.orbitDistance = value;
+                override.hasOrbitDistance = true;
+                any = true;
+            }
+
+            if(any){
+                overrides.put(body.name, override);
+            }
+
+            Float orbitAngle = parseFloat(tags.get(prefix + "orbitAngle"));
+            Float rotationAngle = parseFloat(tags.get(prefix + "rotationAngle"));
             if(orbitAngle != null) planetOrbitAngles.put(body.name, orbitAngle);
             if(rotationAngle != null) planetRotationAngles.put(body.name, rotationAngle);
         }
+    }
+
+    /** Applies this camera's saved planet overrides to the shared definitions. */
+    public void applyOverrides(){
+        restoreDefaults();
+
+        SolarSystemDefinition system = solarSystem();
+        if(system == null) return;
+
+        for(PlanetDefinition body : system.bodies){
+            defaults(body);
+        }
+
+        for(PlanetDefinition body : system.bodies){
+            BodyOverrides override = overrides.get(body.name);
+            if(override == null) continue;
+
+            if(override.hasOrbitStart) body.orbitStart = override.orbitStart;
+            if(override.hasOrbitTilt) body.orbitTilt = override.orbitTilt;
+            if(override.hasOrbitSpeed) body.orbitSpeed = override.orbitSpeed;
+            if(override.hasRotationSpeed) body.rotationSpeed = override.rotationSpeed;
+            if(override.hasCloudMultiplier) body.cloudRotationMultiplier = override.cloudRotationMultiplier;
+            if(override.hasOrbitDistance) body.orbitDistance = override.orbitDistance;
+        }
+    }
+
+    /** Restores every planet definition to the values it had before any camera overrides. */
+    public static void restoreDefaults(){
+        for(ObjectMap.Entry<PlanetDefinition, Defaults> entry : defaultValues){
+            PlanetDefinition body = entry.key;
+            Defaults value = entry.value;
+
+            body.orbitStart = value.orbitStart;
+            body.orbitTilt = value.orbitTilt;
+            body.orbitSpeed = value.orbitSpeed;
+            body.rotationSpeed = value.rotationSpeed;
+            body.cloudRotationMultiplier = value.cloudRotationMultiplier;
+            body.orbitDistance = value.orbitDistance;
+        }
+    }
+
+    private static Defaults defaults(PlanetDefinition body){
+        Defaults value = defaultValues.get(body);
+        if(value == null){
+            value = new Defaults();
+            value.orbitStart = body.orbitStart;
+            value.orbitTilt = body.orbitTilt;
+            value.orbitSpeed = body.orbitSpeed;
+            value.rotationSpeed = body.rotationSpeed;
+            value.cloudRotationMultiplier = body.cloudRotationMultiplier;
+            value.orbitDistance = body.orbitDistance;
+            defaultValues.put(body, value);
+        }
+        return value;
     }
 
     public void write(ObjectMap<String, String> tags){
         tags.put(PREFIX + "system", system == null ? "" : system);
         tags.put(PREFIX + "planet", planet == null ? "" : planet);
         tags.put(PREFIX + "px1", px1 ? "1" : "0");
+        tags.put(PREFIX + "orbits", orbits ? "1" : "0");
         tags.put(PREFIX + "attached", attached ? "1" : "0");
         tags.put(PREFIX + "x", Float.toString(x));
         tags.put(PREFIX + "y", Float.toString(y));

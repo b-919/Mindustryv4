@@ -8,15 +8,14 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.Texture.TextureWrap;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import io.anuke.ucore.core.Core;
+import io.anuke.ucore.core.Settings;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Shader;
 import io.anuke.ucore.scene.ui.layout.Unit;
 import io.anuke.ucore.util.Mathf;
-
-import static io.anuke.mindustry.Vars.tilesize;
-import static io.anuke.mindustry.Vars.world;
 
 public class Shaders{
     public static Outline outline;
@@ -113,21 +112,93 @@ public class Shaders{
     }
 
     public static class MenuShader extends Shader{
-        float time = 0f;
+        float phase = 0f;
+        public final Color color1 = new Color(), color2 = new Color(), color3 = new Color(), color4 = new Color();        public int round = 8;
+        public float speed = 50f;
+        public float wave = 120f;
+        public float brightness = 0.5f;
+        public float stripe = 35f;
+        public float stripePeriod = 110f;
 
         public MenuShader(){
             super("menu", "default");
+            loadConfig();
+        }
+
+        /** Reloads the customization values written by the background settings dialog. */
+        public void loadConfig(){
+            color1.set(Color.valueOf(Settings.getString("bg-shader-color1", "ffd37f")));
+            color2.set(Color.valueOf(Settings.getString("bg-shader-color2", "eab678")));
+            color3.set(Color.valueOf(Settings.getString("bg-shader-color3", "d4816b")));
+            color4.set(Color.valueOf(Settings.getString("bg-shader-color4", "8e4d48")));
+            round = Mathf.clamp((int)Settings.getFloat("bg-shader-round", 8f), 1, 32);
+            speed = Mathf.clamp(Settings.getFloat("bg-shader-speed", 50f), 1f, 1000f);
+            wave = Mathf.clamp(Settings.getFloat("bg-shader-wave", 120f), 1f, 2000f);
+            brightness = Mathf.clamp(Settings.getFloat("bg-shader-brightness", 50f) / 100f, 0f, 2f);
+            stripe = Mathf.clamp(Settings.getFloat("bg-shader-stripe", 35f), 0f, 220f);
+            stripePeriod = Mathf.clamp(Settings.getFloat("bg-shader-period", 110f), 1f, 600f);
         }
 
         @Override
         public void apply(){
-            time = time % 158;
+            phase = (phase + Gdx.graphics.getDeltaTime() * 60f / speed) % 6.2831853f;
 
             shader.setUniformf("u_resolution", Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-            shader.setUniformi("u_time", (int)(time += Gdx.graphics.getDeltaTime() * 60f));
+            shader.setUniformf("u_time", phase);
             shader.setUniformf("u_uv", Draw.getBlankRegion().getU(), Draw.getBlankRegion().getV());
             shader.setUniformf("u_scl", Unit.dp.scl(1f));
             shader.setUniformf("u_uv2", Draw.getBlankRegion().getU2(), Draw.getBlankRegion().getV2());
+            shader.setUniformf("u_color1", color1.r, color1.g, color1.b);
+            shader.setUniformf("u_color2", color2.r, color2.g, color2.b);
+            shader.setUniformf("u_color3", color3.r, color3.g, color3.b);
+            shader.setUniformf("u_color4", color4.r, color4.g, color4.b);
+            shader.setUniformi("u_round", round);
+            shader.setUniformf("u_wave", wave);
+            shader.setUniformf("u_brightness", brightness);
+            shader.setUniformf("u_stripe", stripe);
+            shader.setUniformf("u_stripePeriod", stripePeriod);
+        }
+    }
+
+    /** A user-imported fragment shader. Compilation errors leave {@link #error} set instead of throwing. */
+    public static class CustomShader extends Shader{
+        public String error;
+        private float time = 0f;
+
+        public CustomShader(String fragSource){
+            super("menu", "default");
+
+            try{
+                ShaderProgram program = Shader.loadString(
+                    Gdx.files.internal("shaders/default.vertex").readString(), fragSource, "");
+                if(shader != null){
+                    shader.dispose();
+                }
+                shader = program;
+                isFallback = false;
+            }catch(Exception e){
+                isFallback = true;
+                error = e.getMessage();
+            }
+        }
+
+        @Override
+        public void apply(){
+            time += Gdx.graphics.getDeltaTime();
+
+            shader.setUniformf("u_resolution", Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            shader.setUniformf("u_time", time);
+            shader.setUniformf("u_uv", Draw.getBlankRegion().getU(), Draw.getBlankRegion().getV());
+            shader.setUniformf("u_uv2", Draw.getBlankRegion().getU2(), Draw.getBlankRegion().getV2());
+            shader.setUniformf("u_scl", Unit.dp.scl(1f));
+            shader.setUniformi("u_texture", 0);
+        }
+
+        public void dispose(){
+            if(shader != null){
+                shader.dispose();
+                shader = null;
+            }
         }
     }
 

@@ -61,7 +61,15 @@ public class DesktopPlatform extends Platform{
 
     @Override
     public void showFileChooser(String text, String content, Consumer<FileHandle> cons, boolean open, String filter){
-        new FileChooser(text, file -> file.extension().equalsIgnoreCase(filter), open, cons).show();
+        String[] extensions = filter.split(",");
+        new FileChooser(text, file -> {
+            for(String extension : extensions){
+                if(file.extension().equalsIgnoreCase(extension)){
+                    return true;
+                }
+            }
+            return false;
+        }, open, cons).show();
     }
 
     @Override
