@@ -251,7 +251,7 @@ public class MassBuilder{
 
                 bfsParents.put(next, curr);
                 bfsQueue.addLast(next);
-                if(bfsParents.size > MassAIConfig.BFS_MAX_NODES) return null;
+                if(bfsParents.size > MassAIConfig.bfsMaxNodes) return null;
             }
         }
         return null;
@@ -315,7 +315,7 @@ public class MassBuilder{
                 if(next != null && !bfsParents.containsKey(next) && MassUtil.isPassable(next)){
                     bfsParents.put(next, curr);
                     bfsQueue.addLast(next);
-                    if(bfsParents.size > MassAIConfig.BFS_MAX_NODES) return null;
+                    if(bfsParents.size > MassAIConfig.bfsMaxNodes) return null;
                 }
             }
         }
@@ -346,7 +346,7 @@ public class MassBuilder{
                 if(next != null && !bfsParents.containsKey(next) && MassUtil.isPassable(next)){
                     bfsParents.put(next, curr);
                     bfsQueue.addLast(next);
-                    if(bfsParents.size > MassAIConfig.BFS_MAX_NODES) return null;
+                    if(bfsParents.size > MassAIConfig.bfsMaxNodes) return null;
                 }
             }
         }

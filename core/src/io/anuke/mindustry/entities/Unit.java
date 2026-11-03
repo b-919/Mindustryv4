@@ -429,7 +429,7 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
     public abstract boolean isFlying();
 
     public abstract float getSize();
-    
+
     public boolean isHealer(){
         return false;
     }

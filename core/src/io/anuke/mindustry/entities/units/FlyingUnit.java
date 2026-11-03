@@ -1,10 +1,8 @@
 package io.anuke.mindustry.entities.units;
 
 import com.badlogic.gdx.math.Vector2;
-import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.entities.Predict;
 import io.anuke.mindustry.entities.Units;
-import io.anuke.mindustry.entities.bullet.BulletType;
 import io.anuke.mindustry.entities.traits.CarriableTrait;
 import io.anuke.mindustry.entities.traits.CarryTrait;
 import io.anuke.mindustry.graphics.Trail;

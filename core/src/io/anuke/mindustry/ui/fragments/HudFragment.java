@@ -10,7 +10,6 @@ import com.badlogic.gdx.utils.Scaling;
 import io.anuke.mindustry.core.GameState.State;
 import io.anuke.mindustry.game.EventType.StateChangeEvent;
 import io.anuke.mindustry.game.GameMode;
-import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.maps.missions.WaveExtraMission;

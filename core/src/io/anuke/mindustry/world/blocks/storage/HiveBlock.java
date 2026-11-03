@@ -8,7 +8,6 @@ import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.Team;
-import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.graphics.Shaders;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.world.Tile;

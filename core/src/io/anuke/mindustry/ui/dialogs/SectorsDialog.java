@@ -16,7 +16,6 @@ import io.anuke.mindustry.maps.campaign.PlanetMap;
 import io.anuke.ucore.util.Log;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;
-import io.anuke.ucore.graphics.Lines;
 import io.anuke.ucore.scene.Element;
 import io.anuke.ucore.scene.Group;
 import io.anuke.ucore.scene.event.InputEvent;

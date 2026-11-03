@@ -4,7 +4,6 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import io.anuke.mindustry.content.fx.BulletFx;
 import io.anuke.mindustry.content.fx.Fx;
-import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Effects;

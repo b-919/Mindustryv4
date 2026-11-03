@@ -32,7 +32,7 @@ class BuildingLine{
     int bboxMinX = Integer.MAX_VALUE, bboxMinY = Integer.MAX_VALUE;
     int bboxMaxX = Integer.MIN_VALUE, bboxMaxY = Integer.MIN_VALUE;
     //staggered so all lines don't act on the same tick; each line still acts exactly once per interval
-    float timer = Mathf.random(MassAIConfig.LINE_ACTION_INTERVAL);
+    float timer = Mathf.random(MassAIConfig.lineActionInterval);
     float lastSubsectionTimer = 0;
     IntIntMap attempts = new IntIntMap();
     IntSet gaveUp = new IntSet();
@@ -47,8 +47,8 @@ class BuildingLine{
     int attractTimer = 0;
 
     BuildingLine(Tile core, int direction){
-        this(core, direction, -1, -1, MassAIConfig.LINE_DIVISIONS);
-        this.targetLength = MassAIConfig.LINE_MAX_LENGTH;  // they sometimes ignore this, this works only on big maps
+        this(core, direction, -1, -1, MassAIConfig.lineDivisions);
+        this.targetLength = MassAIConfig.lineMaxLength;  // they sometimes ignore this, this works only on big maps
         this.turnBias = Mathf.choose(-1, 1);
     }
 
@@ -79,7 +79,7 @@ class BuildingLine{
         timer += Timers.delta();
         lastSubsectionTimer += Timers.delta();
 
-        if(timer >= MassAIConfig.LINE_ACTION_INTERVAL){
+        if(timer >= MassAIConfig.lineActionInterval){
             timer = 0;
 
             // Try to rebuild broken blocks first
@@ -93,7 +93,7 @@ class BuildingLine{
                     }else{
                         int a = attempts.get(i, 0) + 1;
                         attempts.put(i, a);
-                        if(a >= MassAIConfig.LINE_REBUILD_ATTEMPTS){
+                        if(a >= MassAIConfig.lineRebuildAttempts){
                             gaveUp.add(i);
                             targetLength--;
                             //this tile will never be rebuilt
@@ -107,7 +107,7 @@ class BuildingLine{
             }
 
             if(dead) return;
-            if(tiles.size >= 3 && Mathf.chance(MassAIConfig.VEIN_MERGE_CHANCE)){
+            if(tiles.size >= 3 && Mathf.chance(MassAIConfig.veinMergeChance)){
                 Tile from = tip();
                 if(from != null && adjacentForeignVein(from)){
                     dead = true;
@@ -115,23 +115,23 @@ class BuildingLine{
                 }
             }
 
-            if(lastSubsectionTimer >= MassAIConfig.LINE_IDLE_TIME){
+            if(lastSubsectionTimer >= MassAIConfig.lineIdleTime){
                 lastSubsectionTimer = 0;
-                if(tiles.size < MassAIConfig.LINE_MAX_LENGTH){
-                    targetLength = Math.min(MassAIConfig.LINE_MAX_LENGTH, targetLength + MassAIConfig.LINE_GROW_AMOUNT);
+                if(tiles.size < MassAIConfig.lineMaxLength){
+                    targetLength = Math.min(MassAIConfig.lineMaxLength, targetLength + MassAIConfig.lineGrowAmount);
                 }
             }
 
             // Increase targetLength if no ores nearby
-            if(tiles.size >= targetLength && targetLength < MassAIConfig.LINE_MAX_LENGTH){
+            if(tiles.size >= targetLength && targetLength < MassAIConfig.lineMaxLength){
                 Tile last = tiles.size == 0 ? world.tile(startX, startY) : tiles.peek().tile;
                 if(last != null && !MassUtil.hasOresNearby(last, 20)){
-                    targetLength = Math.min(MassAIConfig.LINE_MAX_LENGTH, targetLength + MassAIConfig.LINE_GROW_AMOUNT);
+                    targetLength = Math.min(MassAIConfig.lineMaxLength, targetLength + MassAIConfig.lineGrowAmount);
                 }
             }
 
             // If no rebuilding is needed, try to expand the line
-            if(tiles.size < targetLength && tiles.size < MassAIConfig.LINE_MAX_LENGTH){
+            if(tiles.size < targetLength && tiles.size < MassAIConfig.lineMaxLength){
                 growStep();
             }
         }
@@ -229,26 +229,26 @@ class BuildingLine{
             if(nt.block() != Blocks.air && !(nt.block() instanceof Rock)) continue;
 
             float score = 0;
-            score += (distToTarget(from.x, from.y) - distToTarget(nx, ny)) * MassAIConfig.VEIN_ATTRACT_WEIGHT;
+            score += (distToTarget(from.x, from.y) - distToTarget(nx, ny)) * MassAIConfig.veinAttractWeight;
 
             if(MassUtil.isTargetOreFloor(nt)){
-                score -= MassAIConfig.VEIN_ORE_AVOID_PENALTY;
+                score -= MassAIConfig.veinOreAvoidPenalty;
             }
 
             if(d == lastDir){
                 score += 1f;
-                if(straightCount >= MassAIConfig.VEIN_STRAIGHT_ATTEMPT){
-                    score -= MassAIConfig.VEIN_STRAIGHT_PENALTY;
+                if(straightCount >= MassAIConfig.veinStraightAttempt){
+                    score -= MassAIConfig.veinStraightPenalty;
                 }
             }else{
-                score -= MassAIConfig.VEIN_TURN_PENALTY;
+                score -= MassAIConfig.veinTurnPenalty;
                 if(turnBias != 0 && Mathf.mod(d - lastDir, 4) == turnBias){
                     score += 0.5f;
                 }
             }
 
             score -= spacingPenalty(nx, ny, from);
-            score += Mathf.random(-MassAIConfig.VEIN_NOISE, MassAIConfig.VEIN_NOISE);
+            score += Mathf.random(-MassAIConfig.veinNoise, MassAIConfig.veinNoise);
 
             if(score > bestScore){
                 bestScore = score;
@@ -277,7 +277,7 @@ class BuildingLine{
         lastDir = best;
         tilesSinceBranch++;
 
-        if(tilesSinceBranch >= MassAIConfig.VEIN_BRANCH_AFTER && canBranch() && Mathf.chance(MassAIConfig.VEIN_BRANCH_CHANCE)){
+        if(tilesSinceBranch >= MassAIConfig.veinBranchAfter && canBranch() && Mathf.chance(MassAIConfig.veinBranchChance)){
             tilesSinceBranch = 0;
             spawnBranch();
         }
@@ -290,7 +290,7 @@ class BuildingLine{
             attractTimer--;
             if(targetValid) return;
         }
-        attractTimer = MassAIConfig.VEIN_ATTRACT_REFRESH;
+        attractTimer = MassAIConfig.veinAttractRefresh;
 
         Tile from = tip();
         if(from == null) return;
@@ -314,7 +314,7 @@ class BuildingLine{
         if(MassSquads.evolutionLevel() < 2){
             return MassUtil.closestOreAnchor(from);
         }else{
-            Tile inf = MassUtil.sampleInfectedNear(from, MassAIConfig.VEIN_ATTRACT_MAX_ANCHORS);
+            Tile inf = MassUtil.sampleInfectedNear(from, MassAIConfig.veinAttractMaxAnchors);
             if(inf != null) return inf;
             Tile ec = MassUtil.nearestEnemyCoreTile(from);
             if(ec != null) return ec;
@@ -331,7 +331,7 @@ class BuildingLine{
         for(int i = 0; i < 8; i++){
             Tile t = world.tile(nx + Geometry.d8[i].x, ny + Geometry.d8[i].y);
             if(t == null || t == from || !MassBuilder.isMassVein(t)) continue;
-            penalty += MassAIConfig.VEIN_SPACING_PENALTY;
+            penalty += MassAIConfig.veinSpacingPenalty;
         }
         return penalty;
     }
@@ -363,7 +363,7 @@ class BuildingLine{
         }
 
         blockedTurns++;
-        if(blockedTurns >= MassAIConfig.VEIN_MAX_BLOCKED_TURNS){
+        if(blockedTurns >= MassAIConfig.veinMaxBlockedTurns){
             dead = true;
             return;
         }
@@ -373,8 +373,8 @@ class BuildingLine{
     }
 
     boolean canBranch(){
-        return tiles.size >= MassAIConfig.VEIN_BRANCH_AFTER && divisions >= MassAIConfig.MIN_DIVISIONS_FOR_BRANCH
-            && tiles.size < MassAIConfig.LINE_MAX_LENGTH;
+        return tiles.size >= MassAIConfig.veinBranchAfter && divisions >= MassAIConfig.minDivisionsForBranch
+            && tiles.size < MassAIConfig.lineMaxLength;
     }
     void spawnBranch(){
         int index = Mathf.random(tiles.size / 2, tiles.size - 1);
@@ -387,7 +387,7 @@ class BuildingLine{
         int by = base.y + Geometry.d4[dir].y;
         Tile b = world.tile(bx, by);
         if(b != null && b.block() == Blocks.air && !MassUtil.isNearEnemyCore(b) && !MassBuilder.isMassVein(b)){
-            divisions -= MassAIConfig.VEIN_BRANCH_COST;
+            divisions -= MassAIConfig.veinBranchCost;
             BuildingLine child = new BuildingLine(core, dir, bx, by, Math.max(0, divisions));
             child.turnBias = Mathf.choose(-1, 1);
             activeLinesAdd(child);

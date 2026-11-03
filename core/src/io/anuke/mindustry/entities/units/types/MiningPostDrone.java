@@ -22,7 +22,7 @@ public class MiningPostDrone extends FlyingUnit implements MinerTrait {
         return false;
     }
 
-    public final UnitState 
+    public final UnitState
         mine = new UnitState() {
             @Override
             public void update() {
@@ -80,7 +80,7 @@ public class MiningPostDrone extends FlyingUnit implements MinerTrait {
                 if (distanceTo(spawner.worldx(), spawner.worldy()) < Vars.tilesize * 1.5f) {
                     Item item = inventory.getItem().item;
                     int amount = inventory.getItem().amount;
-                    
+
                     int accepted = spawner.block().acceptStack(item, amount, spawner, MiningPostDrone.this);
                     if (accepted > 0) {
                         Call.transferItemTo(item, accepted, x, y, spawner);

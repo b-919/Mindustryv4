@@ -176,7 +176,6 @@ public class LogisticsDrone extends FlyingUnit {
                 if (distanceTo(targetImporter.tile.worldx(), targetImporter.tile.worldy()) < Vars.tilesize * 1.5f) {
                     Item item = inventory.getItem().item;
                     int amount = inventory.getItem().amount;
-                    
                     int accepted = targetImporter.tile.block().acceptStack(item, amount, targetImporter.tile, LogisticsDrone.this);
                     if (accepted > 0) {
                         targetImporter.items.add(item, accepted);

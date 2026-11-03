@@ -40,6 +40,11 @@ public abstract class LiquidGenerator extends PowerGenerator{
     }
 
     @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
     public void drawDynamic(Tile tile){
         drawLiquid(tile);
     }

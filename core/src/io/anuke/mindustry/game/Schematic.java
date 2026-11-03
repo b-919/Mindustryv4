@@ -3,6 +3,7 @@ package io.anuke.mindustry.game;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ObjectIntMap;
 import com.badlogic.gdx.utils.ObjectMap;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.ItemStack;
@@ -99,7 +100,7 @@ public class Schematic {
     }
 
     public Array<ItemStack> requirements() {
-        ObjectMap<Item, Integer> reqs = new ObjectMap<>();
+        ObjectIntMap<Item> reqs = new ObjectIntMap<>();
         for (Stile tile : tiles) {
             Recipe recipe = Recipe.getByResult(tile.block);
             if (recipe != null && recipe.requirements != null) {
@@ -109,7 +110,7 @@ public class Schematic {
             }
         }
         Array<ItemStack> result = new Array<>();
-        for (ObjectMap.Entry<Item, Integer> entry : reqs.entries()) {
+        for (ObjectIntMap.Entry<Item> entry : reqs.entries()) {
             result.add(new ItemStack(entry.key, entry.value));
         }
         return result;

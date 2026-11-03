@@ -57,7 +57,7 @@ public static void update(){
 
         if(turretTimer >= nextTurretTime){
             turretTimer = 0;
-            nextTurretTime = Mathf.random(MassAIConfig.PERIODIC_TURRET_MIN, MassAIConfig.PERIODIC_TURRET_MAX);
+            nextTurretTime = Mathf.random(MassAIConfig.periodicTurretMin, MassAIConfig.periodicTurretMax);
             //intel: bias the periodic turret toward the enemy's dominant movement type (air vs ground)
             boolean targetAir = Mathf.chance(MassIntel.enemyAirRatio());
             //intel: if the base was hit recently, aim the new turret at the threat hotspot instead of the core
@@ -73,7 +73,7 @@ public static void update(){
 
         if(responseTimer >= nextResponseTime){
             responseTimer = 0;
-            nextResponseTime = Mathf.random(MassAIConfig.RESPONSE_MIN, MassAIConfig.RESPONSE_MAX);
+            nextResponseTime = Mathf.random(MassAIConfig.responseMin, MassAIConfig.responseMax);
             if(MassIntel.enemyCount() > 0){
                 boolean targetAir = Mathf.chance(MassIntel.enemyAirRatio());
                 float rx = 0f, ry = 0f;
@@ -139,8 +139,8 @@ public static void update(){
         if(nearestCore == null) return;
 
         if(!fromDamage){
-            //cores are placed at least CORE_MIN_DISTANCE apart, so the per-neighbourhood multiplier was always 1
-            if(countTurrets(targetAir) >= MassAIConfig.TURRET_LIMIT_PER_CORE) return;
+            //cores are placed at least coreMinDistance apart, so the per-neighbourhood multiplier was always 1
+            if(countTurrets(targetAir) >= MassAIConfig.turretLimitPerCore) return;
         }
 
         ItemModule items = nearestCore.entity.items;
@@ -161,7 +161,7 @@ public static void update(){
         if(targeted){
             int rx = (int)(targetX / Vars.tilesize);
             int ry = (int)(targetY / Vars.tilesize);
-            int range = MassAIConfig.DAMAGE_TURRET_SEARCH_RANGE;
+            int range = MassAIConfig.damageTurretSearchRange;
             for(int x = -range; x <= range; x++){
                 for(int y = -range; y <= range; y++){
                     Tile t = world.tile(rx + x, ry + y);
@@ -182,7 +182,7 @@ public static void update(){
 
         if(potentialBases.size == 0) return;
 
-        for(int i = 0; i < MassAIConfig.TURRET_PLACE_ATTEMPTS; i++){
+        for(int i = 0; i < MassAIConfig.turretPlaceAttempts; i++){
             Tile base = potentialBases.random();
             int rotation = Mathf.random(3);
             int offset = 2 + (size / 2);
@@ -220,13 +220,13 @@ public static void update(){
 
                 float turretDelay = veinPath.size * 5f + 10f;
                 //adrenaline mode: hives swarming with enemies queue their turrets in half the time
-                if(MassAdrenaline.isBonusActiveAt(target)) turretDelay /= MassAIConfig.ADRENALINE_TURRET_SPEED;
+                if(MassAdrenaline.isBonusActiveAt(target)) turretDelay /= MassAIConfig.adrenalineTurretSpeed;
                 pendingBuilds.add(new PendingBuild(target, turretBlock, massTeam, 0, turretDelay, fromDamage, targetX, targetY));
                 if(MassAI.debug) Log.info("[MassAI] queued turret build block={0} at ({1},{2}) delay={3}", turretBlock.name, target.x, target.y, turretDelay);
 
                 if(fromDamage){
                     damageTurretTimer = 0;
-                    nextDamageTurretTime = Mathf.random(MassAIConfig.DAMAGE_TURRET_MIN, MassAIConfig.DAMAGE_TURRET_MAX);
+                    nextDamageTurretTime = Mathf.random(MassAIConfig.damageTurretMin, MassAIConfig.damageTurretMax);
                 }
 
                 return;
@@ -236,21 +236,21 @@ public static void update(){
 
     /**Single source of truth for the turret costs; selection and payment both use it.*/
     static ItemStack[] costOf(Block turretBlock){
-        if(turretBlock == TurretBlocks.evilRipple) return MassAIConfig.COST_EVIL_RIPPLE;
-        if(turretBlock == TurretBlocks.evilFuse) return MassAIConfig.COST_EVIL_FUSE;
-        if(turretBlock == TurretBlocks.evilSalvo) return MassAIConfig.COST_EVIL_SALVO;
-        if(turretBlock == TurretBlocks.evilScatter) return MassAIConfig.COST_EVIL_SCATTER;
-        if(turretBlock == TurretBlocks.evilCyclone) return MassAIConfig.COST_EVIL_CYCLONE;
-        return MassAIConfig.COST_NONE;
+        if(turretBlock == TurretBlocks.evilRipple) return MassAIConfig.costEvilRipple;
+        if(turretBlock == TurretBlocks.evilFuse) return MassAIConfig.costEvilFuse;
+        if(turretBlock == TurretBlocks.evilSalvo) return MassAIConfig.costEvilSalvo;
+        if(turretBlock == TurretBlocks.evilScatter) return MassAIConfig.costEvilScatter;
+        if(turretBlock == TurretBlocks.evilCyclone) return MassAIConfig.costEvilCyclone;
+        return MassAIConfig.costNone;
     }
 
     public static void reset(){
         turretTimer = 0;
-        nextTurretTime = Mathf.random(MassAIConfig.PERIODIC_TURRET_MIN, MassAIConfig.PERIODIC_TURRET_MAX);
+        nextTurretTime = Mathf.random(MassAIConfig.periodicTurretMin, MassAIConfig.periodicTurretMax);
         damageTurretTimer = 0;
         nextDamageTurretTime = 0;
         responseTimer = 0;
-        nextResponseTime = Mathf.random(MassAIConfig.RESPONSE_MIN, MassAIConfig.RESPONSE_MAX);
+        nextResponseTime = Mathf.random(MassAIConfig.responseMin, MassAIConfig.responseMax);
         pendingBuilds.clear();
         invalidateTurretCount();
     }

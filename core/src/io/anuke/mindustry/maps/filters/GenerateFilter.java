@@ -1,11 +1,9 @@
 package io.anuke.mindustry.maps.filters;
 
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
-import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.mindustry.world.blocks.OreBlock;
 import io.anuke.ucore.noise.Simplex;
 import io.anuke.ucore.noise.RidgedPerlin;

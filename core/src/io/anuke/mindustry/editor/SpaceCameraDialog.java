@@ -11,6 +11,7 @@ import io.anuke.mindustry.maps.campaign.PlanetDefinition;
 import io.anuke.mindustry.maps.campaign.SolarSystemDefinition;
 import io.anuke.mindustry.ui.dialogs.FloatingDialog;
 import io.anuke.ucore.function.Consumer;
+import io.anuke.ucore.function.Supplier;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;
 import io.anuke.ucore.graphics.Lines;
@@ -205,7 +206,7 @@ public class SpaceCameraDialog extends FloatingDialog{
     }
 
     private void addSpeedControl(Table table, String label, float min, float max, float step,
-                                 java.util.function.Supplier<Float> getter, Consumer<Float> setter){
+                                 Supplier<Float> getter, Consumer<Float> setter){
         table.add(label).left().padTop(4).row();
 
         Table row = new Table();

@@ -33,6 +33,11 @@ public class MassAI{
     /**True when the mass has no cores and its runtime state has already been dropped.*/
     private static boolean massIdle = true;
 
+    private static final Color squadColor = Color.valueOf("7efcff");
+    private static final Color targetColor = Color.valueOf("fff27e");
+    private static final IntMap<Array<BaseUnit>> debugSquads = new IntMap<>();
+    private static final float[] targetScratch = new float[2];
+
     static{
         Events.on(WorldLoadEvent.class, event -> {
             MassInfection.reset();
@@ -140,21 +145,24 @@ public class MassAI{
     public static void drawDebugOverlay(){
         if(!debug || Vars.headless || Vars.state == null) return;
 
-        IntMap<Array<BaseUnit>> bySquad = new IntMap<>();
+        for(Array<BaseUnit> list : debugSquads.values()){
+            list.clear();
+        }
+
         for(BaseUnit unit : unitGroups[Team.themass.ordinal()].all()){
             if(unit == null || !unit.isAdded() || unit.isDead()) continue;
             int squadId = MassSquads.unitSquadAssignments.get(unit, -1);
             if(squadId < 0) continue;
-            Array<BaseUnit> list = bySquad.get(squadId);
+            Array<BaseUnit> list = debugSquads.get(squadId);
             if(list == null){
                 list = new Array<>();
-                bySquad.put(squadId, list);
+                debugSquads.put(squadId, list);
             }
             list.add(unit);
         }
 
         Lines.stroke(1.2f);
-        for(IntMap.Entry<Array<BaseUnit>> entry : bySquad.entries()){
+        for(IntMap.Entry<Array<BaseUnit>> entry : debugSquads.entries()){
             int squadId = entry.key;
             Array<BaseUnit> units = entry.value;
             if(units.size == 0) continue;
@@ -167,30 +175,35 @@ public class MassAI{
             cx /= units.size;
             cy /= units.size;
 
-            Draw.color(Color.valueOf("7efcff"));
+            Draw.color(squadColor);
             Lines.circle(cx, cy, 8f + Mathf.absin(Timers.time(), 6f, 2f));
 
-            Draw.color(Color.valueOf("7efcff"));
+            Draw.color(squadColor);
             Lines.stroke(2f);
             Lines.line(cx - 4f, cy, cx + 4f, cy);
             Lines.line(cx, cy - 4f, cx, cy + 4f);
             Lines.stroke(1.2f);
 
-            float[] target = {cx, cy};
-            MassSquads.squadTarget(squadId, target);
-            if(Mathf.dst(cx - target[0], cy - target[1]) > 1f){
-                Draw.color(Color.valueOf("fff27e"));
-                Lines.line(cx, cy, target[0], target[1]);
-                Lines.circle(target[0], target[1], 3f);
+            targetScratch[0] = cx;
+            targetScratch[1] = cy;
+            MassSquads.squadTarget(squadId, targetScratch);
+            if(Mathf.dst(cx - targetScratch[0], cy - targetScratch[1]) > 1f){
+                Draw.color(targetColor);
+                Lines.line(cx, cy, targetScratch[0], targetScratch[1]);
+                Lines.circle(targetScratch[0], targetScratch[1], 3f);
             }
 
             for(BaseUnit unit : units){
                 Lines.line(cx, cy, unit.x, unit.y);
                 Draw.color(Color.WHITE);
                 Draw.text("SQ " + squadId + " " + MassSquads.orderName(squadId), unit.x, unit.y + 11f);
-                Draw.color(Color.valueOf("7efcff"));
+                Draw.color(squadColor);
             }
         }
         Draw.reset();
+
+        for(Array<BaseUnit> list : debugSquads.values()){
+            list.clear();
+        }
     }
 }

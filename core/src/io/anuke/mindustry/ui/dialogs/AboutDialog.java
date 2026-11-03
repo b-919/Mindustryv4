@@ -2,11 +2,7 @@ package io.anuke.mindustry.ui.dialogs;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectSet;
-import io.anuke.mindustry.graphics.Palette;
-import io.anuke.mindustry.io.Contributors;
-import io.anuke.mindustry.io.Contributors.Contributor;
 import io.anuke.mindustry.ui.Links;
 import io.anuke.mindustry.ui.Links.LinkEntry;
 import io.anuke.ucore.core.Core;

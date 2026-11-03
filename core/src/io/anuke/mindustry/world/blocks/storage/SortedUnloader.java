@@ -127,6 +127,11 @@ public class SortedUnloader extends Unloader implements SelectionTrait{
     }
 
     @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
     public void drawDynamic(Tile tile){
         SortedUnloaderEntity entity = tile.entity();
 

@@ -101,7 +101,7 @@ public final class MassUtil{
     }
 
     static boolean hasOresNearby(Tile tile, int radius){
-        for(Item item : MassAIConfig.TARGET_ORES){
+        for(Item item : MassAIConfig.targetOres){
             Tile ore = Vars.world.indexer.findClosestOre(tile.worldx(), tile.worldy(), item);
             if(ore != null && Mathf.dst(tile.x - ore.x, tile.y - ore.y) < radius) return true;
         }
@@ -111,7 +111,7 @@ public final class MassUtil{
     static boolean isTargetOreFloor(Tile tile){
         if(tile == null || tile.floor() == null || tile.floor().drops == null) return false;
         Item drop = tile.floor().drops.item;
-        for(Item item : MassAIConfig.TARGET_ORES){
+        for(Item item : MassAIConfig.targetOres){
             if(item == drop) return true;
         }
         return false;
@@ -120,8 +120,8 @@ public final class MassUtil{
     static Tile closestOreAnchor(Tile from){
         Tile best = null;
         float bestD = Float.MAX_VALUE;
-        int perOre = Math.max(1, MassAIConfig.VEIN_ATTRACT_MAX_ANCHORS / MassAIConfig.TARGET_ORES.length);
-        for(Item item : MassAIConfig.TARGET_ORES){
+        int perOre = Math.max(1, MassAIConfig.veinAttractMaxAnchors / MassAIConfig.targetOres.length);
+        for(Item item : MassAIConfig.targetOres){
             int scanned = 0;
             for(Tile t : Vars.world.indexer.getOrePositions(item)){
                 if(scanned++ >= perOre) break;

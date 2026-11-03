@@ -1,7 +1,6 @@
 package io.anuke.mindustry.core;
 
 import com.badlogic.gdx.utils.ObjectIntMap;
-import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.maps.Sector;
 import io.anuke.mindustry.type.Item;
 import io.anuke.ucore.core.Settings;

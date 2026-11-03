@@ -54,6 +54,11 @@ public class Incinerator extends Block{
     }
 
     @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
     public void drawDynamic(Tile tile){
         IncineratorEntity entity = tile.entity();
 

@@ -108,7 +108,7 @@ public class UI extends SceneModule{
 
         Colors.put("accent", Palette.accent);
     }
-    
+
     void generateFonts(){
         generator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/pixel.ttf"));
         FreeTypeFontParameter param = new FreeTypeFontParameter();

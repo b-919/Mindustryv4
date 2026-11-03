@@ -24,7 +24,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import io.anuke.mindustry.content.blocks.UnitBlocks;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.world.meta.BlockFlag;
 import io.anuke.ucore.util.Geometry;

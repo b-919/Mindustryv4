@@ -1,6 +1,5 @@
 package io.anuke.mindustry.entities;
 
-import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Vector2;
@@ -11,7 +10,6 @@ import io.anuke.annotations.Annotations.Remote;
 import io.anuke.mindustry.ai.MassAI;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.fx.Fx;
-import io.anuke.mindustry.content.UnitTypes;
 import io.anuke.mindustry.entities.bullet.Bullet;
 import io.anuke.mindustry.entities.effect.ScorchDecal;
 import io.anuke.mindustry.entities.traits.TargetTrait;
@@ -22,7 +20,6 @@ import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.Recipe;
 import io.anuke.ucore.entities.trait.Entity;
-import io.anuke.mindustry.sounds.Sounds;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Edges;
 import io.anuke.mindustry.world.Tile;

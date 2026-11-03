@@ -14,6 +14,7 @@ import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.ColorMapper;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Graphics;
+import io.anuke.ucore.function.Supplier;
 import io.anuke.ucore.scene.ui.Image;
 import io.anuke.ucore.scene.ui.Label;
 import io.anuke.ucore.scene.ui.ScrollPane;
@@ -211,7 +212,7 @@ public class MapGenerateDialog extends FloatingDialog{
         dialog.show();
     }
 
-    void addFilterButton(Table p, FloatingDialog dialog, String name, java.util.function.Supplier<GenerateFilter> creator){
+    void addFilterButton(Table p, FloatingDialog dialog, String name, Supplier<GenerateFilter> creator){
         p.addButton(name, () -> {
             GenerateFilter filter = creator.get();
             filter.randomize();
@@ -225,7 +226,9 @@ public class MapGenerateDialog extends FloatingDialog{
 
     void updatePreview(){
         if(pixmap == null) return;
-            if(statusLabel != null) statusLabel.setVisible(false);
+        if(statusLabel != null) {
+            statusLabel.setVisible(false);
+        }
 
         int mw = editor.getMap().width();
         int mh = editor.getMap().height();

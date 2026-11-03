@@ -74,6 +74,11 @@ public class CommandCenter extends Block{
     }
 
     @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
     public void drawDynamic(Tile tile){
         CommandCenterEntity entity = tile.entity();
 

@@ -6,8 +6,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.Array;
-import io.anuke.mindustry.content.Items;
-import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.TechTree;
 import io.anuke.mindustry.maps.MapTileData;
@@ -21,6 +19,7 @@ import io.anuke.mindustry.world.ColorMapper;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Graphics;
 import io.anuke.ucore.function.Consumer;
+import io.anuke.ucore.function.Supplier;
 import io.anuke.ucore.scene.ui.ButtonGroup;
 import io.anuke.ucore.scene.ui.Image;
 import io.anuke.ucore.scene.ui.Label;
@@ -178,7 +177,7 @@ public class SectorGenerateDialog extends FloatingDialog{
         }).left();
     }
 
-    void addSlider(Table t, String label, float min, float max, Consumer<Float> setter, java.util.function.Supplier<Float> getter){
+    void addSlider(Table t, String label, float min, float max, Consumer<Float> setter, Supplier<Float> getter){
         t.table(sliderTable -> {
             sliderTable.defaults().left();
             sliderTable.add(label).width(160f).padRight(10);

@@ -75,6 +75,11 @@ public class Separator extends Block{
     }
 
     @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
     public void drawDynamic(Tile tile){
         GenericCrafterEntity entity = tile.entity();
 

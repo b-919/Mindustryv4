@@ -6,6 +6,7 @@ import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.ObjectIntMap;
+import com.badlogic.gdx.utils.ObjectLongMap;
 import com.badlogic.gdx.utils.ObjectSet;
 import com.badlogic.gdx.utils.TimeUtils;
 import io.anuke.mindustry.Vars;
@@ -25,9 +26,9 @@ public class SoundController extends Module{
 
     private final ObjectMap<String, Sound> sounds = new ObjectMap<>();
     private final ObjectMap<String, Array<Sound>> groups = new ObjectMap<>();
-    private final ObjectMap<Sound, Long> lastPlayed = new ObjectMap<>();
-    private final ObjectMap<Sound, Integer> priorities = new ObjectMap<>();
-    private final ObjectMap<Sound, Long> minIntervals = new ObjectMap<>();
+    private final ObjectLongMap<Sound> lastPlayed = new ObjectLongMap<>();
+    private final ObjectIntMap<Sound> priorities = new ObjectIntMap<>();
+    private final ObjectLongMap<Sound> minIntervals = new ObjectLongMap<>();
     private final ObjectSet<TileEntity> ambientEntities = new ObjectSet<>();
     private final ObjectSet<TileEntity> nextAmbientEntities = new ObjectSet<>();
     private final Array<Tile> ambientTiles = new Array<>();
@@ -105,14 +106,14 @@ public class SoundController extends Module{
         if(sound == null) return;
 
         if(priority == null){
-            priorities.remove(sound);
+            priorities.remove(sound, priorities.get(sound, 0));
         }else{
             priorities.put(sound, priority);
         }
     }
 
     public Integer getPriority(Sound sound){
-        return sound == null ? null : priorities.get(sound);
+        return sound == null || !priorities.containsKey(sound) ? null : priorities.get(sound, 0);
     }
 
     public void setAmbientSoundBudget(int amount){

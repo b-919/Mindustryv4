@@ -11,7 +11,6 @@ import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.net.Net;
-import io.anuke.mindustry.type.AmmoType;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Weapon;
 import io.anuke.mindustry.world.Tile;

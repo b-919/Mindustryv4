@@ -1,6 +1,6 @@
 package io.anuke.mindustry.world.blocks.units;
 
-import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.IntArray;
 import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.ai.mass.MassAdrenaline;
@@ -176,7 +176,7 @@ public class UnitHiveSpawner extends Block {
 
         float spawnSpeed = Vars.state.difficulty == null ? 1f : Vars.state.difficulty.massScaling;
         if(tile.getTeam() == Team.themass && MassAdrenaline.isBonusActiveAt(tile)){
-            spawnSpeed *= MassAIConfig.ADRENALINE_FACTORY_SPEED;
+            spawnSpeed *= MassAIConfig.adrenalineFactorySpeed;
         }
         entity.progress += entity.delta() * spawnSpeed;
 
@@ -264,7 +264,7 @@ public class UnitHiveSpawner extends Block {
     }
 
     public static class UnitHiveSpawnerEntity extends TileEntity {
-        public Array<Integer> queue = new Array<>();
+        public IntArray queue = new IntArray();
         public float progress;
         public int[] spawned;
 

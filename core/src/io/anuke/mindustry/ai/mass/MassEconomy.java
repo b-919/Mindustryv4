@@ -3,7 +3,6 @@ package io.anuke.mindustry.ai.mass;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.LongSet;
 import com.badlogic.gdx.utils.ObjectIntMap;
-import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.Items;
@@ -28,15 +27,15 @@ import java.util.Arrays;
 
 import static io.anuke.mindustry.Vars.unitGroups;
 import static io.anuke.mindustry.Vars.world;
-import static io.anuke.mindustry.ai.mass.MassAIConfig.ORE_LIMITS;
-import static io.anuke.mindustry.ai.mass.MassAIConfig.TARGET_ORES;
+import static io.anuke.mindustry.ai.mass.MassAIConfig.oreLimits;
+import static io.anuke.mindustry.ai.mass.MassAIConfig.targetOres;
 
 /** Spawner placement, drill subsections, generator placement, and core expansion. */
 public class MassEconomy{
     static float spawnTimer = 0;
     static float unitQueueTimer = 0;
     static int[] oreBoosts = new int[7];
-    static ObjectMap<Tile, Boolean> coreExpanded = new ObjectMap<>();
+    static ObjectSet<Tile> coreExpanded = new ObjectSet<>();
     static Array<SubSection> activeSubsections = new Array<>();
     //spawner centers placed by the mass, rebuilt lazily once per world and updated incrementally on placement
     private static ObjectSet<Tile> spawners = new ObjectSet<>();
@@ -49,7 +48,7 @@ public class MassEconomy{
 
     public static void update(ObjectSet<Tile> cores){
         spawnTimer += Timers.delta();
-        if(spawnTimer >= MassAIConfig.SUBSYSTEM_INTERVAL){
+        if(spawnTimer >= MassAIConfig.subsystemInterval){
             spawnTimer = 0;
             trySpawnSubsection();
             checkCoreExpansion();
@@ -58,7 +57,7 @@ public class MassEconomy{
         }
 
         unitQueueTimer += Timers.delta();
-        if(unitQueueTimer >= MassAIConfig.UNIT_QUEUE_INTERVAL){
+        if(unitQueueTimer >= MassAIConfig.unitQueueInterval){
             unitQueueTimer = 0;
             tryQueueUnits();
         }
@@ -78,9 +77,9 @@ public class MassEconomy{
 
     private static void trySpawnSubsection(){
         int coreCount = Vars.state.teams.get(Team.themass).cores.size;
-        for(int i = 0; i < TARGET_ORES.length; i++){
-            Item ore = TARGET_ORES[i];
-            int limit = ORE_LIMITS[i] * coreCount;
+        for(int i = 0; i < targetOres.length; i++){
+            Item ore = targetOres[i];
+            int limit = oreLimits[i] * coreCount;
 
             int activeDrills = 0;
             int building = 0;
@@ -134,8 +133,8 @@ public class MassEconomy{
     }
 
     static void boostOre(Item ore){
-        for(int i = 0; i < TARGET_ORES.length; i++){
-            if(TARGET_ORES[i] == ore){
+        for(int i = 0; i < targetOres.length; i++){
+            if(targetOres[i] == ore){
                 oreBoosts[i] = 2;
                 break;
             }
@@ -170,12 +169,12 @@ public class MassEconomy{
 
             if(minSourceDist < bestDist){
                 // if quad is good search for random/nearby ores
-                for(int x = quadTile.x - MassAIConfig.ORE_SEARCH_RADIUS; x < quadTile.x + MassAIConfig.ORE_SEARCH_RADIUS; x++){
-                    for(int y = quadTile.y - MassAIConfig.ORE_SEARCH_RADIUS; y < quadTile.y + MassAIConfig.ORE_SEARCH_RADIUS; y++){
+                for(int x = quadTile.x - MassAIConfig.oreSearchRadius; x < quadTile.x + MassAIConfig.oreSearchRadius; x++){
+                    for(int y = quadTile.y - MassAIConfig.oreSearchRadius; y < quadTile.y + MassAIConfig.oreSearchRadius; y++){
                         if(MassUtil.isValid2x2(x, y, item)){
                             bestTile = world.tile(x, y);
                             bestDist = minSourceDist;
-                            x = quadTile.x + MassAIConfig.ORE_SEARCH_RADIUS;
+                            x = quadTile.x + MassAIConfig.oreSearchRadius;
                             break;
                         }
                     }
@@ -210,7 +209,7 @@ public class MassEconomy{
         // makes the thing spawn in infected tiles
         LongSet.LongSetIterator it = infected.iterator();
         int size = infected.size;
-        for(int i = 0; i < MassAIConfig.INFECTED_SAMPLE_ATTEMPTS; i++){
+        for(int i = 0; i < MassAIConfig.infectedSampleAttempts; i++){
             int targetIdx = Mathf.random(size - 1);
             long packed = -1;
             it.reset();
@@ -275,7 +274,7 @@ public class MassEconomy{
             int hiveSpawners = 0;
             int airSpawners = 0;
             int heavySpawners = 0;
-            int radius = MassAIConfig.SPAWNER_RADIUS;
+            int radius = MassAIConfig.spawnerRadius;
 
             // count existing spawners near the core (only centers are tracked, matching the old 1-per-multiblock count)
             for(Tile t : spawners){
@@ -287,21 +286,21 @@ public class MassEconomy{
                 }
             }
             // max 10 spawn per core (if not welcome to unbalanced hell)
-            if(hiveSpawners < MassAIConfig.HIVE_SPAWNER_LIMIT && items.has(Items.copper, MassAIConfig.HIVE_SPAWNER_COST)){
+            if(hiveSpawners < MassAIConfig.hiveSpawnerLimit && items.has(Items.copper, MassAIConfig.hiveSpawnerCost)){
                 if(placeRandomSpawner(core, UnitBlocks.hiveSpawner, radius)){
-                    items.remove(Items.copper, MassAIConfig.HIVE_SPAWNER_COST);
+                    items.remove(Items.copper, MassAIConfig.hiveSpawnerCost);
                 }
             }
 
-            if(airSpawners < MassAIConfig.AIR_SPAWNER_LIMIT && items.has(Items.lead, MassAIConfig.AIR_SPAWNER_COST)){
+            if(airSpawners < MassAIConfig.airSpawnerLimit && items.has(Items.lead, MassAIConfig.airSpawnerCost)){
                 if(placeRandomSpawner(core, UnitBlocks.airHiveSpawner, radius)){
-                    items.remove(Items.lead, MassAIConfig.AIR_SPAWNER_COST);
+                    items.remove(Items.lead, MassAIConfig.airSpawnerCost);
                 }
             }
 
-            if(heavySpawners < MassAIConfig.HEAVY_SPAWNER_LIMIT && items.has(Items.corruptedbiomatter, MassAIConfig.HEAVY_SPAWNER_COST)){
+            if(heavySpawners < MassAIConfig.heavySpawnerLimit && items.has(Items.corruptedbiomatter, MassAIConfig.heavySpawnerCost)){
                 if(placeRandomSpawner(core, UnitBlocks.heavyHiveSpawner, radius)){
-                    items.remove(Items.corruptedbiomatter, MassAIConfig.HEAVY_SPAWNER_COST);
+                    items.remove(Items.corruptedbiomatter, MassAIConfig.heavySpawnerCost);
                 }
             }
         }
@@ -312,7 +311,7 @@ public class MassEconomy{
     }
 
     private static boolean placeRandomSpawner(Tile core, Block spawner, int radius){
-        for(int i = 0; i < MassAIConfig.SPAWNER_PLACE_ATTEMPTS; i++){
+        for(int i = 0; i < MassAIConfig.spawnerPlaceAttempts; i++){
             int tx = core.x + Mathf.random(-radius, radius);
             int ty = core.y + Mathf.random(-radius, radius);
             Tile target = world.tile(tx, ty);
@@ -382,7 +381,7 @@ public class MassEconomy{
                 for(int idx = 0; idx < spawner.types.length; idx++){
                     if(spawner.getType(idx) != type) continue;
                     if(!spawner.isTypeUnlocked(idx, evo)) break;
-                    while(missing > 0 && entity.queue.size < MassAIConfig.UNIT_QUEUE_TARGET){
+                    while(missing > 0 && entity.queue.size < MassAIConfig.unitQueueTarget){
                         if(!spawner.addToQueue(t, idx)) break;
                         missing--;
                         remaining.put(type, missing);
@@ -437,7 +436,7 @@ public class MassEconomy{
         if(Vars.state.teams.get(Team.themass).cores.size >= MassAIConfig.hiveLimit(Vars.state.difficulty)) return;
 
         for(Tile core : Vars.state.teams.get(Team.themass).cores){
-            if(coreExpanded.get(core, false)) continue;
+            if(coreExpanded.contains(core)) continue;
 
             Array<BuildingLine> lines = new Array<>();
             for(BuildingLine line : MassBuilder.activeLines){
@@ -449,14 +448,14 @@ public class MassEconomy{
             if(lines.size > 0){
                 // Try to expand
                 if(tryExpandCore(core, lines)){
-                    coreExpanded.put(core, true);
+                    coreExpanded.add(core);
                 }
             }
         }
     }
 
     private static boolean tryExpandCore(Tile core, Array<BuildingLine> lines){
-        if(!core.entity.items.has(Items.corruptedbiomatter, MassAIConfig.EXPAND_BIOMASS_COST)) return false;
+        if(!core.entity.items.has(Items.corruptedbiomatter, MassAIConfig.expandBiomassCost)) return false;
 
         // Shuffle lines to pick a random one that works
         // if They still spawning the core in random places so this is mostly useless
@@ -477,19 +476,19 @@ public class MassEconomy{
                 return Float.compare(d2, d1);
             });
 
-            for(int i = 0; i < Math.min(lineTiles.size, MassAIConfig.EXPAND_LINE_SAMPLE); i++){
+            for(int i = 0; i < Math.min(lineTiles.size, MassAIConfig.expandLineSample); i++){
                 Tile base = lineTiles.get(i).tile;
 
                 // If the line tile itself is near void/edge, skip it
-                if(MassUtil.isNearEdge(base, MassAIConfig.MAP_EDGE_MARGIN)) continue;
+                if(MassUtil.isNearEdge(base, MassAIConfig.mapEdgeMargin)) continue;
 
                 // Try several random offsets from this line tile
-                for(int j = 0; j < MassAIConfig.EXPAND_ATTEMPTS; j++){
-                    int tx = base.x + Mathf.random(-MassAIConfig.EXPAND_RANDOM_RADIUS, MassAIConfig.EXPAND_RANDOM_RADIUS);
-                    int ty = base.y + Mathf.random(-MassAIConfig.EXPAND_RANDOM_RADIUS, MassAIConfig.EXPAND_RANDOM_RADIUS);
+                for(int j = 0; j < MassAIConfig.expandAttempts; j++){
+                    int tx = base.x + Mathf.random(-MassAIConfig.expandRandomRadius, MassAIConfig.expandRandomRadius);
+                    int ty = base.y + Mathf.random(-MassAIConfig.expandRandomRadius, MassAIConfig.expandRandomRadius);
 
                     if(canPlaceCore(tx, ty)){
-                        core.entity.items.remove(Items.corruptedbiomatter, MassAIConfig.EXPAND_BIOMASS_COST);
+                        core.entity.items.remove(Items.corruptedbiomatter, MassAIConfig.expandBiomassCost);
 
                         Tile target = world.tile(tx, ty);
 
@@ -518,13 +517,13 @@ public class MassEconomy{
         int offset = -(size - 1) / 2;
 
         // Ensure not too close to map edge (they're still placing cores near edges, but this is mostly to prevent them to spawn DIRECTLY on the edge)
-        if(x + offset < MassAIConfig.MAP_EDGE_MARGIN || y + offset < MassAIConfig.MAP_EDGE_MARGIN ||
-            x + offset + size > world.width() - MassAIConfig.MAP_EDGE_MARGIN || y + offset + size > world.height() - MassAIConfig.MAP_EDGE_MARGIN) return false;
+        if(x + offset < MassAIConfig.mapEdgeMargin || y + offset < MassAIConfig.mapEdgeMargin ||
+            x + offset + size > world.width() - MassAIConfig.mapEdgeMargin || y + offset + size > world.height() - MassAIConfig.mapEdgeMargin) return false;
 
         for(int dx = 0; dx < size; dx++){
             for(int dy = 0; dy < size; dy++){
                 Tile t = world.tile(x + offset + dx, y + offset + dy);
-                if(t == null || MassUtil.isNearEnemyCore(t) || MassUtil.isNearMassCore(t, MassAIConfig.CORE_MIN_DISTANCE)) return false;
+                if(t == null || MassUtil.isNearEnemyCore(t) || MassUtil.isNearMassCore(t, MassAIConfig.coreMinDistance)) return false;
 
                 // void/Liquid check
                 if(t.floor().isLiquid || !t.floor().placeableOn) return false;

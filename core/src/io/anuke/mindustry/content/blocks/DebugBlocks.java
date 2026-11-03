@@ -19,7 +19,6 @@ import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.PowerBlock;
 import io.anuke.mindustry.world.blocks.defense.OverdriveProjector;
-import io.anuke.mindustry.world.blocks.defense.Wall;
 import io.anuke.mindustry.world.blocks.distribution.Sorter;
 import io.anuke.mindustry.world.blocks.power.PowerNode;
 import io.anuke.mindustry.world.blocks.units.UnitFactoryAdvanced;

@@ -8,8 +8,6 @@ import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Weapon;
 import io.anuke.ucore.core.Timers;
-import io.anuke.ucore.graphics.Draw;
-import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Mathf;
 
 import java.io.DataInput;

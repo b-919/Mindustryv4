@@ -1,7 +1,8 @@
 package io.anuke.mindustry.core;
 
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.utils.ObjectMap;
+import com.badlogic.gdx.utils.ObjectIntMap;
+import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.game.EventType.WorldLoadEvent;
 import io.anuke.mindustry.io.MapIO;
@@ -41,10 +42,10 @@ import static io.anuke.mindustry.Vars.world;
  */
 public class WeatherState{
     private final Weather[] weathers;
-    private final ObjectMap<Weather, Boolean> always = new ObjectMap<>();
-    private final ObjectMap<Weather, Integer> minFreqs = new ObjectMap<>();
-    private final ObjectMap<Weather, Integer> maxFreqs = new ObjectMap<>();
-    private final ObjectMap<Weather, Integer> durations = new ObjectMap<>();
+    private final ObjectSet<Weather> always = new ObjectSet<>();
+    private final ObjectIntMap<Weather> minFreqs = new ObjectIntMap<>();
+    private final ObjectIntMap<Weather> maxFreqs = new ObjectIntMap<>();
+    private final ObjectIntMap<Weather> durations = new ObjectIntMap<>();
     private Weather active;
     private float intensity = 1f;
     private float opacity;
@@ -212,11 +213,15 @@ public class WeatherState{
     }
 
     public boolean isAlways(Weather weather){
-        return always.get(weather, false);
+        return always.contains(weather);
     }
 
     public void setAlways(Weather weather, boolean value){
-        always.put(weather, value);
+        if(value){
+            always.add(weather);
+        }else{
+            always.remove(weather);
+        }
     }
 
     /**Minimum time between weather events, in minutes. */
@@ -500,7 +505,7 @@ public class WeatherState{
             int maxFreq = stream.readInt();
             int durationValue = stream.readInt();
 
-            always.put(weather, alwaysValue);
+            setAlways(weather, alwaysValue);
             minFreqs.put(weather, minFreq);
             maxFreqs.put(weather, maxFreq);
             durations.put(weather, durationValue);

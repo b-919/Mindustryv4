@@ -2,7 +2,6 @@ package io.anuke.mindustry.maps.filters;
 
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.world.Block;
-import io.anuke.ucore.noise.Simplex;
 
 import static io.anuke.mindustry.maps.filters.FilterOption.*;
 

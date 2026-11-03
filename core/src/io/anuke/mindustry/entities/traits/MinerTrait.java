@@ -1,39 +1,24 @@
 package io.anuke.mindustry.entities.traits;
 
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.utils.Queue;
-import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.content.fx.BlockFx;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.Unit;
-import io.anuke.mindustry.game.EventType.BuildSelectEvent;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Palette;
-import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.Item;
-import io.anuke.mindustry.type.Recipe;
-import io.anuke.mindustry.world.Build;
 import io.anuke.mindustry.world.Tile;
-import io.anuke.mindustry.world.blocks.BuildBlock;
-import io.anuke.mindustry.world.blocks.BuildBlock.BuildEntity;
 import io.anuke.ucore.core.Effects;
-import io.anuke.ucore.core.Events;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.entities.trait.Entity;
 import io.anuke.ucore.graphics.Draw;
-import io.anuke.ucore.graphics.Fill;
 import io.anuke.ucore.graphics.Lines;
 import io.anuke.ucore.graphics.Shapes;
 import io.anuke.ucore.util.*;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.Arrays;
 
 import static io.anuke.mindustry.Vars.*;
 

@@ -22,7 +22,6 @@ import io.anuke.mindustry.gen.RemoteReadClient;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.net.Net.SendMode;
 import io.anuke.mindustry.net.NetworkIO;
-import io.anuke.mindustry.net.Packets;
 import io.anuke.mindustry.net.Packets.*;
 import io.anuke.mindustry.net.ValidateException;
 import io.anuke.mindustry.maps.generation.ChunkManager;

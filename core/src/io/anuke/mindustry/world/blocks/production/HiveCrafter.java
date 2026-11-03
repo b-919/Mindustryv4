@@ -1,6 +1,5 @@
 package io.anuke.mindustry.world.blocks.production;
 
-import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.storage.HiveBlock;
 import io.anuke.mindustry.world.consumers.ConsumeItem;

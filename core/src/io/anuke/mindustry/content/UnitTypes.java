@@ -2,11 +2,9 @@ package io.anuke.mindustry.content;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.ObjectSet;
-import io.anuke.mindustry.content.bullets.TurretBullets;
 import io.anuke.mindustry.entities.units.*;
 import io.anuke.mindustry.entities.units.types.*;
 import io.anuke.mindustry.game.ContentList;
-import io.anuke.mindustry.type.AmmoType;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.type.Weapon;

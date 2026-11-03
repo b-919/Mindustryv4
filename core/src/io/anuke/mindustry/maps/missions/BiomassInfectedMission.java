@@ -6,7 +6,6 @@ import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.blocks.StorageBlocks;
 import io.anuke.mindustry.game.GameMode;
 import io.anuke.mindustry.game.Team;
-import io.anuke.mindustry.maps.generation.FortressGenerator;
 import io.anuke.mindustry.maps.generation.Generation;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.util.Bundles;

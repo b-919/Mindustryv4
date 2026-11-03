@@ -10,7 +10,6 @@ import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.Version;
 import io.anuke.mindustry.io.SaveFileVersion;
 import io.anuke.mindustry.maps.Map;
-import io.anuke.mindustry.maps.Map;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -131,9 +130,9 @@ public class Save17 extends SaveFileVersion{
      * v20+ postdate it.
      */
     protected int massSaveVersion(long savedTime){
-        if(version >= 21) return MassSave.SAVE_VERSION;
-        if(version >= 20) return MassSave.FORMAT_HEADERED;
-        if(version == 19) return savedTime >= massHeaderEpoch ? MassSave.FORMAT_HEADERED : MassSave.FORMAT_LEGACY;
-        return MassSave.FORMAT_LEGACY;
+        if(version >= 21) return MassSave.saveVersion;
+        if(version >= 20) return MassSave.formatHeadered;
+        if(version == 19) return savedTime >= massHeaderEpoch ? MassSave.formatHeadered : MassSave.formatLegacy;
+        return MassSave.formatLegacy;
     }
 }

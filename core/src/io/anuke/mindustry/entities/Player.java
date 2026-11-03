@@ -23,7 +23,6 @@ import io.anuke.mindustry.graphics.Trail;
 import io.anuke.mindustry.io.TypeIO;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.net.NetConnection;
-import io.anuke.mindustry.sounds.Sounds;
 import io.anuke.mindustry.type.*;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Build;

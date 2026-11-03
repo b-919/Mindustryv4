@@ -14,6 +14,7 @@ import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.meta.BlockStat;
 import io.anuke.mindustry.world.meta.ContentStatValue;
 import io.anuke.mindustry.world.meta.StatValue;
+import io.anuke.ucore.function.Predicate;
 import io.anuke.ucore.scene.ui.layout.Table;
 import io.anuke.ucore.util.Bundles;
 import io.anuke.ucore.util.Log;
@@ -36,7 +37,7 @@ public class Recipe extends UnlockableContent{
     //the only gamemode in which the recipe shows up
     public GameMode mode;
     /** A predicate that returns whether this recipe should be shown in a certain gamemode. */
-    public java.util.function.Predicate<GameMode> showIf;
+    public Predicate<GameMode> showIf;
     public boolean onlyCampaign;
     public boolean hidden;
     public boolean alwaysUnlocked;
@@ -108,7 +109,7 @@ public class Recipe extends UnlockableContent{
         return this;
     }
 
-    public Recipe setShowIf(java.util.function.Predicate<GameMode> showIf){
+    public Recipe setShowIf(Predicate<GameMode> showIf){
         this.showIf = showIf;
         return this;
     }

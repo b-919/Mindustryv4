@@ -51,7 +51,7 @@ public class MassInfection{
         Tile spawn = null;
         float maxDist = 0;
 
-        for(int i = 0; i < MassAIConfig.INITIAL_HIVE_ATTEMPTS; i++){
+        for(int i = 0; i < MassAIConfig.initialHiveAttempts; i++){
             int x = Mathf.random(world.width() - 1);
             int y = Mathf.random(world.height() - 1);
 
@@ -79,9 +79,9 @@ public class MassInfection{
         int size = StorageBlocks.hive.size;
         int offset = -(size - 1) / 2;
 
-        if(x + offset < MassAIConfig.MAP_EDGE_MARGIN || y + offset < MassAIConfig.MAP_EDGE_MARGIN
-            || x + offset + size > world.width() - MassAIConfig.MAP_EDGE_MARGIN
-            || y + offset + size > world.height() - MassAIConfig.MAP_EDGE_MARGIN) return false;
+        if(x + offset < MassAIConfig.mapEdgeMargin || y + offset < MassAIConfig.mapEdgeMargin
+            || x + offset + size > world.width() - MassAIConfig.mapEdgeMargin
+            || y + offset + size > world.height() - MassAIConfig.mapEdgeMargin) return false;
 
         for(int dx = 0; dx < size; dx++){
             for(int dy = 0; dy < size; dy++){
@@ -120,9 +120,9 @@ public class MassInfection{
         nextInfectionTime = time;
     }
 
-    /**Random initial-hive countdown from {@link MassAIConfig#INFECTION_MIN}..{@link MassAIConfig#INFECTION_MAX} ticks.*/
+    /**Random initial-hive countdown from {@link MassAIConfig#infectionMin}..{@link MassAIConfig#infectionMax} ticks.*/
     public static float randomInfectionTime(){
-        return Mathf.random(MassAIConfig.INFECTION_MIN, MassAIConfig.INFECTION_MAX);
+        return Mathf.random(MassAIConfig.infectionMin, MassAIConfig.infectionMax);
     }
 
     public static void reset(){

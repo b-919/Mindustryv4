@@ -5,7 +5,6 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import io.anuke.mindustry.content.bullets.TurretBullets;
 import io.anuke.mindustry.content.fx.ExplosionFx;
-import io.anuke.mindustry.content.fx.Fx;
 import io.anuke.mindustry.entities.bullet.Bullet;
 import io.anuke.mindustry.entities.effect.Fire;
 import io.anuke.mindustry.entities.effect.Lightning;

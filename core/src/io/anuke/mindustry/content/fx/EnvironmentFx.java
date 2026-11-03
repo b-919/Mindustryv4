@@ -6,7 +6,6 @@ import io.anuke.mindustry.game.ContentList;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.graphics.Drawf;
 import io.anuke.mindustry.type.Item;
-import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Effects.Effect;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;

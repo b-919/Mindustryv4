@@ -69,6 +69,11 @@ public class Sorter extends Block implements SelectionTrait{
     }
 
     @Override
+    public void drawCached(Tile tile){
+        super.draw(tile);
+    }
+
+    @Override
     public void drawDynamic(Tile tile){
         SorterEntity entity = tile.entity();
 

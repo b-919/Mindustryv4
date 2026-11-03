@@ -5,8 +5,6 @@ import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.mindustry.type.AmmoType;
 import io.anuke.mindustry.type.Weapon;
 
-import java.util.ArrayList;
-
 /**
  * Implemented by anything that can carry an array of independently controlled weapon mounts.
  * <p>

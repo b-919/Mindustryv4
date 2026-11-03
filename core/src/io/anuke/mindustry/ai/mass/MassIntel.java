@@ -4,13 +4,12 @@ import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.entities.units.UnitType;
 import io.anuke.mindustry.game.Team;
 import io.anuke.ucore.core.Timers;
-import io.anuke.ucore.util.Mathf;
 
 import static io.anuke.mindustry.Vars.unitGroups;
 
 /** Lightweight battlefield intelligence for the mass.*/
 public class MassIntel{
-    private static float airRatio = MassAIConfig.PERIODIC_TURRET_AIR_CHANCE;
+    private static float airRatio = MassAIConfig.periodicTurretAirChance;
     private static int enemyCount;
 
     private static float threatX, threatY, threatHeat;
@@ -20,7 +19,7 @@ public class MassIntel{
     private MassIntel(){}
 
     public static void reset(){
-        airRatio = MassAIConfig.PERIODIC_TURRET_AIR_CHANCE;
+        airRatio = MassAIConfig.periodicTurretAirChance;
         enemyCount = 0;
         threatX = 0f;
         threatY = 0f;
@@ -31,11 +30,11 @@ public class MassIntel{
     public static void update(){
         timer -= Timers.delta();
         if(timer <= 0f){
-            timer = MassAIConfig.INTEL_INTERVAL;
+            timer = MassAIConfig.intelInterval;
             scanComposition();
         }
         if(threatHeat > 0f){
-            threatHeat = Math.max(0f, threatHeat - Timers.delta() / MassAIConfig.THREAT_DECAY_TIME);
+            threatHeat = Math.max(0f, threatHeat - Timers.delta() / MassAIConfig.threatDecayTime);
         }
     }
 
@@ -46,7 +45,7 @@ public class MassIntel{
             if(team == Team.themass || team == Team.none) continue;
             for(BaseUnit unit : unitGroups[team.ordinal()].all()){
                 if(unit == null || !unit.isAdded() || unit.isDead()) continue;
-                if(scanned++ >= MassAIConfig.INTEL_SCAN_MAX) break outer;
+                if(scanned++ >= MassAIConfig.intelScanMax) break outer;
                 UnitType type = unit.getType();
                 if(type == null) continue;
                 if(type.isFlying) air++;
@@ -54,14 +53,14 @@ public class MassIntel{
             }
         }
         enemyCount = total;
-        airRatio = total > 0 ? (float) air / total : MassAIConfig.PERIODIC_TURRET_AIR_CHANCE;
+        airRatio = total > 0 ? (float) air / total : MassAIConfig.periodicTurretAirChance;
     }
 
     /**Records a hit for the threat map (world coordinates).*/
     public static void recordDamage(float worldx, float worldy){
         threatX = worldx;
         threatY = worldy;
-        threatHeat = Math.min(1f, threatHeat + MassAIConfig.THREAT_HEAT_PER_HIT);
+        threatHeat = Math.min(1f, threatHeat + MassAIConfig.threatHeatPerHit);
     }
 
     /**Fraction of scanned enemy units that are airborne (0..1).*/
@@ -71,7 +70,7 @@ public class MassIntel{
 
     /**True when a recent hotspot is hot enough to bias defense toward it.*/
     public static boolean hotspot(float[] out){
-        if(threatHeat < MassAIConfig.THREAT_HOTSPOT_MIN) return false;
+        if(threatHeat < MassAIConfig.threatHotspotMin) return false;
         out[0] = threatX;
         out[1] = threatY;
         return true;

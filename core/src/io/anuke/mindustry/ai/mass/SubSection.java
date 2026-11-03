@@ -81,7 +81,7 @@ class SubSection{
             // check if it's stuck or (full capacity, biomass generator is considered stuck if capacity = 2)
             if(targetTile.entity != null && targetTile.entity.items.total() >= targetTile.block().itemCapacity){
                 stuckTimer += Timers.delta();
-                if(stuckTimer >= MassAIConfig.DRILL_STUCK_TIME){ // 15 seconds
+                if(stuckTimer >= MassAIConfig.drillStuckTime){ // 15 seconds
                     // try to reconnect
                     if(!tryReconnect()){
                         // FAILED to reconnect -> destroy
@@ -92,15 +92,15 @@ class SubSection{
             }else{
                 stuckTimer = 0;
                 checkTimer += Timers.delta();
-                if(checkTimer >= MassAIConfig.SUBSECTION_CONNCHECK_INTERVAL){
+                if(checkTimer >= MassAIConfig.subsectionConncheckInterval){
                     checkTimer = 0;
                     if(connected()){
                         lostTimer = 0;
                     }else{
-                        lostTimer += MassAIConfig.SUBSECTION_CONNCHECK_INTERVAL;
+                        lostTimer += MassAIConfig.subsectionConncheckInterval;
                         if(tryReconnect()){
                             lostTimer = 0;
-                        }else if(lostTimer >= MassAIConfig.DRILL_STUCK_TIME){
+                        }else if(lostTimer >= MassAIConfig.drillStuckTime){
                             destroying = true;
                             if(targetOre != null) MassEconomy.boostOre(targetOre);
                         }
@@ -111,7 +111,7 @@ class SubSection{
         }
 
         timer += Timers.delta();
-        if(timer >= MassAIConfig.LINE_ACTION_INTERVAL){
+        if(timer >= MassAIConfig.lineActionInterval){
             timer = 0;
             if(progress < path.size){
                 Tile next = path.get(progress);

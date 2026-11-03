@@ -2,13 +2,11 @@ package io.anuke.mindustry.world.blocks.storage;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import io.anuke.mindustry.content.fx.Fx;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
-import io.anuke.ucore.core.Core;
 import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Effects.Effect;
 import io.anuke.ucore.core.Timers;
@@ -66,7 +64,6 @@ public class LaunchPad extends Block {
                 float dist = (Mathf.randomSeed(e.id + i + 20, 0, 2400) / 100f) * (progress / 0.2f);
                 float sx = x + (float)Math.cos(angle * 0.017453292519943295) * dist;
                 float sy = y + (float)Math.sin(angle * 0.017453292519943295) * dist;
-                
                 float lerpVal = progress * 5f + (Mathf.randomSeed(e.id + i + 30, 0, 100) / 200f);
                 Draw.color(Color.valueOf("ff971c").cpy().lerp(Palette.lightishGray, Mathf.clamp(lerpVal)));
                 Draw.alpha(shockAlpha * alpha * (0.5f + Mathf.randomSeed(e.id + i + 40, 0, 100) / 200f));

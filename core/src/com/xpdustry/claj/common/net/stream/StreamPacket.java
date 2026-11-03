@@ -25,7 +25,7 @@ import com.xpdustry.claj.common.packets.Packet;
 public interface StreamPacket extends Packet {
   // For moment, only allow streams on client side
   @Override
-  default boolean allow(boolean isServer) { 
-    return !isServer; 
+  default boolean allow(boolean isServer) {
+    return !isServer;
   }
 }

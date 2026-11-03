@@ -56,7 +56,7 @@ public class Save16 extends SaveFileVersion{
 
         readMap(stream);
 
-        MassAI.read(stream, MassSave.FORMAT_LEGACY);
+        MassAI.read(stream, MassSave.formatLegacy);
 
         //mode flags and RTS bits are not saved, so restore canonical values instead of inheriting stale custom game settings
         state.mode.reset();

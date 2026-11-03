@@ -19,7 +19,6 @@ import io.anuke.mindustry.graphics.Layer;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.graphics.Shaders;
 import io.anuke.mindustry.input.CursorType;
-import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.ItemStack;
 import io.anuke.mindustry.type.Recipe;
 import io.anuke.mindustry.world.BarType;
@@ -271,7 +270,6 @@ public class BuildBlock extends Block{
             if(builder instanceof Player){
                 builderID = builder.getID();
             }
-            
             if(progress >= 1f || state.mode.infiniteResources){
                 Call.onConstructFinish(tile, recipe.result, builderID, tile.getRotation(), builder.getTeam());
             }

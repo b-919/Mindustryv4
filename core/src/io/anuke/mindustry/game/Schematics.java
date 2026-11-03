@@ -377,7 +377,7 @@ public class Schematics {
             short y = stream.readShort();
             byte rotation = stream.readByte();
             Object config = version >= 2 ? readTileConfig(stream) : null;
-            
+
             if(blockIndex < blocks.length && blocks[blockIndex] != null){
                 tiles.add(new Schematic.Stile(blocks[blockIndex], x, y, config, rotation));
             }

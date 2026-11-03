@@ -12,11 +12,11 @@ import io.anuke.ucore.scene.ui.ButtonGroup;
 import io.anuke.ucore.scene.ui.ImageButton;
 import io.anuke.ucore.scene.ui.layout.Table;
 
+import com.badlogic.gdx.utils.ObjectSet;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
 
 public class LogicImporter extends LogicBlock {
     public LogicImporter(String name) {
@@ -46,7 +46,7 @@ public class LogicImporter extends LogicBlock {
 
         table.table(t -> {
             ButtonGroup<ImageButton> group = new ButtonGroup<>();
-            Set<Item> availableItems = new HashSet<>();
+            ObjectSet<Item> availableItems = new ObjectSet<>();
             for (int x = 0; x < Vars.world.width(); x++) {
                 for (int y = 0; y < Vars.world.height(); y++) {
                     Tile other = Vars.world.tile(x, y);

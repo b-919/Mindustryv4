@@ -9,7 +9,6 @@ import io.anuke.mindustry.entities.units.UnitType;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Tile;
-import io.anuke.mindustry.world.modules.ItemModule;
 import io.anuke.mindustry.world.meta.BlockStat;
 import io.anuke.mindustry.world.meta.StatUnit;
 import io.anuke.mindustry.world.meta.values.UnitListValue;
@@ -138,14 +137,14 @@ public class LogicExporter extends LogicBlock {
     public void buildTable(Tile tile, Table table) {
         LogicExporterEntity entity = tile.entity();
         table.add("$text.logic.exporter").row();//more uselesss text bc yes
-        
+
         table.addImageButton("icon-cancel", "clear-toggle", 24, () -> {
             setLogicTarget(null, tile, -1);
             entity.targetImporter = null;
         }).size(38).pad(1).get().setChecked(entity.targetPos == -1);
-        
+
         table.add("$text.logic.autolink").left();
-        
+
         table.row();
         table.add(io.anuke.ucore.util.Bundles.format("text.logic.target", (entity.targetPos == -1 ? io.anuke.ucore.util.Bundles.get("text.logic.target.auto") : Vars.world.tile(entity.targetPos).x + ", " + Vars.world.tile(entity.targetPos).y))).left();
     }

@@ -26,7 +26,6 @@ import io.anuke.ucore.graphics.*;
 import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Mathf;
 import io.anuke.ucore.util.Physics;
-import io.anuke.ucore.util.Translator;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 

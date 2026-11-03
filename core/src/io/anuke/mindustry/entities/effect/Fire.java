@@ -20,7 +20,6 @@ import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.entities.EntityGroup;
 import io.anuke.ucore.entities.impl.TimedEntity;
-import io.anuke.ucore.util.Structs;
 import io.anuke.ucore.util.Geometry;
 import io.anuke.ucore.util.Mathf;
 import io.anuke.ucore.util.Pooling;

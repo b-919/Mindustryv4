@@ -2,7 +2,6 @@ package io.anuke.mindustry.world.blocks.classic.defense;
 
 import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.content.fx.BulletFx;
-import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.traits.AbsorbTrait;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.world.BarType;

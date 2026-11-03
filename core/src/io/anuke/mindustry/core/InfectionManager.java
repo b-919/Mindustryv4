@@ -70,7 +70,6 @@ public class InfectionManager extends Module {
         if (tile.floor().infectedVariant != null) {
             tile.setFloor(tile.floor().infectedVariant);
         }
-        
         if (tile.block() instanceof Rock rock) {
             if (rock.infectedVariant != null) {
                 tile.setBlock(rock.infectedVariant);
@@ -125,7 +124,6 @@ public class InfectionManager extends Module {
 
         pruneInfectors();
         nextQueue.clear();
-        
         LongSet.LongSetIterator it = infectedQueue.iterator();
         while (it.hasNext) {
             long packed = it.next();
@@ -157,7 +155,6 @@ public class InfectionManager extends Module {
                             if (!other.isInfected) {
                                 infectInternal(other);
                                 nextQueue.add(other.packedPosition());
-                                
                                 break;
                             }
                         }
@@ -169,7 +166,6 @@ public class InfectionManager extends Module {
                 nextQueue.add(packed);
             }
         }
-        
         infectedQueue.clear();
         infectedQueue.addAll(nextQueue);
     }

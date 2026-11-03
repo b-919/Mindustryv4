@@ -10,7 +10,7 @@ import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Timers;
 
 /**
- * Per-hive "adrenaline mode". When more than {@link MassAIConfig#ADRENALINE_ENEMY_THRESHOLD} enemies sit inside a
+ * Per-hive "adrenaline mode". When more than {@link MassAIConfig#adrenalineEnemyThreshold} enemies sit inside a
  * hive's radius, that hive enters adrenaline: its queued turrets build faster, nearby biobulbs/tumors produce faster
  * and unit factories run faster
  */
@@ -30,15 +30,15 @@ public class MassAdrenaline{
     public static void update(ObjectSet<Tile> cores){
         timer -= Timers.delta();
         if(timer > 0f) return;
-        timer = MassAIConfig.ADRENALINE_INTERVAL;
+        timer = MassAIConfig.adrenalineInterval;
 
         active.clear();
         if(cores == null || cores.size == 0) return;
 
-        float radiusWorld = MassAIConfig.ADRENALINE_RADIUS * Vars.tilesize;
+        float radiusWorld = MassAIConfig.adrenalineRadius * Vars.tilesize;
         for(Tile core : cores){
             if(core == null) continue;
-            if(countEnemies(core.worldx(), core.worldy(), radiusWorld) > MassAIConfig.ADRENALINE_ENEMY_THRESHOLD){
+            if(countEnemies(core.worldx(), core.worldy(), radiusWorld) > MassAIConfig.adrenalineEnemyThreshold){
                 active.add(core);
             }
         }
@@ -59,7 +59,7 @@ public class MassAdrenaline{
 
     public static boolean isBonusActiveAt(float worldx, float worldy){
         if(active.size == 0) return false;
-        float radiusWorld = MassAIConfig.ADRENALINE_RADIUS * Vars.tilesize;
+        float radiusWorld = MassAIConfig.adrenalineRadius * Vars.tilesize;
         float r2 = radiusWorld * radiusWorld;
         for(Tile core : active){
             float dx = core.worldx() - worldx;

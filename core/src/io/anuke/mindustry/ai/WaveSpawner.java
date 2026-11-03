@@ -10,7 +10,6 @@ import io.anuke.mindustry.maps.missions.WaveExtraMission;
 import io.anuke.mindustry.game.EventType.WorldLoadEvent;
 import io.anuke.mindustry.game.GameMode;
 import io.anuke.mindustry.game.SpawnGroup;
-import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.Waves;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.world.Tile;

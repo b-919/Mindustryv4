@@ -72,7 +72,7 @@ public class WaveExtraMission extends MissionWithStartingCore{
 
     @Override
     public String menuDisplayString(){
-        
+
         return Bundles.format("text.mission.wave.menu", target);
     }
 
@@ -80,7 +80,7 @@ public class WaveExtraMission extends MissionWithStartingCore{
     public void update(){
         if(state.wave > target){
             state.mode = GameMode.noWaves;
-            
+
         }
     }
 

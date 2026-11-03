@@ -1,11 +1,8 @@
 package io.anuke.mindustry.entities.units.types;
 
-import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.entities.units.FlyingUnit;
-import io.anuke.mindustry.graphics.Palette;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Angles;
-import io.anuke.ucore.util.Mathf;
 
 import static io.anuke.ucore.core.Timers.delta;
 

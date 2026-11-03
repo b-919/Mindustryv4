@@ -3,7 +3,6 @@ package io.anuke.mindustry.core;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Music;
 import io.anuke.mindustry.Vars;
-import io.anuke.mindustry.content.UnitTypes;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.game.EventType;
 import io.anuke.mindustry.game.EventType.GameLoadEvent;

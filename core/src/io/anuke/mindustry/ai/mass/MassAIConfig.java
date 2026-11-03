@@ -8,110 +8,110 @@ import io.anuke.mindustry.type.ItemStack;
 /** Tunable constants for the Mass AI. All values match the pre-refactor hard-coded ones. */
 public class MassAIConfig{
     //timing, in ticks (60 per second)
-    public static final float SUBSYSTEM_INTERVAL = 5f * 60f;
-    public static final float UNIT_QUEUE_INTERVAL = 2f * 60f;
-    public static final float PERIODIC_TURRET_MIN = 15f * 60f;
-    public static final float PERIODIC_TURRET_MAX = 30f * 60f;
-    public static final float DAMAGE_TURRET_MIN = 10f * 60f;
-    public static final float DAMAGE_TURRET_MAX = 35f * 60f;
-    public static final float RESPONSE_MIN = 8f * 60f;
-    public static final float RESPONSE_MAX = 15f * 60f;
-    public static final float SUBSECTION_CONNCHECK_INTERVAL = 60f * 60f;
-    public static final float INFECTION_MIN = 5f * 60f * 60f;
-    public static final float INFECTION_MAX = 40f * 60f * 60f;
-    public static final float LINE_ACTION_INTERVAL = 60f;
-    public static final float LINE_IDLE_TIME = 30f * 60f;
-    public static final float DRILL_STUCK_TIME = 15f * 60f;
+    public static final float subsystemInterval = 5f * 60f;
+    public static final float unitQueueInterval = 2f * 60f;
+    public static final float periodicTurretMin = 15f * 60f;
+    public static final float periodicTurretMax = 30f * 60f;
+    public static final float damageTurretMin = 10f * 60f;
+    public static final float damageTurretMax = 35f * 60f;
+    public static final float responseMin = 8f * 60f;
+    public static final float responseMax = 15f * 60f;
+    public static final float subsectionConncheckInterval = 60f * 60f;
+    public static final float infectionMin = 5f * 60f * 60f;
+    public static final float infectionMax = 40f * 60f * 60f;
+    public static final float lineActionInterval = 60f;
+    public static final float lineIdleTime = 30f * 60f;
+    public static final float drillStuckTime = 15f * 60f;
 
     //squads
-    public static final float ORDER_REFRESH_MIN = 40f * 60f;
-    public static final float ORDER_REFRESH_MAX = 90f * 60f;
-    public static final float TARGET_REFRESH_INTERVAL = 4f * 60f;
-    public static final float NODE_REFRESH_INTERVAL = 12f * 60f;
-    public static final float NODE_REACH = 12f;
-    public static final float DEFEND_RADIUS = 25f;
-    public static final float DEFEND_SCAN = 200f * 2f;
-    public static final float DEFEND_ALERT_RADIUS = 40f;
-    public static final float DEFEND_GIVEUP_TIME = 30f * 60f; //seconds
-    public static final float DEFEND_GIVEUP_ORDER_TIME = 60f * 60f; //seconds
-    public static final float DEFEND_NOTIFY_INTERVAL = 5f * 60f; //seconds
-    public static final float ATTACK_UNITS_EXPOSED_RADIUS = 20f;
-    public static final int UNIT_CLUSTER_MIN = 3;
-    public static final float UNIT_CLUSTER_RADIUS = 16f;
-    public static final float UNIT_CLUSTER_SCAN_INTERVAL = 2f * 60f;
-    public static final int ENEMY_UNIT_SCAN_MAX = 160;
-    public static final float PRODUCTION_SCAN_RADIUS = 32f;
-    public static final float PATROL_HIVE_RADIUS = 55f;
-    public static final float PATROL_OUTSIDE_EXTRA = 35f;
-    public static final float PATROL_OUTSIDE_SPACING = 30f;
-    public static final float PATROL_ORBIT_RADIUS = 1.5f; //tiles
-    public static final float PATROL_ORBIT_SPEED = 0.6f; //degrees per tick
-    public static final float PURSUE_RANGE_MULTIPLIER = 2.5f;
-    public static final float RETALIATE_TIME = 15f * 60f;
-    public static final float PATROL_RETURN_TIME = 15f * 60f;
-    public static final float PURSUIT_GIVEUP_TIME = 10f * 60f; //seconds
-    public static final float PURSUIT_MIN_TIME = 1f * 60f; //seconds
-    public static final float PERIODIC_TURRET_AIR_CHANCE = 0.3f;
+    public static final float orderRefreshMin = 40f * 60f;
+    public static final float orderRefreshMax = 90f * 60f;
+    public static final float targetRefreshInterval = 4f * 60f;
+    public static final float nodeRefreshInterval = 12f * 60f;
+    public static final float nodeReach = 12f;
+    public static final float defendRadius = 25f;
+    public static final float defendScan = 200f * 2f;
+    public static final float defendAlertRadius = 40f;
+    public static final float defendGiveupTime = 30f * 60f; //seconds
+    public static final float defendGiveupOrderTime = 60f * 60f; //seconds
+    public static final float defendNotifyInterval = 5f * 60f; //seconds
+    public static final float attackUnitsExposedRadius = 20f;
+    public static final int unitClusterMin = 3;
+    public static final float unitClusterRadius = 16f;
+    public static final float unitClusterScanInterval = 2f * 60f;
+    public static final int enemyUnitScanMax = 160;
+    public static final float productionScanRadius = 32f;
+    public static final float patrolHiveRadius = 55f;
+    public static final float patrolOutsideExtra = 35f;
+    public static final float patrolOutsideSpacing = 30f;
+    public static final float patrolOrbitRadius = 1.5f; //tiles
+    public static final float patrolOrbitSpeed = 0.6f; //degrees per tick
+    public static final float pursueRangeMultiplier = 2.5f;
+    public static final float retaliateTime = 15f * 60f;
+    public static final float patrolReturnTime = 15f * 60f;
+    public static final float pursuitGiveupTime = 10f * 60f; //seconds
+    public static final float pursuitMinTime = 1f * 60f; //seconds
+    public static final float periodicTurretAirChance = 0.3f;
 
     //defense
-    public static final int TURRET_LIMIT_PER_CORE = 10;
-    public static final int DAMAGE_TURRET_SEARCH_RANGE = 10;
-    public static final int TURRET_PLACE_ATTEMPTS = 20;
-    public static final ItemStack[] COST_EVIL_RIPPLE = {new ItemStack(Items.chromium, 7), new ItemStack(Items.thorium, 7)};
-    public static final ItemStack[] COST_EVIL_FUSE = {new ItemStack(Items.thorium, 6)};
-    public static final ItemStack[] COST_EVIL_SALVO = {new ItemStack(Items.titanium, 5)};
-    public static final ItemStack[] COST_EVIL_SCATTER = {new ItemStack(Items.scrap, 5)};
-    public static final ItemStack[] COST_EVIL_CYCLONE = {new ItemStack(Items.thorium, 10), new ItemStack(Items.titanium, 10)};
-    public static final ItemStack[] COST_NONE = {};
+    public static final int turretLimitPerCore = 10;
+    public static final int damageTurretSearchRange = 10;
+    public static final int turretPlaceAttempts = 20;
+    public static final ItemStack[] costEvilRipple = {stack(Items.chromium, 7), stack(Items.thorium, 7)};
+    public static final ItemStack[] costEvilFuse = {stack(Items.thorium, 6)};
+    public static final ItemStack[] costEvilSalvo = {stack(Items.titanium, 5)};
+    public static final ItemStack[] costEvilScatter = {stack(Items.scrap, 5)};
+    public static final ItemStack[] costEvilCyclone = {stack(Items.thorium, 10), stack(Items.titanium, 10)};
+    public static final ItemStack[] costNone = {};
 
     //economy
-    public static final int SPAWNER_RADIUS = 30;
-    public static final int HIVE_SPAWNER_LIMIT = 10;
-    public static final int AIR_SPAWNER_LIMIT = 10;
-    public static final int HEAVY_SPAWNER_LIMIT = 2;
-    public static final int HIVE_SPAWNER_COST = 10; //copper
-    public static final int AIR_SPAWNER_COST = 10; //lead
-    public static final int HEAVY_SPAWNER_COST = 25; //corrupted biomatter
-    public static final int EXPAND_BIOMASS_COST = 20; //corrupted biomatter
-    public static final int UNIT_QUEUE_TARGET = 3;
-    public static final int MAX_CORES = 10;
-    public static final int CORE_MIN_DISTANCE = 75;
-    public static final int MAP_EDGE_MARGIN = 5;
-    public static final int SPAWNER_PLACE_ATTEMPTS = 40;
-    public static final int INITIAL_HIVE_ATTEMPTS = 50;
-    public static final int INFECTED_SAMPLE_ATTEMPTS = 50;
-    public static final int EXPAND_LINE_SAMPLE = 20;
-    public static final int EXPAND_ATTEMPTS = 20;
-    public static final int EXPAND_RANDOM_RADIUS = 30;
-    public static final int ORE_SEARCH_RADIUS = 10;
-    public static final Item[] TARGET_ORES = {Items.scrap, Items.lead, Items.copper, Items.coal, Items.titanium, Items.thorium, Items.chromium};
-    public static final int[] ORE_LIMITS = {6, 6, 6, 5, 4, 4, 4};
+    public static final int spawnerRadius = 30;
+    public static final int hiveSpawnerLimit = 10;
+    public static final int airSpawnerLimit = 10;
+    public static final int heavySpawnerLimit = 2;
+    public static final int hiveSpawnerCost = 10; //copper
+    public static final int airSpawnerCost = 10; //lead
+    public static final int heavySpawnerCost = 25; //corrupted biomatter
+    public static final int expandBiomassCost = 20; //corrupted biomatter
+    public static final int unitQueueTarget = 3;
+    public static final int maxCores = 10;
+    public static final int coreMinDistance = 75;
+    public static final int mapEdgeMargin = 5;
+    public static final int spawnerPlaceAttempts = 40;
+    public static final int initialHiveAttempts = 50;
+    public static final int infectedSampleAttempts = 50;
+    public static final int expandLineSample = 20;
+    public static final int expandAttempts = 20;
+    public static final int expandRandomRadius = 30;
+    public static final int oreSearchRadius = 10;
+    public static final Item[] targetOres = {Items.scrap, Items.lead, Items.copper, Items.coal, Items.titanium, Items.thorium, Items.chromium};
+    public static final int[] oreLimits = {6, 6, 6, 5, 4, 4, 4};
 
     //building lines
-    public static final int LINE_MAX_LENGTH = 100;
-    public static final int LINE_GROW_AMOUNT = 10;
-    public static final int LINE_REBUILD_ATTEMPTS = 5;
-    public static final int LINE_DIVISIONS = 20;
-    public static final int MIN_DIVISIONS_FOR_BRANCH = 3;
+    public static final int lineMaxLength = 100;
+    public static final int lineGrowAmount = 10;
+    public static final int lineRebuildAttempts = 5;
+    public static final int lineDivisions = 20;
+    public static final int minDivisionsForBranch = 3;
 
     //vein growth
-    public static final int VEIN_BRANCH_AFTER = 5;
-    public static final int VEIN_BRANCH_COST = 3;
-    public static final float VEIN_BRANCH_CHANCE = 0.3f;
-    public static final float VEIN_MERGE_CHANCE = 0.4f;
-    public static final float VEIN_TURN_PENALTY = 1.1f;
-    public static final float VEIN_SPACING_PENALTY = 2.2f;
-    public static final float VEIN_ORE_AVOID_PENALTY = 8f;
-    public static final int VEIN_STRAIGHT_ATTEMPT = 6;
-    public static final float VEIN_STRAIGHT_PENALTY = 2.2f;
-    public static final float VEIN_ATTRACT_WEIGHT = 0.75f;
-    public static final float VEIN_NOISE = 0.4f;
-    public static final int VEIN_ATTRACT_REFRESH = 4;
-    public static final int VEIN_ATTRACT_MAX_ANCHORS = 300;
-    public static final int VEIN_MAX_BLOCKED_TURNS = 3;
+    public static final int veinBranchAfter = 5;
+    public static final int veinBranchCost = 3;
+    public static final float veinBranchChance = 0.3f;
+    public static final float veinMergeChance = 0.4f;
+    public static final float veinTurnPenalty = 1.1f;
+    public static final float veinSpacingPenalty = 2.2f;
+    public static final float veinOreAvoidPenalty = 8f;
+    public static final int veinStraightAttempt = 6;
+    public static final float veinStraightPenalty = 2.2f;
+    public static final float veinAttractWeight = 0.75f;
+    public static final float veinNoise = 0.4f;
+    public static final int veinAttractRefresh = 4;
+    public static final int veinAttractMaxAnchors = 300;
+    public static final int veinMaxBlockedTurns = 3;
 
     //pathfinding
-    public static final int BFS_MAX_NODES = 2000;
+    public static final int bfsMaxNodes = 2000;
 
     /**Grace period length in minutes for a difficulty; 5 minutes when unknown.*/
     public static float graceMinutes(Difficulty difficulty){
@@ -160,7 +160,7 @@ public class MassAIConfig{
 
     /**Maximum number of hives/cores the mass may hold for a difficulty; 10 (normal default) when unknown.*/
     public static int hiveLimit(Difficulty difficulty){
-        int limit = MAX_CORES;
+        int limit = maxCores;
         if(difficulty == null) return limit;
         limit = switch (difficulty) {
             case training -> 4;
@@ -175,27 +175,31 @@ public class MassAIConfig{
 
     //adrenaline
     /**Enemy units inside a hive radius needed to trigger adrenaline mode.*/
-    public static final int ADRENALINE_ENEMY_THRESHOLD = 10;
+    public static final int adrenalineEnemyThreshold = 10;
     /**Radius (in tiles) around a hive checked for enemies when detecting adrenaline mode.*/
-    public static final float ADRENALINE_RADIUS = 40f;
+    public static final float adrenalineRadius = 40f;
     /**How often (ticks) adrenaline mode is re-evaluated.*/
-    public static final float ADRENALINE_INTERVAL = 30f;
+    public static final float adrenalineInterval = 30f;
     /**Turret (pending-build) delay reduction while a hive is in adrenaline mode.*/
-    public static final float ADRENALINE_TURRET_SPEED = 2f;
+    public static final float adrenalineTurretSpeed = 2f;
     /**Production speed bonus for biobulbs/tumors in adrenaline mode.*/
-    public static final float ADRENALINE_BIO_SPEED = 1.5f;
+    public static final float adrenalineBioSpeed = 1.5f;
     /**Production speed bonus for unit factories in adrenaline mode.*/
-    public static final float ADRENALINE_FACTORY_SPEED = 1.2f;
+    public static final float adrenalineFactorySpeed = 1.2f;
 
     //intel
     /**How often (in ticks) enemy composition is re-scanned.*/
-    public static final float INTEL_INTERVAL = 60f;
+    public static final float intelInterval = 60f;
     /**Max enemy units scanned per intel update.*/
-    public static final int INTEL_SCAN_MAX = 400;
+    public static final int intelScanMax = 400;
     /**Heat added to the threat map per damage event.*/
-    public static final float THREAT_HEAT_PER_HIT = 0.34f;
+    public static final float threatHeatPerHit = 0.34f;
     /**Minimum heat for the threat map to count as a hotspot.*/
-    public static final float THREAT_HOTSPOT_MIN = 0.5f;
+    public static final float threatHotspotMin = 0.5f;
     /**Seconds for a full threat heat value to decay back to zero.*/
-    public static final float THREAT_DECAY_TIME = 12f * 60f;
+    public static final float threatDecayTime = 12f * 60f;
+
+    private static ItemStack stack(Item item, int amount){
+        return new ItemStack(item, amount);
+    }
 }

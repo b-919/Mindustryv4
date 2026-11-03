@@ -1,11 +1,9 @@
 package io.anuke.mindustry.entities.units.types;
 
-import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.entities.units.BiomassAirUnit;
 import io.anuke.mindustry.entities.units.UnitType;
 import io.anuke.mindustry.game.Team;
-import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Weapon;

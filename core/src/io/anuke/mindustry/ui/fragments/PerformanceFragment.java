@@ -17,11 +17,9 @@ import io.anuke.ucore.scene.Group;
 import io.anuke.ucore.scene.event.Touchable;
 import io.anuke.ucore.scene.ui.Label;
 import io.anuke.ucore.scene.ui.Label.LabelStyle;
-import io.anuke.ucore.scene.ui.layout.Table;
 import io.anuke.ucore.util.Strings;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 
 import static io.anuke.mindustry.Vars.*;
 

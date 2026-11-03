@@ -4,7 +4,6 @@ import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.ai.MassAI;
-import io.anuke.mindustry.content.blocks.StorageBlocks;
 import io.anuke.mindustry.game.GameMode;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.maps.generation.FortressGenerator;

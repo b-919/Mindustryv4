@@ -389,7 +389,7 @@ public class ServerControl extends Module{
                 err("Not playing. Host first.");
                 return;
             }
-            
+
             try{
                 Team team = arg.length == 0 ? Team.blue : Team.valueOf(arg[0]);
 
@@ -397,13 +397,13 @@ public class ServerControl extends Module{
                     err("That team has no cores.");
                     return;
                 }
-                
+
                 for(Item item : content.items()){
                     if(item.type == ItemType.material){
                         state.teams.get(team).cores.first().entity.items.add(item, 2000);
                     }
                 }
-                
+
                 info("Core filled.");
             }catch(IllegalArgumentException ignored){
                 err("No such team exists.");

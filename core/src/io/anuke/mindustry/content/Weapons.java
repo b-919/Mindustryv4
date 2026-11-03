@@ -3,7 +3,6 @@ package io.anuke.mindustry.content;
 import io.anuke.mindustry.content.fx.Fx;
 import io.anuke.mindustry.content.fx.ShootFx;
 import io.anuke.mindustry.game.ContentList;
-import io.anuke.mindustry.sounds.Sounds;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Weapon;
 

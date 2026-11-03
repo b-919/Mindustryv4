@@ -49,7 +49,7 @@ public class MassSquads{
     private static Unit defendTarget;
     private static float defendX, defendY;
     private static float defendGiveupTimer;
-    private static float lastAttackNotifyTime = -MassAIConfig.DEFEND_NOTIFY_INTERVAL;
+    private static float lastAttackNotifyTime = -MassAIConfig.defendNotifyInterval;
 
     private static final Array<BaseUnit> massUnitsScratch = new Array<>();
     private static final Array<ObjectIntMap<UnitType>> squadTypeMaps = new Array<>();
@@ -92,11 +92,11 @@ public class MassSquads{
                         exitPursuit(squad);
                     }else if(anyMemberInRange(squad, squad.pursuitTarget)){
                         //engaged: keep fighting; fresh hits also refresh this
-                        squad.retaliateTimer = MassAIConfig.RETALIATE_TIME;
+                        squad.retaliateTimer = MassAIConfig.retaliateTime;
                     }else{
                         squad.retaliateTimer -= Timers.delta();
                         if(squad.retaliateTimer <= 0f){
-                            if(MassAI.debug) Log.info("[MassAI] squad={0} could not reach its attacker in {1}s, resuming patrol", squad.id, MassAIConfig.RETALIATE_TIME / 60f);
+                            if(MassAI.debug) Log.info("[MassAI] squad={0} could not reach its attacker in {1}s, resuming patrol", squad.id, MassAIConfig.retaliateTime / 60f);
                             exitPursuit(squad);
                         }
                     }
@@ -113,20 +113,20 @@ public class MassSquads{
                         if(squad.pursuitRange <= 0f || d > squad.pursuitRange){
                             exitPursuit(squad);
                         }else if(squad.pursuitTimer <= 0f){
-                            squad.pursuitTimer = MassAIConfig.PURSUIT_MIN_TIME;
+                            squad.pursuitTimer = MassAIConfig.pursuitMinTime;
                         }
                     }
                 }
             }
 
             if(squad.nextOrderTime <= 0f && !isPursuitOrder(squad.order)){
-                squad.nextOrderTime = Mathf.random(MassAIConfig.ORDER_REFRESH_MIN, MassAIConfig.ORDER_REFRESH_MAX);
+                squad.nextOrderTime = Mathf.random(MassAIConfig.orderRefreshMin, MassAIConfig.orderRefreshMax);
                 rollOrder(squad);
                 squad.nextTargetRefresh = 0f;
             }
 
             if(squad.nextTargetRefresh <= 0f && !isPursuitOrder(squad.order)){
-                squad.nextTargetRefresh = MassAIConfig.TARGET_REFRESH_INTERVAL;
+                squad.nextTargetRefresh = MassAIConfig.targetRefreshInterval;
                 refreshSquadTarget(squad);
             }
 
@@ -261,7 +261,7 @@ public class MassSquads{
         for(Tile tile : prod){
             if(tile == null || tile.entity == null || tile.getTeam() == Team.themass) continue;
             boolean factory = tile.block() instanceof UnitFactory || tile.block() instanceof UnitFactoryAdvanced;
-            if(nearEnemyCore(tile, MassAIConfig.PRODUCTION_SCAN_RADIUS)){
+            if(nearEnemyCore(tile, MassAIConfig.productionScanRadius)){
                 if(factory) enemyUnitFactories++;
                 else enemyProducers++;
             }
@@ -269,7 +269,7 @@ public class MassSquads{
 
         nextClusterScan -= Timers.delta();
         if(nextClusterScan <= 0f){
-            nextClusterScan = MassAIConfig.UNIT_CLUSTER_SCAN_INTERVAL;
+            nextClusterScan = MassAIConfig.unitClusterScanInterval;
             findUnitCluster();
         }
     }
@@ -288,10 +288,10 @@ public class MassSquads{
             if(team == Team.themass || team == Team.none) continue;
             for(BaseUnit unit : unitGroups[team.ordinal()].all()){
                 if(unit == null || !unit.isAdded() || unit.isDead()) continue;
-                if(scanned++ >= MassAIConfig.ENEMY_UNIT_SCAN_MAX) break;
+                if(scanned++ >= MassAIConfig.enemyUnitScanMax) break;
                 boolean exposed = true;
                 for(Tile core : enemyCoresScratch){
-                    if(Mathf.dst((unit.x / tilesize) - core.x, (unit.y / tilesize) - core.y) <= MassAIConfig.ATTACK_UNITS_EXPOSED_RADIUS){
+                    if(Mathf.dst((unit.x / tilesize) - core.x, (unit.y / tilesize) - core.y) <= MassAIConfig.attackUnitsExposedRadius){
                         exposed = false;
                         break;
                     }
@@ -302,7 +302,7 @@ public class MassSquads{
 
         Unit best = null;
         int bestCount = 0;
-        float radius = MassAIConfig.UNIT_CLUSTER_RADIUS * tilesize;
+        float radius = MassAIConfig.unitClusterRadius * tilesize;
         for(int i = 0; i < clusterUnits.size; i++){
             Unit u = clusterUnits.get(i);
             int cnt = 1;
@@ -316,15 +316,15 @@ public class MassSquads{
                 best = u;
             }
         }
-        clusterTarget = bestCount >= MassAIConfig.UNIT_CLUSTER_MIN ? best : null;
+        clusterTarget = bestCount >= MassAIConfig.unitClusterMin ? best : null;
     }
 
     public static void notifyAttack(float x, float y, Entity attacker){
         if(hiveUnderAttack) return;
-        if(!nearAnyMassCore(x / tilesize, y / tilesize, MassAIConfig.DEFEND_ALERT_RADIUS)) return;
+        if(!nearAnyMassCore(x / tilesize, y / tilesize, MassAIConfig.defendAlertRadius)) return;
 
         float time = Timers.time();
-        if(time - lastAttackNotifyTime < MassAIConfig.DEFEND_NOTIFY_INTERVAL) return;
+        if(time - lastAttackNotifyTime < MassAIConfig.defendNotifyInterval) return;
         lastAttackNotifyTime = time;
 
         Unit target = attacker instanceof Unit && !((Unit) attacker).isDead() && attacker.isAdded() ?
@@ -334,7 +334,7 @@ public class MassSquads{
         defendTarget = target;
         defendX = x;
         defendY = y;
-        defendGiveupTimer = MassAIConfig.DEFEND_GIVEUP_TIME;
+        defendGiveupTimer = MassAIConfig.defendGiveupTime;
         hiveUnderAttack = true;
         if(MassAI.debug) Log.info("[MassAI] hive under attack near ({0},{1})", (int) (x / tilesize), (int) (y / tilesize));
     }
@@ -348,7 +348,7 @@ public class MassSquads{
 
     private static Unit findNearestEnemy(float x, float y){
         enemyScratch.clear();
-        Units.getNearbyEnemies(Team.themass, scanRect.setSize(MassAIConfig.DEFEND_SCAN).setCenter(x, y), enemyScratch::add);
+        Units.getNearbyEnemies(Team.themass, scanRect.setSize(MassAIConfig.defendScan).setCenter(x, y), enemyScratch::add);
         Unit best = null;
         float bestD = Float.MAX_VALUE;
         for(Unit u : enemyScratch){
@@ -385,7 +385,7 @@ public class MassSquads{
 
         if(retaliating && squad.pursuitTarget == target){
             //the damager is still attacking: keep the timer topped up and keep chasing
-            squad.retaliateTimer = MassAIConfig.RETALIATE_TIME;
+            squad.retaliateTimer = MassAIConfig.retaliateTime;
             return;
         }
 
@@ -393,7 +393,7 @@ public class MassSquads{
     }
     private static MassSquad nearestPatrolSquad(BaseUnit unit){
         MassSquad best = null;
-        float bestD = MassAIConfig.DEFEND_RADIUS * tilesize;
+        float bestD = MassAIConfig.defendRadius * tilesize;
         for(MassSquad squad : activeSquads){
             if(squad.defensive || squad.memberCount == 0 || !isPatrolOrder(squad.order)) continue;
             float d = Mathf.dst(unit.x - squad.cx, unit.y - squad.cy);
@@ -415,7 +415,7 @@ public class MassSquads{
         squad.pursuitTimer = 0f;
         squad.pursuitRange = 0f;
         squad.retaliating = true;
-        squad.retaliateTimer = MassAIConfig.RETALIATE_TIME;
+        squad.retaliateTimer = MassAIConfig.retaliateTime;
         squad.giveUpPatrol = false;
         squad.nodeTimer = 0f;
         if(MassAI.debug) Log.info("[MassAI] squad={0} retaliating against attacker near ({1},{2})", squad.id, (int)(target.x / tilesize), (int)(target.y / tilesize));
@@ -444,7 +444,7 @@ public class MassSquads{
 
         defendGiveupTimer -= Timers.delta();
         if(defendGiveupTimer <= 0f){
-            if(MassAI.debug) Log.info("[MassAI] attacker survived {0}s, defense gives up", MassAIConfig.DEFEND_GIVEUP_TIME / 60f);
+            if(MassAI.debug) Log.info("[MassAI] attacker survived {0}s, defense gives up", MassAIConfig.defendGiveupTime / 60f);
             giveupDefenseSquads();
             hiveUnderAttack = false;
             defendTarget = null;
@@ -468,7 +468,7 @@ public class MassSquads{
                 squad.defensive = false;
                 squad.order = MassOrder.PATROL_HIVES;
                 squad.giveUpPatrol = true;
-                squad.nextOrderTime = MassAIConfig.DEFEND_GIVEUP_ORDER_TIME;
+                squad.nextOrderTime = MassAIConfig.defendGiveupOrderTime;
                 squad.nodeTimer = 0f;
                 if(squad.nodeCount == 0) recomputeSquadNodes(squad);
             }
@@ -692,7 +692,7 @@ public class MassSquads{
         Array<Tile> prod = world.indexer.getEnemy(Team.themass, BlockFlag.producer);
         for(Tile tile : prod){
             if(tile == null || tile.entity == null || tile.getTeam() == Team.themass) continue;
-            if(!nearEnemyCore(tile, MassAIConfig.PRODUCTION_SCAN_RADIUS)) continue;
+            if(!nearEnemyCore(tile, MassAIConfig.productionScanRadius)) continue;
             boolean isFactory = tile.block() instanceof UnitFactory || tile.block() instanceof UnitFactoryAdvanced;
             if(isFactory != factory) continue;
             Tile target = tile.target();
@@ -708,14 +708,14 @@ public class MassSquads{
     private static void updateSquadNodes(MassSquad squad){
         squad.nodeTimer -= Timers.delta();
         if(squad.nodeTimer <= 0f){
-            squad.nodeTimer = MassAIConfig.NODE_REFRESH_INTERVAL;
+            squad.nodeTimer = MassAIConfig.nodeRefreshInterval;
             recomputeSquadNodes(squad);
         }
         if(squad.nodeCount == 0 || squad.memberCount == 0) return;
         if(squad.nodeIndex >= squad.nodeCount) squad.nodeIndex = 0;
         float nx = squad.patrolX[squad.nodeIndex];
         float ny = squad.patrolY[squad.nodeIndex];
-        if(Mathf.dst(squad.cx - nx, squad.cy - ny) <= MassAIConfig.NODE_REACH * tilesize){
+        if(Mathf.dst(squad.cx - nx, squad.cy - ny) <= MassAIConfig.nodeReach * tilesize){
             squad.nodeIndex = (squad.nodeIndex + 1) % squad.nodeCount;
         }
     }
@@ -736,17 +736,17 @@ public class MassSquads{
                 float d = Mathf.dst(core.x - baseTileX, core.y - baseTileY);
                 if(d > coreDist) coreDist = d;
             }
-            float extent = Mathf.clamp(coreDist, 15f, 40f) + MassAIConfig.PATROL_OUTSIDE_EXTRA;
+            float extent = Mathf.clamp(coreDist, 15f, 40f) + MassAIConfig.patrolOutsideExtra;
             squad.nodeCount = count;
             for(int i = 0; i < count; i++){
                 float a = ang + (i - 1) * 14f;
-                float d = (extent + i * MassAIConfig.PATROL_OUTSIDE_SPACING) * tilesize;
+                float d = (extent + i * MassAIConfig.patrolOutsideSpacing) * tilesize;
                 squad.patrolX[i] = baseX + Angles.trnsx(a, d);
                 squad.patrolY[i] = baseY + Angles.trnsy(a, d);
             }
         }else{
             squad.nodeCount = count;
-            float radius = MassAIConfig.PATROL_HIVE_RADIUS * tilesize;
+            float radius = MassAIConfig.patrolHiveRadius * tilesize;
             for(int i = 0; i < count; i++){
                 float a = i * 120f + squad.id * 47f;
                 squad.patrolX[i] = baseX + Angles.trnsx(a, radius);
@@ -777,7 +777,7 @@ public class MassSquads{
     }
 
     private static void applyDefenseOverrides(){
-        float radius = MassAIConfig.DEFEND_RADIUS * tilesize;
+        float radius = MassAIConfig.defendRadius * tilesize;
         int candidates = 0;
         int farthest = -1;
         float farD = -1f;
@@ -832,8 +832,8 @@ public class MassSquads{
         squad.pursuitRange = 0f;
         squad.retaliating = false;
         squad.retaliateTimer = 0f;
-        squad.patrolGrace = MassAIConfig.PATROL_RETURN_TIME;
-        squad.nextOrderTime = Math.max(squad.nextOrderTime, MassAIConfig.PATROL_RETURN_TIME);
+        squad.patrolGrace = MassAIConfig.patrolReturnTime;
+        squad.nextOrderTime = Math.max(squad.nextOrderTime, MassAIConfig.patrolReturnTime);
         squad.giveUpPatrol = false;
         squad.nodeTimer = 0f;
     }
@@ -844,8 +844,8 @@ public class MassSquads{
         squad.previousPatrol = isPatrolOrder(squad.order) ? squad.order : squad.previousPatrol;
         squad.order = MassOrder.PURSUE;
         squad.pursuitTarget = target;
-        squad.pursuitTimer = MassAIConfig.PURSUIT_GIVEUP_TIME;
-        squad.pursuitRange = attackRange * MassAIConfig.PURSUE_RANGE_MULTIPLIER;
+        squad.pursuitTimer = MassAIConfig.pursuitGiveupTime;
+        squad.pursuitRange = attackRange * MassAIConfig.pursueRangeMultiplier;
         squad.retaliating = false;
         squad.retaliateTimer = 0f;
         squad.giveUpPatrol = false;
@@ -1011,7 +1011,7 @@ public class MassSquads{
 
     private static float orbitRadius(BaseUnit unit){
         UnitType type = unit.getType();
-        float base = Math.max(MassAIConfig.PATROL_ORBIT_RADIUS * tilesize, (type == null ? 0f : type.hitsize) + tilesize);
+        float base = Math.max(MassAIConfig.patrolOrbitRadius * tilesize, (type == null ? 0f : type.hitsize) + tilesize);
         return base + (unit.getID() % 3) * tilesize * 0.5f;
     }
 
@@ -1024,7 +1024,7 @@ public class MassSquads{
         float baseAngle;
         if(dist < 0.001f){
             //sitting on the node: seed the direction so units spread around the circle
-            baseAngle = (Timers.time() * MassAIConfig.PATROL_ORBIT_SPEED + unit.getID() * 47f) % 360f;
+            baseAngle = (Timers.time() * MassAIConfig.patrolOrbitSpeed + unit.getID() * 47f) % 360f;
             dx = Angles.trnsx(baseAngle, 1f);
             dy = Angles.trnsy(baseAngle, 1f);
             dist = 1f;
@@ -1162,7 +1162,7 @@ public class MassSquads{
         defendX = 0f;
         defendY = 0f;
         defendGiveupTimer = 0f;
-        lastAttackNotifyTime = -MassAIConfig.DEFEND_NOTIFY_INTERVAL;
+        lastAttackNotifyTime = -MassAIConfig.defendNotifyInterval;
         enemyCoresScratch.clear();
         clusterUnits.clear();
         enemyScratch.clear();

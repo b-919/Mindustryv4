@@ -49,7 +49,6 @@ public class LegacyColorMapper implements ContentList{
     public ContentType type(){
         return ContentType.block;
     }
-    
     private void map(String color, Block block, int elevation){
         blockMap.put(Color.rgba8888(Color.valueOf(color)), new LegacyBlock(block, elevation));
     }

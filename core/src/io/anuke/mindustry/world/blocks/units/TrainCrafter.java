@@ -8,7 +8,6 @@ import io.anuke.mindustry.content.UnitTypes;
 import io.anuke.mindustry.content.fx.BlockFx;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.MainTrain;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.Item;
