@@ -19,6 +19,8 @@ import static io.anuke.mindustry.Vars.ui;
 /** Dialog for the customization of the main menu Background */
 public class BackgroundCustomizationDialog extends FloatingDialog{
     private static final int sectionNone = -1, sectionShader = 0, sectionSpace = 1, sectionSimulation = 2;
+    private static final String shaderGuideUrl =
+        "https://github.com/b-919/Mindustryv4/blob/mainv4/BACKGROUND_SHADER_GUIDE.md";
 
     private final MenuBackground background = ui.backfrag.background;
     private int section = sectionNone;
@@ -115,7 +117,16 @@ public class BackgroundCustomizationDialog extends FloatingDialog{
         }
 
         if(!ios){
-            list.addButton("$text.background.import", this::importShader).width(260f).row();
+            Table importRow = new Table();
+            importRow.addButton("$text.background.import", this::importShader).size(260f, 48f).padRight(4f);
+            importRow.addButton("?", () -> {
+                if(!Gdx.net.openURI(shaderGuideUrl)){
+                    ui.showError("$text.linkfail");
+                    Gdx.app.getClipboard().setContents(shaderGuideUrl);
+                }
+            }).size(48f, 48f);
+
+            list.add(importRow).row();
         }
 
         if(!background.isDefaultShader()){
