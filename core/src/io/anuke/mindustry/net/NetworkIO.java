@@ -260,6 +260,7 @@ public class NetworkIO{
             int id = stream.readInt();
             player.resetNoAdd();
             player.read(stream, TimeUtils.millis());
+            state.playerTeam = player.getTeam();
             player.resetID(id);
             BaseEntity.checkNextId(id);
             player.add();

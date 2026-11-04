@@ -45,7 +45,7 @@ public class Logic extends Module{
 
     public Logic(){
         Events.on(TileChangeEvent.class, event -> {
-            if(event.tile.getTeam() == defaultTeam){
+            if(event.tile.getTeam() == state.playerTeam){
                 Recipe recipe = Recipe.getByResult(event.tile.block());
                 if(recipe != null && recipe.belongsToTech(state.techTree)){
                     handleContent(recipe);
@@ -90,7 +90,7 @@ public class Logic extends Module{
         state.set(State.playing);
         state.wavetime = wavespace * state.difficulty.timeScaling * 2;
 
-        for(Tile tile : state.teams.get(defaultTeam).cores){
+        for(Tile tile : state.teams.get(state.playerTeam).cores){
             if(world.getSector() != null){
                 Array<ItemStack> items = world.getSector().startingItems;
                 for(ItemStack stack : items){
@@ -146,7 +146,7 @@ public class Logic extends Module{
     }
 
     private void checkGameOver(){
-        if(!state.mode.isPvp && state.teams.get(defaultTeam).cores.size == 0 && !state.gameOver){
+        if(!state.mode.isPvp && state.teams.get(state.playerTeam).cores.size == 0 && !state.gameOver){
             state.gameOver = true;
             Events.fire(new GameOverEvent(state.enemyTeam));
         }else if(state.mode.isPvp){

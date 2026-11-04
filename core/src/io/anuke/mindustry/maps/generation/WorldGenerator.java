@@ -223,10 +223,10 @@ public class WorldGenerator{
                 }
             }
 
-            world.setBlock(tiles[spawns.get(0).x][spawns.get(0).y], StorageBlocks.core, Team.blue);
+            world.setBlock(tiles[spawns.get(0).x][spawns.get(0).y], StorageBlocks.core, state.playerTeam);
 
             if(state.mode.isPvp){
-                world.setBlock(tiles[spawns.get(1).x][spawns.get(1).y], StorageBlocks.core, Team.red);
+                world.setBlock(tiles[spawns.get(1).x][spawns.get(1).y], StorageBlocks.core, state.playerTeam == Team.blue ? Team.red : Team.blue);
             }else if(state.mode == GameMode.customAttackMode){
                 world.applyCustomAttackFortress();
             }

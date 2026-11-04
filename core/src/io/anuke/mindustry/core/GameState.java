@@ -29,6 +29,8 @@ public class GameState{
     public boolean allowMassInfection = false;
     /**Whether to start with present biomass (hive).*/
     public boolean startWithBiomass = false;
+    /**The team the player starts on in custom games.*/
+    public Team playerTeam = Team.blue;
     /**The team used as the enemy in waves and custom attack maps.*/
     public Team enemyTeam = Team.red;
     /**Default bitmask of teams that should use RTS AI.*/
@@ -48,6 +50,7 @@ public class GameState{
      * Called when loading a sector or a saved game, so settings chosen in the custom game dialog don't leak into other games.*/
     public void resetCustomSettings(){
         mode.reset();
+        playerTeam = Team.blue;
         enemyTeam = Team.red;
         allowMassInfection = false;
         startWithBiomass = false;

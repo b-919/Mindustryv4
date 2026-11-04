@@ -216,6 +216,23 @@ public class CustomGameDialog extends FloatingDialog{
         table.add(techs).left().padBottom(8f);
         table.row();
 
+        table.add("Player Team").padTop(8f).left();
+        table.row();
+
+        Table playerTeams = new Table();
+        ButtonGroup<TextButton> playerTeamGroup = new ButtonGroup<>();
+        int pi = 0;
+        for(Team team : Team.all){
+            if(team == Team.none || team == Team.themass) continue;
+
+            playerTeams.addButton("$team." + team.name() + ".name", "toggle", () -> state.playerTeam = team)
+                .update(b -> b.setChecked(state.playerTeam == team)).group(playerTeamGroup).size(140f, 54f);
+            if(pi++ % 2 == 1) playerTeams.row();
+        }
+
+        table.add(playerTeams).left();
+        table.row();
+
         table.add("Enemy Selector").padTop(8f).left();
         table.row();
 

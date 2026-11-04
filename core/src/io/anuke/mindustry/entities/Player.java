@@ -843,7 +843,7 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
 
     public void resetNoAdd(){
         status.clear();
-        team = Team.blue;
+        team = state.playerTeam;
         inventory.clear();
         placeQueue.clear();
         dead = true;

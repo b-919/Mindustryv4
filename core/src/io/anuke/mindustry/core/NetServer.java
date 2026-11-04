@@ -222,6 +222,8 @@ public class NetServer extends Module{
                 });
                 player.setTeam(min);
                 Log.info("Auto-assigned player {0} to team {1}.", player.name, player.getTeam());
+            }else{
+                player.setTeam(state.playerTeam);
             }
 
             connections.put(id, player);

@@ -62,6 +62,10 @@ public class Save17 extends SaveFileVersion{
 
         readEntities(stream);
 
+        if(players.length > 0 && players[0] != null){
+            state.playerTeam = players[0].getTeam();
+        }
+
         readMap(stream);
 
         MassAI.read(stream, massSaveVersion(savedTime));

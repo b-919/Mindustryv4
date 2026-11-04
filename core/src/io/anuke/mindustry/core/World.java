@@ -381,18 +381,18 @@ public class World extends Module{
     }
 
     public void applyCustomAttackFortress(){
-        Tile blueCore = null;
+        Tile playerCore = null;
         Array<Tile> enemyCores = new Array<>();
-        EnumSet<Team> enemyTeams = state.teams.enemiesOf(defaultTeam);
+        EnumSet<Team> enemyTeams = state.teams.enemiesOf(state.playerTeam);
 
         for(int x = 0; x < tiles.length; x++){
             for(int y = 0; y < tiles[0].length; y++){
                 Tile tile = tiles[x][y];
                 if(tile == null || tile.block() != StorageBlocks.core) continue;
 
-                if(tile.getTeam() == defaultTeam){
-                    if(blueCore == null){
-                        blueCore = tile;
+                if(tile.getTeam() == state.playerTeam){
+                    if(playerCore == null){
+                        playerCore = tile;
                     }
                 }else if(enemyTeams.contains(tile.getTeam())){
                     enemyCores.add(tile);
@@ -400,13 +400,13 @@ public class World extends Module{
             }
         }
 
-        if(blueCore == null){
+        if(playerCore == null){
             return;
         }
 
         Generation generation = new Generation(null, tiles, width(), height(), new SeedRandom(Mathf.random(99999)));
         if(enemyCores.size == 0){
-            Tile generatedEnemyCore = findCustomAttackEnemyCore(generation, blueCore);
+            Tile generatedEnemyCore = findCustomAttackEnemyCore(generation, playerCore);
             if(generatedEnemyCore == null){
                 return;
             }
@@ -416,7 +416,7 @@ public class World extends Module{
         }
 
         for(Tile enemyCore : enemyCores){
-            new FortressGenerator().generate(generation, enemyCore.getTeam(), blueCore.x, blueCore.y, enemyCore.x, enemyCore.y);
+            new FortressGenerator().generate(generation, enemyCore.getTeam(), playerCore.x, playerCore.y, enemyCore.x, enemyCore.y);
         }
     }
 
