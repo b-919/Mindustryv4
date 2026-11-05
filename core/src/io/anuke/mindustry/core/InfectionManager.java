@@ -4,8 +4,9 @@ import com.badlogic.gdx.utils.LongSet;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.maps.Sector;
+import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
-import io.anuke.mindustry.world.blocks.Rock;
+import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.modules.Module;
 import io.anuke.ucore.util.Geometry;
@@ -47,16 +48,8 @@ public class InfectionManager extends Module {
                 Tile tile = value[y];
                 if (tile == null) continue;
 
-                if (tile.floor().infectedVariant != null) {
-                    tile.setFloor(tile.floor().infectedVariant);
+                if(applyInfectedVariants(tile)){
                     tile.isInfected = true;
-                }
-
-                if (tile.block() instanceof Rock rock) {
-                    if (rock.infectedVariant != null) {
-                        tile.setBlock(rock.infectedVariant);
-                        tile.isInfected = true;
-                    }
                 }
             }
         }
@@ -66,17 +59,27 @@ public class InfectionManager extends Module {
 
     private void infectInternal(Tile tile) {
         tile.isInfected = true;
-
-        if (tile.floor().infectedVariant != null) {
-            tile.setFloor(tile.floor().infectedVariant);
-        }
-        if (tile.block() instanceof Rock rock) {
-            if (rock.infectedVariant != null) {
-                tile.setBlock(rock.infectedVariant);
-            }
-        }
-
+        applyInfectedVariants(tile);
         markSectorInfected();
+    }
+
+    /** Swaps in any infected variants this tile's floor or block defines. Returns whether anything changed. */
+    private boolean applyInfectedVariants(Tile tile) {
+        boolean changed = false;
+
+        Block infectedFloor = tile.floor().infectedVariant;
+        if(infectedFloor instanceof Floor){
+            tile.setFloor((Floor) infectedFloor);
+            changed = true;
+        }
+
+        Block infectedBlock = tile.block().infectedVariant;
+        if(infectedBlock != null){
+            tile.setBlock(infectedBlock);
+            changed = true;
+        }
+
+        return changed;
     }
     private void markSectorInfected(){
         Sector sector = Vars.world.getSector();
@@ -171,13 +174,10 @@ public class InfectionManager extends Module {
     }
 
     private boolean canInfect(Tile tile) {
-        if (tile == null || tile.isInfected) return false;
-        if (!isWithinRadius(tile)) return false;
-        if (tile.floor().infectedVariant != null) return true;
-        if (tile.block() instanceof Rock rock) {
-            return rock.infectedVariant != null;
-        }
-        return false;
+        if(tile == null || tile.isInfected) return false;
+        if(!isWithinRadius(tile)) return false;
+        if(tile.floor().infectedVariant instanceof Floor) return true;
+        return tile.block().infectedVariant != null;
     }
 
     private void pruneInfectors() {

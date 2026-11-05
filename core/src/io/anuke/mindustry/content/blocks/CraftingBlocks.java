@@ -72,7 +72,7 @@ public class CraftingBlocks extends BlockList implements ContentList{
             group = BlockGroup.power;
             craftEffect = BlockFx.smeltsmoke;
             output = Items.densealloy;
-            itemOutputAmount = 3;
+            itemOutputAmount = 6;
             itemCapacity = 80;
             craftTime = 65f;
             size = 3;
@@ -144,7 +144,7 @@ public class CraftingBlocks extends BlockList implements ContentList{
             itemCapacity = 80;
             craftTime = 90f;
             powerCapacity = 20f;
-            size = 4;
+            size = 3;
             hasLiquids = false;
             setAmbientSound("loopSmelter", 0.07f);
             flameColor = Color.valueOf("ffef99");

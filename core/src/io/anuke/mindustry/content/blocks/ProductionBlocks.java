@@ -111,7 +111,6 @@ public class ProductionBlocks extends BlockList implements ContentList{
             size = 2;
             hasLiquids = true;
             hasPower = true;
-
             consumes.power(0.08f);
             consumes.liquid(Liquids.water, 0.2f);
         }};
@@ -123,7 +122,6 @@ public class ProductionBlocks extends BlockList implements ContentList{
             hasPower = true;
             plantColor = Color.valueOf("511111");
             plantColorLight = Color.valueOf("6b0707");
-
             consumes.power(0.08f);
             consumes.liquid(Liquids.water, 0.2f);
         }
@@ -132,6 +130,8 @@ public class ProductionBlocks extends BlockList implements ContentList{
                 return tile != null && tile.floor() == infectedGrass;
             }
         };
+        cultivator.infectedVariant = corruptedcultivator;
+
         biomassBulb = new HiveDrill("biomass-bulb"){{
             health = 580;
             update = true;

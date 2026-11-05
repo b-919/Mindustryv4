@@ -16,7 +16,8 @@ import io.anuke.ucore.graphics.Lines;
 import io.anuke.ucore.util.Mathf;
 
 public class Blocks extends BlockList implements ContentList{
-    public static Block air, blockpart, spawn, space, metalfloor, deepwater, water, lava, tar, stone, blackstone, dirt, sand, ice, snow, grass, shrub, rock, icerock, blackrock, tree, deadTree, frozenTree, infectedGrass, infectedSand, infectedDirt, infectedWater, infectedDeepWater, infectedShrub;
+    public static Block air, blockpart, spawn, space, metalfloor, deepwater, water, lava, tar, stone, blackstone, dirt, sand, ice, snow, grass, shrub, rock, icerock, blackrock, tree, deadTree, frozenTree, infectedGrass, infectedSand, infectedDirt, infectedWater, infectedDeepWater,
+            infectedShrub, infectedTree;
 
 
     @Override
@@ -233,12 +234,19 @@ public class Blocks extends BlockList implements ContentList{
         frozenTree = new DeadTree("frozen-tree"){{
             //variants = 3;
         }};
+        infectedTree = new DeadTree("infected-tree"){{
+        }};
 
-        ((Floor)grass).infectedVariant = (Floor)infectedGrass;
-        ((Floor)sand).infectedVariant = (Floor)infectedSand;
-        ((Floor)dirt).infectedVariant = (Floor)infectedDirt;
-        ((Floor)water).infectedVariant = (Floor)infectedWater;
-        ((Floor)deepwater).infectedVariant = (Floor)infectedDeepWater;
-        ((Rock)shrub).infectedVariant = (Rock)infectedShrub;
+        //must run after every block exists
+        //assigning these inside the initializers would capture null
+        grass.infectedVariant = infectedGrass;
+        sand.infectedVariant = infectedSand;
+        dirt.infectedVariant = infectedDirt;
+        water.infectedVariant = infectedWater;
+        deepwater.infectedVariant = infectedDeepWater;
+        shrub.infectedVariant = infectedShrub;
+        tree.infectedVariant = infectedTree;
+        deadTree.infectedVariant = infectedTree;
+        frozenTree.infectedVariant = infectedTree;
     }
 }

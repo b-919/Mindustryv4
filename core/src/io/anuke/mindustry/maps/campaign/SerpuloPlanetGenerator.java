@@ -25,7 +25,6 @@ import io.anuke.mindustry.type.Recipe;
 import io.anuke.mindustry.type.Recipe.RecipeVisibility;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.blocks.Floor;
-import io.anuke.mindustry.world.blocks.Rock;
 import io.anuke.mindustry.world.blocks.defense.Wall;
 import io.anuke.ucore.noise.Simplex;
 import io.anuke.ucore.util.Mathf;
@@ -223,11 +222,11 @@ public class SerpuloPlanetGenerator extends PlanetGenerator{
         Block wall = result.wall;
 
         if(infected){
-            if(floor instanceof Floor && ((Floor)floor).infectedVariant != null){
-                floor = ((Floor)floor).infectedVariant;
+            if(floor.infectedVariant != null){
+                floor = floor.infectedVariant;
             }
-            if(wall instanceof Rock && ((Rock)wall).infectedVariant != null){
-                wall = ((Rock)wall).infectedVariant;
+            if(wall.infectedVariant != null){
+                wall = wall.infectedVariant;
             }
         }
 

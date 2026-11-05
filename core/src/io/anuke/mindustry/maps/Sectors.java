@@ -29,8 +29,6 @@ import io.anuke.mindustry.maps.missions.Mission;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.ColorMapper;
-import io.anuke.mindustry.world.blocks.Floor;
-import io.anuke.mindustry.world.blocks.Rock;
 import io.anuke.ucore.core.Settings;
 import io.anuke.ucore.util.*;
 
@@ -574,11 +572,11 @@ public class Sectors {
                     if(sector != null && sector.isInfected()){
                         Block floor = result.floor;
                         Block wall = result.wall;
-                        if(floor instanceof Floor && ((Floor) floor).infectedVariant != null){
-                            floor = ((Floor) floor).infectedVariant;
+                        if(floor.infectedVariant != null){
+                            floor = floor.infectedVariant;
                         }
-                        if(wall instanceof Rock && ((Rock) wall).infectedVariant != null){
-                            wall = ((Rock) wall).infectedVariant;
+                        if(wall.infectedVariant != null){
+                            wall = wall.infectedVariant;
                         }
                         color = ColorMapper.colorFor(floor, wall, Team.none, result.elevation, secResult.elevation > result.elevation ? (byte) (1 << 6) : (byte) 0);
                     }

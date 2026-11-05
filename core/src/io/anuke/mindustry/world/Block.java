@@ -133,6 +133,9 @@ public class Block extends BaseBlock {
     public boolean spreadsInfection = false;
     /**Radius, in tiles, that infection may reach from this block. Only used when {@link #spreadsInfection} is true.*/
     public float infectionRadius = 10f;
+    /** Block that replaces this one when infection reaches it, or null if it cannot be infected.
+     * Infected variant must be defined outside the block class init otherwise it will catch a null*/
+    public Block infectedVariant;
     /**Whether units target this block.*/
     public boolean targetable = true;
     /**Whether the overdrive core has any effect on this block.*/

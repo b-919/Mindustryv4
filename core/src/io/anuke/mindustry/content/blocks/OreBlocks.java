@@ -38,7 +38,7 @@ public class OreBlocks extends BlockList{
             ObjectMap<Block, Block> map = oreBlockMap.get(item);
 
             for(Block block : content.blocks()){
-                if(block instanceof Floor && ((Floor) block).hasOres && ((Floor) block).infectedVariant != null){
+                if(block instanceof Floor && ((Floor) block).hasOres && block.infectedVariant != null){
                     Floor base = (Floor) block;
                     OreBlock original = (OreBlock) map.get(base);
                     OreBlock infected = (OreBlock) map.get(base.infectedVariant);
