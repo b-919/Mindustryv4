@@ -38,6 +38,7 @@ public class BiomassInfectableMission extends MissionWithStartingCore{
     public void reset(){
         timer = 0;
         hiveSpawned = false;
+        hiveSpawnTime = Mathf.random(5f, 20f) * 60f * 60f;
     }
 
     @Override
@@ -67,14 +68,14 @@ public class BiomassInfectableMission extends MissionWithStartingCore{
 
     @Override
     public void update(){
-        timer += Timers.delta();
-        if(!hiveSpawned && timer >= hiveSpawnTime){
-            MassAI.spawnInitialHive();
-            hiveSpawned = true;
-        }
-
         if(state.wave > target){
             state.mode = GameMode.noWaves;
+        }else{
+            timer += Timers.delta();
+            if(!hiveSpawned && timer >= hiveSpawnTime){
+                MassAI.spawnInitialHive();
+                hiveSpawned = true;
+            }
         }
     }
 

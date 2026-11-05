@@ -139,9 +139,9 @@ public class Control extends Module{
         });
 
         Events.on(GameOverEvent.class, event -> {
-            //delete saves for game-over sectors
+            //delete saves for game-over sectors and turn infectable sectors over to the biomass
             if(world.getSector() != null){
-                world.sectors.abandonSector(world.getSector(), false);
+                world.sectors.abandonSector(world.getSector(), true);
             }
 
             threads.runGraphics(() -> {

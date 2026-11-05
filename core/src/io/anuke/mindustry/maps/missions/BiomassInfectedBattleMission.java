@@ -21,6 +21,7 @@ public class BiomassInfectedBattleMission extends MissionWithStartingCore{
     public static final int defaultYCorePos = 50;
 
     private float hiveSpawnTime;
+    private float timer = 0;
     private boolean hiveSpawned = false;
 
     public BiomassInfectedBattleMission(){
@@ -82,8 +83,18 @@ public class BiomassInfectedBattleMission extends MissionWithStartingCore{
     }
 
     @Override
+    public void reset(){
+        timer = 0;
+        hiveSpawned = false;
+        hiveSpawnTime = Mathf.random(5f, 20f) * 60f * 60f;
+    }
+
+    @Override
     public void update(){
-        if(!hiveSpawned && Timers.time() >= hiveSpawnTime){
+        if(hiveSpawned || isComplete()) return;
+
+        timer += Timers.delta();
+        if(timer >= hiveSpawnTime){
             MassAI.spawnInitialHive();
             hiveSpawned = true;
         }

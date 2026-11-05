@@ -75,7 +75,7 @@ public class BiomassInfectedMission extends MissionWithStartingCore{
 
             GridPoint2 enemySpawn = spawnPoints.get(1);
             hiveCore = gen.tiles[enemySpawn.x][enemySpawn.y];
-            hiveCore.setBlock(StorageBlocks.core);
+            hiveCore.setBlock(StorageBlocks.hive);
             hiveCore.setTeam(Team.themass);
             state.teams.get(Team.themass).cores.add(hiveCore);
         }

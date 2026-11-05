@@ -68,7 +68,10 @@ public class Sector{
     }
 
     public boolean isInfectable(){
-        return currentMission().isInfectable();
+        for(Mission mission : missions){
+            if(mission.isInfectable()) return true;
+        }
+        return false;
     }
 
     /** Whether this sector is an attack sector with an enemy base. */
@@ -87,7 +90,7 @@ public class Sector{
     }
 
     public boolean isInfected(){
-        return infected || currentMission().isInfected();
+        return !complete && (infected || (missions.size > 0 && currentMission().isInfected()));
     }
 
     public int getSeed(){

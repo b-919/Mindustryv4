@@ -201,6 +201,11 @@ public class Sectors {
         if(sector == null) return;
         sector.complete = true;
 
+        if(sector.infected){
+            sector.infected = false;
+            initSector(sector);
+        }
+
         PlanetMap map = CampaignRegistry.planetMap(activeCampaign);
         Region region = map == null ? null : map.regionFor(sector);
         if(region != null){
@@ -244,15 +249,14 @@ public class Sectors {
         }
         sector.completedMissions = 0;
         sector.complete = false;
-        sector.infected = false;
 
         if(changeMissions){
-            if(sector.isInfectable()){
-                sector.missions.clear();
-                sector.missions.add(new BiomassInfectedMission());
-                infectNeighbors(sector, 0.5f);
-            }else if(sector.isInfected()){
+            if(sector.isInfected()){
+                sector.infected = true;
                 infectNeighbors(sector, 0.8f);
+            }else if(sector.isInfectable()){
+                sector.infected = true;
+                infectNeighbors(sector, 0.5f);
             }
         }
 
@@ -276,20 +280,24 @@ public class Sectors {
                 other = createSectorSilent(neighbor.x, neighbor.y);
             }
 
-            boolean alreadyInfected = false;
-            for(Mission m : other.missions){
-                if(m.isInfectable() || m.isInfected()){
-                    alreadyInfected = true;
-                    break;
+            boolean alreadyInfected = other.isInfected();
+            if(!alreadyInfected){
+                for(Mission m : other.missions){
+                    if(m.isInfectable()){
+                        alreadyInfected = true;
+                        break;
+                    }
                 }
             }
 
             if(!alreadyInfected){
+                activeGenerator().initSector(other);
                 other.missions.clear();
                 other.missions.add(new BiomassInfectableMission(other.difficulty * 5 + Mathf.randomSeed(other.getSeed(), 1, 4) * 5));
                 other.complete = false;
                 other.completedMissions = 0;
-                activeGenerator().initSector(other);
+                other.spawns.clear();
+                other.spawns.addAll(other.currentMission().getWaves(other));
                 refreshSectorPreview(other);
             }
         }
@@ -351,6 +359,18 @@ public class Sectors {
 
     private void initSector(Sector sector) {
         activeGenerator().initSector(sector);
+
+        if(sector.infected && !sector.complete){
+            sector.missions.clear();
+            sector.missions.add(new BiomassInfectedMission());
+            sector.completedMissions = 0;
+            if(sector.spawns == null){
+                sector.spawns = new Array<>();
+            }else{
+                sector.spawns.clear();
+            }
+            sector.spawns.addAll(sector.currentMission().getWaves(sector));
+        }
     }
 
     private void createTexture(Sector sector) {

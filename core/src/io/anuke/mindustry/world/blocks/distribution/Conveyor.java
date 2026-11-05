@@ -29,6 +29,7 @@ public class Conveyor extends Block implements Autotiler{
     public static final float itemSpace = 0.135f * 2.2f;
     public static final float offsetScl = 128f * 3f;
     public static final float minmove = 1f / (Short.MAX_VALUE - 2);
+    static final int maxItems = 4;
     public static ItemPos drawpos = new ItemPos();
     public static ItemPos pos1 = new ItemPos();
     public static ItemPos pos2 = new ItemPos();
@@ -50,7 +51,7 @@ public class Conveyor extends Block implements Autotiler{
         group = BlockGroup.transportation;
         hasItems = true;
         autoSleep = true;
-        itemCapacity = 4;
+        itemCapacity = maxItems;
         noSideBlend = false;
         reflectYdisplace = 0.25f;
         setAmbientSound("loopConveyor", 0.03f, 4);
@@ -495,6 +496,7 @@ public class Conveyor extends Block implements Autotiler{
     @Override
     public void handleStack(Item item, int amount, Tile tile, Unit source){
         ConveyorEntity entity = tile.entity();
+        amount = Math.min(amount, maxItems - entity.convey.size);
 
         for(int i = amount - 1; i >= 0; i--){
             long result = ItemPos.packItem(item, 0f, i * itemSpace, (byte) Mathf.random(255));
@@ -507,8 +509,11 @@ public class Conveyor extends Block implements Autotiler{
 
     @Override
     public boolean acceptItem(Item item, Tile tile, Tile source){
+        ConveyorEntity entity = tile.entity();
+        if(entity.convey.size >= maxItems) return false;
+
         int direction = source == null ? 0 : Math.abs(source.relativeTo(tile.x, tile.y) - tile.getRotation());
-        float minitem = tile.<ConveyorEntity>entity().minitem;
+        float minitem = entity.minitem;
         return (((direction == 0) && minitem > itemSpace) ||
                 ((direction % 2 == 1) && minitem > 0.52f)) && (source == null || !(source.block().rotate && (source.getRotation() + 2) % 4 == tile.getRotation()));
     }
@@ -524,6 +529,8 @@ public class Conveyor extends Block implements Autotiler{
         float y = (ang == -1 || ang == 3) ? 1 : (ang == 1 || ang == -3) ? -1 : 0;
 
         ConveyorEntity entity = tile.entity();
+        if(entity.convey.size >= maxItems) return;
+
         entity.noSleep();
         long result = ItemPos.packItem(item, y * 0.9f, pos, (byte) Mathf.random(255));
 
@@ -532,14 +539,14 @@ public class Conveyor extends Block implements Autotiler{
         for(int i = 0; i < entity.convey.size; i++){
             if(compareItems(result, entity.convey.get(i)) < 0){
                 entity.convey.insert(i, result);
-                entity.lastInserted = (byte)i;
+                entity.lastInserted = i;
                 return;
             }
         }
 
         //this item must be greater than anything there...
         entity.convey.add(result);
-        entity.lastInserted = (byte)(entity.convey.size-1);
+        entity.lastInserted = entity.convey.size - 1;
     }
 
     @Override
@@ -576,7 +583,7 @@ public class Conveyor extends Block implements Autotiler{
     public static class ConveyorEntity extends TileEntity{
 
         LongArray convey = new LongArray();
-        byte lastInserted;
+        int lastInserted;
         float minitem = 1;
 
         int blendshadowrot = -1;
@@ -608,11 +615,17 @@ public class Conveyor extends Block implements Autotiler{
         public void read(DataInput stream) throws IOException{
             convey.clear();
             int amount = stream.readInt();
-            convey.ensureCapacity(Math.min(amount, 10));
+            int stored = Math.max(0, Math.min(amount, maxItems));
+            convey.ensureCapacity(stored);
 
             for(int i = 0; i < amount; i++){
-                convey.add(ItemPos.toLong(stream.readInt()));
+                long value = ItemPos.toLong(stream.readInt());
+                if(i < stored){
+                    convey.add(value);
+                }
             }
+
+            lastInserted = convey.size - 1;
         }
     }
 
