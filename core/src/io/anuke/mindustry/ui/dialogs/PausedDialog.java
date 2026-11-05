@@ -130,6 +130,7 @@ public class PausedDialog extends FloatingDialog{
 
     public void runExitSave(){
         if(world.getSector() != null){
+            world.sectors.captureActiveSector();
             world.sectors.refreshSectorPreview(world.getSector());
         }
 

@@ -358,7 +358,22 @@ public class CoreBlock extends StorageBlock{
 
     @Override
     public void handleItem(Item item, Tile tile, Tile source){
-        if(Net.server() || !Net.active()) super.handleItem(item, tile, source);
+        if(Net.server() || !Net.active()){
+            super.handleItem(item, tile, source);
+            if(tile.getTeam() == state.playerTeam){
+                world.sectors.onCoreInput(item, 1);
+            }
+        }
+    }
+
+    @Override
+    public void handleStack(Item item, int amount, Tile tile, Unit source){
+        if(Net.server() || !Net.active()){
+            super.handleStack(item, amount, tile, source);
+            if(tile.getTeam() == state.playerTeam){
+                world.sectors.onCoreInput(item, amount);
+            }
+        }
     }
 
     @Override

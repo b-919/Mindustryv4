@@ -203,6 +203,7 @@ public class LandingPad extends Block {
                         int toTake = Math.min(amount, itemCapacity - items.total());
                         launchManager.removeItems(targetItem, toTake);
                         items.add(targetItem, toTake);
+                        world.sectors.onItemImport(targetItem, toTake);
                         hasPod = true;
                     }
                     landing = false;

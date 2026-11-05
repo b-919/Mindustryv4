@@ -16,6 +16,7 @@ import io.anuke.mindustry.game.Schematics;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.Version;
 import io.anuke.mindustry.gen.Serialization;
+import io.anuke.mindustry.maps.SectorSim;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.world.blocks.defense.ForceProjector.ShieldEntity;
 import io.anuke.ucore.core.Settings;
@@ -153,6 +154,7 @@ public class Vars{
         Version.init();
 
         content = new ContentLoader();
+        SectorSim.registerSerializer();
         launchManager = new LaunchManager();
 
         playerGroup = Entities.addGroup(Player.class).enableMapping();

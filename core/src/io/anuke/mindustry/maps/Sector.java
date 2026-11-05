@@ -33,6 +33,8 @@ public class Sector{
     public transient Texture texture;
     /**Missions of this sector-- what needs to be accomplished to unlock it.*/
     public transient Array<Mission> missions = new Array<>();
+    /**Background production/export state, persisted outside the Sector serializer.*/
+    public transient SectorSim sim = new SectorSim();
     /**Enemies spawned at this sector.*/
     public transient Array<SpawnGroup> spawns;
     /**Difficulty of the sector, measured by calculating distance from origin and applying scaling.*/

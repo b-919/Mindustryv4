@@ -57,4 +57,28 @@ public class Mindustry extends ModuleCore{
         threads.handleEndRender();
     }
 
+    @Override
+    public void pause(){
+        saveCampaignState();
+        super.pause();
+    }
+
+    @Override
+    public void dispose(){
+        saveCampaignState();
+        super.dispose();
+    }
+
+    /** Flushes the campaign clock and sector state before the app is backgrounded or closed. */
+    private void saveCampaignState(){
+        if(world == null || world.sectors == null || state == null) return;
+
+        try{
+            world.sectors.captureActiveSector();
+            world.sectors.save();
+        }catch(Throwable t){
+            Log.err(t);
+        }
+    }
+
 }

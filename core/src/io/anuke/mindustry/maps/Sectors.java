@@ -5,6 +5,8 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Pixmap.Format;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ObjectFloatMap;
+import com.badlogic.gdx.utils.ObjectIntMap;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.badlogic.gdx.utils.async.AsyncExecutor;
 import io.anuke.mindustry.core.GameState.State;
@@ -44,6 +46,20 @@ public class Sectors {
     /** Shared planet/orbit time for the active campaign, in seconds. Advanced while playing. */
     private float planetTime;
 
+    /** Ticks between background simulation steps. */
+    private static final float simPeriod = 60f;
+    /** Ticks between production/export rate refreshes. */
+    private static final float ratePeriod = 60f;
+    /** Real seconds between planet-clock writes while playing. */
+    private static final float clockSavePeriod = 30f;
+    private float simTimer;
+    private float rateTimer;
+    private float clockSaveTimer;
+    private final ObjectIntMap<Item> pendingInput = new ObjectIntMap<>();
+    private final ObjectIntMap<Item> pendingImport = new ObjectIntMap<>();
+    private final ObjectIntMap<Item> pendingExport = new ObjectIntMap<>();
+    private final Array<Sector> simSectors = new Array<>();
+
     public int version(){
         return version;
     }
@@ -58,6 +74,141 @@ public class Sectors {
 
     public void advancePlanetTime(float seconds){
         planetTime += seconds;
+        clockSaveTimer += seconds;
+
+        if(clockSaveTimer >= clockSavePeriod){
+            saveClock();
+            clockSaveTimer = 0f;
+        }
+    }
+
+    /** Writes only the campaign planet clock, so day/night and orbit survive a restart. */
+    public void saveClock(){
+        Settings.putFloat("sector-planet-time-" + activeCampaign, planetTime);
+        Settings.save();
+    }
+
+    /** Advances background simulation for captured sectors and refreshes the active sector's rates. */
+    public void updateSimulation(float delta){
+        if(state.isPaused() || state.is(State.menu)) return;
+
+        Sector active = world.getSector();
+
+        if(active != null && !state.gameOver){
+            rateTimer += delta;
+
+            if(rateTimer >= ratePeriod){
+                refreshRates(active, rateTimer / 60f);
+                rateTimer = 0f;
+            }
+        }else{
+            if(rateTimer != 0f || pendingInput.size > 0 || pendingImport.size > 0 || pendingExport.size > 0){
+                resetRateState();
+            }
+        }
+
+        simTimer += delta;
+
+        if(simTimer >= simPeriod){
+            float seconds = simTimer / 60f;
+
+            simSectors.clear();
+            for(Sector sector : activeGrid().values()){
+                if(sector != null && sector.complete && sector != active){
+                    simSectors.add(sector);
+                }
+            }
+
+            for(Sector sector : simSectors){
+                if(sector.sim == null) continue;
+                sector.sim.simulate(seconds, launchManager);
+            }
+
+            simTimer = 0f;
+        }
+    }
+
+    /** Records items entering a player core while a sector is being played. */
+    public void onCoreInput(Item item, int amount){
+        if(world.getSector() == null || state.gameOver) return;
+        pendingInput.put(item, pendingInput.get(item, 0) + amount);
+    }
+
+    /** Records items received by a landing pad so imports are not counted as production. */
+    public void onItemImport(Item item, int amount){
+        if(world.getSector() == null || state.gameOver) return;
+        pendingImport.put(item, pendingImport.get(item, 0) + amount);
+    }
+
+    /** Records items exported by a launch pad. */
+    public void onItemExport(Item item, int amount){
+        if(world.getSector() == null || state.gameOver) return;
+        pendingExport.put(item, pendingExport.get(item, 0) + amount);
+    }
+
+    /** Copies the active core contents into its simulation before the world is saved. */
+    public void captureActiveSector(){
+        Sector sector = world.getSector();
+        if(sector == null || !sector.complete || sector.sim == null || state.gameOver || state.is(State.menu)) return;
+
+        if(rateTimer > 0f){
+            refreshRates(sector, rateTimer / 60f);
+        }
+
+        sector.sim.captureWorld();
+    }
+
+    private void refreshRates(Sector sector, float seconds){
+        if(seconds <= 0f) return;
+
+        SectorSim sim = sector.sim;
+
+        for(ObjectFloatMap.Entry<Item> entry : sim.production.entries()){
+            Item item = entry.key;
+            float sample = Math.max(pendingInput.get(item, 0) - pendingImport.get(item, 0), 0) / seconds;
+            float next = Mathf.lerp(entry.value, sample, 0.25f);
+            entry.value = next < 0.001f ? 0f : next;
+        }
+
+        for(ObjectIntMap.Entry<Item> entry : pendingInput.entries()){
+            Item item = entry.key;
+            if(sim.production.containsKey(item)) continue;
+
+            float sample = Math.max(entry.value - pendingImport.get(item, 0), 0) / seconds;
+            if(sample >= 0.001f){
+                sim.production.put(item, sample);
+            }
+        }
+
+        for(ObjectFloatMap.Entry<Item> entry : sim.export.entries()){
+            Item item = entry.key;
+            float sample = pendingExport.get(item, 0) / seconds;
+            float next = Mathf.lerp(entry.value, sample, 0.25f);
+            entry.value = next < 0.001f ? 0f : next;
+        }
+
+        for(ObjectIntMap.Entry<Item> entry : pendingExport.entries()){
+            Item item = entry.key;
+            if(sim.export.containsKey(item)) continue;
+
+            float sample = entry.value / seconds;
+            if(sample >= 0.001f){
+                sim.export.put(item, sample);
+            }
+        }
+
+        resetRateState();
+    }
+
+    private void resetRateState(){
+        rateTimer = 0f;
+        pendingInput.clear();
+        pendingImport.clear();
+        pendingExport.clear();
+    }
+
+    private String simKey(String campaignName, Sector sector){
+        return "sector-sim-" + campaignName + "-" + sector.packedPosition();
     }
 
     public void updateSectorLight(Sector sector){
@@ -97,6 +248,7 @@ public class Sectors {
 
     public void playSector(Sector sector) {
         weather.reset();
+        resetRateState();
 
         if (!headless && sector.hasSave() && SaveIO.breakingVersions.contains(sector.getSave().getBuild())) {
             sector.getSave().delete();
@@ -109,6 +261,7 @@ public class Sectors {
             }
             world.loadSector(sector);
             logic.play();
+            if(sector.sim != null) sector.sim.applyToWorld();
             if (!headless) {
                 sector.saveID = control.saves.addSave("sector-" + sector.packedPosition()).index;
             }
@@ -121,6 +274,7 @@ public class Sectors {
             ui.showInfo("$text.save.old");
         } else try {
             sector.getSave().load();
+            if(sector.sim != null) sector.sim.applyToWorld();
             world.setSector(sector);
             state.set(State.playing);
             startPlanetCycle(sector);
@@ -199,6 +353,9 @@ public class Sectors {
             sector = createSectorSilent(x, y);
         }
         if(sector == null) return;
+        if(world.getSector() == sector && sector.sim != null){
+            sector.sim.captureWorld();
+        }
         sector.complete = true;
 
         if(sector.infected){
@@ -249,6 +406,7 @@ public class Sectors {
         }
         sector.completedMissions = 0;
         sector.complete = false;
+        sector.sim = new SectorSim();
 
         if(changeMissions){
             if(sector.isInfected()){
@@ -296,6 +454,7 @@ public class Sectors {
                 other.missions.add(new BiomassInfectableMission(other.difficulty * 5 + Mathf.randomSeed(other.getSeed(), 1, 4) * 5));
                 other.complete = false;
                 other.completedMissions = 0;
+                other.sim = new SectorSim();
                 other.spawns.clear();
                 other.spawns.addAll(other.currentMission().getWaves(other));
                 refreshSectorPreview(other);
@@ -304,6 +463,7 @@ public class Sectors {
     }
 
     public void load() {
+        SectorSim.registerSerializer();
         campaignManager.loadCampaigns();
         setActiveCampaign(defaultCampaign);
     }
@@ -314,8 +474,12 @@ public class Sectors {
             if(sector.texture != null){
                 sector.texture.dispose();
             }
+            Settings.putBytes(simKey(activeCampaign, sector), new byte[0]);
         }
         grid.clear();
+        simTimer = 0f;
+        clockSaveTimer = 0f;
+        resetRateState();
         save();
         createSector(0, 0);
     }
@@ -335,6 +499,14 @@ public class Sectors {
         updateAllSectorLights();
         Settings.putFloat("sector-planet-time-" + activeCampaign, planetTime);
         Settings.putObject(campaignSettingsKey(activeCampaign), out);
+        clockSaveTimer = 0f;
+
+        for(Sector sector : out){
+            if(sector.sim != null){
+                Settings.putObject(simKey(activeCampaign, sector), sector.sim);
+            }
+        }
+
         launchManager.save();
         Settings.save();
     }
@@ -443,6 +615,9 @@ public class Sectors {
 
     private void loadCampaignSectors(String campaignName){
         planetTime = Settings.getFloat("sector-planet-time-" + campaignName, 0f);
+        simTimer = 0f;
+        clockSaveTimer = 0f;
+        resetRateState();
         GridMap<Sector> grid = campaignGrids.get(campaignName);
         if(grid == null){
             grid = new GridMap<>();
@@ -459,7 +634,14 @@ public class Sectors {
         Array<Sector> out = Settings.getObject(campaignSettingsKey(campaignName), Array.class, Array::new);
 
         for(Sector sector : out){
+            if(sector == null) continue;
             initSector(sector);
+            sector.sim = Settings.getObject(simKey(campaignName, sector), SectorSim.class, SectorSim::new);
+            if(sector.sim == null){
+                sector.sim = new SectorSim();
+            }else if(sector.sim.capacity < sector.sim.totalItems()){
+                sector.sim.capacity = sector.sim.totalItems();
+            }
             grid.put(sector.x, sector.y, sector);
         }
 

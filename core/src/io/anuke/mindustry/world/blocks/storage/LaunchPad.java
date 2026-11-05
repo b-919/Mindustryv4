@@ -18,6 +18,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import static io.anuke.mindustry.Vars.launchManager;
+import static io.anuke.mindustry.Vars.state;
 import static io.anuke.mindustry.Vars.world;
 
 import io.anuke.mindustry.world.consumers.ConsumePower;
@@ -204,6 +205,9 @@ public class LaunchPad extends Block {
             if (canLaunch[0]) {
                 items.forEach((item, amount) -> {
                     launchManager.addItems(item, (int)amount);
+                    if(tile.getTeam() == state.playerTeam){
+                        world.sectors.onItemExport(item, (int)amount);
+                    }
                 });
                 items.clear();
                 Effects.effect(launchPodEffect, tile.drawx(), tile.drawy());

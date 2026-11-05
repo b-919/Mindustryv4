@@ -329,6 +329,7 @@ public class Logic extends Module{
                 PerfCounter.stateUpdate.begin();
                 updateSectors();
                 checkGameOver();
+                world.sectors.updateSimulation(Timers.delta());
                 PerfCounter.stateUpdate.end();
             }
         }

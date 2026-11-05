@@ -188,6 +188,8 @@ public class Saves{
                     long prev = totalPlaytime;
                     totalPlaytime = time;
 
+                    world.sectors.captureActiveSector();
+                    world.sectors.save();
                     SaveIO.saveToSlot(index);
                     launchManager.save();
                     meta = SaveIO.getData(index);
