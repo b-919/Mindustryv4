@@ -27,8 +27,12 @@ import io.anuke.mindustry.maps.missions.BiomassInfectableMission;
 import io.anuke.mindustry.maps.missions.BiomassInfectedMission;
 import io.anuke.mindustry.maps.missions.Mission;
 import io.anuke.mindustry.type.Item;
+import io.anuke.mindustry.type.Liquid;
 import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.ColorMapper;
+import io.anuke.mindustry.world.Tile;
+import io.anuke.mindustry.world.blocks.Floor;
+import io.anuke.mindustry.world.modules.ItemModule;
 import io.anuke.ucore.core.Settings;
 import io.anuke.ucore.util.*;
 
@@ -195,6 +199,23 @@ public class Sectors {
             }
         }
 
+        for(ObjectFloatMap.Entry<Item> entry : sim.imports.entries()){
+            Item item = entry.key;
+            float sample = pendingImport.get(item, 0) / seconds;
+            float next = Mathf.lerp(entry.value, sample, 0.25f);
+            entry.value = next < 0.001f ? 0f : next;
+        }
+
+        for(ObjectIntMap.Entry<Item> entry : pendingImport.entries()){
+            Item item = entry.key;
+            if(sim.imports.containsKey(item)) continue;
+
+            float sample = entry.value / seconds;
+            if(sample >= 0.001f){
+                sim.imports.put(item, sample);
+            }
+        }
+
         resetRateState();
     }
 
@@ -334,9 +355,69 @@ public class Sectors {
         return filtered.size == 0 ? defaultOres : filtered;
     }
 
+    public ObjectIntMap<Item> getStoredItems(Sector sector) {
+        if(sector == null) return new ObjectIntMap<>();
+
+        if(world.getSector() == sector && state.teams != null){
+            ItemModule largest = null;
+            int largestTotal = -1;
+
+            for(Tile tile : state.teams.get(state.playerTeam).cores){
+                if(tile == null || tile.entity == null || tile.entity.items == null) continue;
+
+                int total = tile.entity.items.total();
+                if(total > largestTotal){
+                    largestTotal = total;
+                    largest = tile.entity.items;
+                }
+            }
+
+            if(largest != null){
+                ObjectIntMap<Item> result = new ObjectIntMap<>();
+                largest.forEach((item, amount) -> {
+                    if(amount > 0) result.put(item, (int)amount);
+                });
+                return result;
+            }
+        }
+
+        if(sector.sim != null){
+            return sector.sim.stored.size > 0 ? sector.sim.stored : sector.sim.items;
+        }
+
+        return new ObjectIntMap<>();
+    }
+
+    /** Liquids present in the generated terrain of this sector. */
+    public Array<Liquid> getLiquids(Sector sector) {        Array<Liquid> out = new Array<>();
+        if(sector == null) return out;
+
+        PlanetGenerator generator = CampaignRegistry.generator(activeCampaign);
+        WorldGenerator terrain = generator == null ? null : generator.terrain();
+        if(terrain == null) return out;
+
+        int size = generator.sectorSize();
+        int step = Math.max(8, size / 32);
+        GenResult result = new GenResult();
+
+        for(int x = step / 2; x < size; x += step){
+            for(int y = step / 2; y < size; y += step){
+                terrain.generateTile(result, sector.x, sector.y, x, y, true, null, null);
+
+                if(result.floor instanceof Floor){
+                    Liquid liquid = ((Floor)result.floor).liquidDrop;
+                    if(liquid != null && !out.contains(liquid, true)){
+                        out.add(liquid);
+                    }
+                }
+            }
+        }
+
+        return out;
+    }
+
     /**Ores usable by the currently selected tech tree, cached until the tree changes.*/
-    private Array<Item> techOres(){
-        String tech = state.techTree == null ? "" : state.techTree;
+    private Array<Item> techOres(){String tech = state.techTree == null ? "" : state.techTree;
         if(!tech.equals(cachedOreTech) || cachedOres == null){
             cachedOreTech = tech;
             cachedOres = Item.getAllOres(state.techTree);

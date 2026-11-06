@@ -4,6 +4,8 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import io.anuke.mindustry.content.Liquids;
 import io.anuke.mindustry.entities.TileEntity;
+import io.anuke.mindustry.graphics.DrawPseudo3D;
+import io.anuke.mindustry.graphics.Drawf;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Item;
@@ -14,9 +16,13 @@ import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Effects.Effect;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
+import io.anuke.ucore.graphics.Fill;
+import io.anuke.ucore.graphics.Lines;
 import io.anuke.ucore.scene.ui.ImageButton;
 import io.anuke.ucore.scene.ui.layout.Table;
+import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Mathf;
+import io.anuke.ucore.util.Tmp;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -25,70 +31,125 @@ import java.io.IOException;
 import static io.anuke.mindustry.Vars.*;
 
 public class LandingPad extends Block {
+    private static final Color flameColor = Color.valueOf("ff971c");
+    private static final Color thrusterColor = Color.valueOf("ffe36e");
     public TextureRegion pod;
+    public TextureRegion flare;
     public float pullTime = 15f * 60f;
 
-    public Effect landPodEffect = new Effect(140f, e -> {// particle hell
-        float x = e.x, y = e.y;
-        float progress = Mathf.clamp(e.time / 100f);
-        float interp = 1f - Mathf.pow(progress, 0.2f);
-        float oy = interp * 200f;
-        float size = 1.2f + interp * 2.3f;
-        float alpha = progress < 0.1f ? progress / 0.1f : (progress < 1f ? 1f : 1f - (e.time - 100f) / 40f);
-        float rotation = Mathf.randomSeed(e.id, 0, 360) + progress * (Mathf.randomSeed(e.id + 1, 0, 80) - 40);
-        if(progress > 0.3f && progress < 1f){
-            float smokeProgress = (progress - 0.3f) / 0.7f;
-            float spread = 6f * (1f - progress);
-            for(int i = 0; i < 2; i++){
-                float px = x + Mathf.range(spread + 5f);
-                float py = y + oy + Mathf.range(spread + 5f);
-                float particleAlpha = alpha * (1f - progress) * Mathf.clamp(smokeProgress * 2f);
-                Color color = Color.valueOf("ff971c").cpy().lerp(Palette.lightishGray, Mathf.clamp(smokeProgress * 2f));
-                float tsize = 3f + progress * 5f;
-
-                Effects.effect(new Effect(60f + Mathf.random(60f), p -> {
-                    Draw.color(color);
-                    Draw.alpha(p.fout() * particleAlpha);
-                    float s = tsize * (1f + p.fin() * 0.5f);
-                    Draw.rect(Draw.region("circle"), p.x, p.y, s, s);
-                }), px, py);
+    public Effect landPodEffect = new Effect(120f, e -> {
+        float fin = e.fin();
+        float fall = Mathf.clamp(fin / 0.83f);
+        float landed = Mathf.clamp((fin - 0.83f) / 0.17f);
+        float height = Mathf.pow(1f - fall, 4f) * (100f + Mathf.randomSeed(e.id + 2, 0, 24));
+        float drift = (1f - fall) * (Mathf.randomSeed(e.id + 3, 0, 12) - 6f);
+        float rotation = (1f - fall) * (70f + Mathf.randomSeed(e.id, 0, 40));
+        float alpha = Math.min(1f, fin / 0.08f);
+        float thrust = Mathf.clamp(0.25f + fall * 0.95f);
+        float wh = DrawPseudo3D.worldHeight(height);
+        float sx = DrawPseudo3D.xHeight(e.x + drift, wh);
+        float sy = DrawPseudo3D.yHeight(e.y + height, wh);
+        float hscale = DrawPseudo3D.hScale(wh);
+        float podScale = (0.95f + Mathf.clamp(height / 110f) * 0.45f) * hscale;
+        float flareFade = Mathf.clamp(1f - Mathf.clamp((fall - 0.8f) / 0.2f) * 1.3f);
+        float flareScale = podScale * (0.35f + flareFade * 0.65f);
+        float flareRotation = Mathf.randomSeed(e.id + 21, 0, 360) + fin * (90f + Mathf.randomSeed(e.id + 22, 0, 180));
+        if(Drawf.bloomPass){
+            drawThrusterFlare(sx, sy, flareScale, alpha * flareFade, flareRotation, thrust);
+            Draw.reset();
+            return;
+        }
+        DrawPseudo3D.shadow(e.x, e.y, height, 110f, 18f, 0.22f);
+        if(landed > 0f){
+            float wa = 1f - landed;
+            float radius = landed * 50f;
+            Draw.color(Palette.lightishGray);
+            Draw.alpha(wa);
+            Lines.stroke(3f * wa + 0.6f);
+            Lines.circle(e.x, e.y, radius);
+            Lines.stroke(1.4f * wa);
+            Draw.alpha(wa * 0.5f);
+            Lines.circle(e.x, e.y, radius * 0.62f);
+            for(int i = 0; i < 20; i++){
+                float angle = i * 18f + e.id * 7f;
+                float px2 = e.x + Angles.trnsx(angle, radius);
+                float py2 = e.y + Angles.trnsy(angle, radius);
+                float size = 4f + landed * 4f;
+                Tmp.c1.set(flameColor).lerp(Palette.lightishGray, landed);
+                Draw.color(Tmp.c1);
+                Draw.alpha(wa * 0.7f);
+                Draw.rect("circle", px2, py2, size, size);
             }
+            if(landed < 0.25f){
+                Draw.color(flameColor);
+                Draw.alpha((1f - landed / 0.25f) * 0.6f);
+                Fill.circle(e.x, e.y, 10f + landed * 80f);
+            }
+            Lines.stroke(1f);
+        }
+        if(alpha > 0f){
+            float plumeBase = Math.max(0f, height - 50f);
+            float plumeLen = height - plumeBase;
+            float ground = Mathf.clamp(1f - height / 45f, 0f, 1f);
+            int puffs = 28;
+            for(int i = 0; i < puffs; i++){
+                float f = (i / (float)puffs + fin * 2.4f) % 1f;
+                float h = plumeBase + plumeLen * (1f - f);
+                float radial = f > 0.6f
+                    ? ((f - 0.6f) / 0.4f) * (10f + 20f * ground) * (0.5f + fall * 0.5f)
+                    : 0f;
+                float angle = i * 137.5f + e.id * 11f;
+                float wob = Mathf.sin(fin * 11f + i * 1.6f + e.id * 0.17f, 1f, 1.5f + f * 4f);
+                float pwh = DrawPseudo3D.worldHeight(h);
+                float px2 = DrawPseudo3D.xHeight(e.x + drift * (1f - f) + wob + Angles.trnsx(angle, radial), pwh);
+                float py2 = DrawPseudo3D.yHeight(e.y + h, pwh) - 3f + Angles.trnsy(angle, radial) * 0.35f;
+                float size = 4f + f * 8f + radial * 0.25f;
+                Tmp.c1.set(flameColor).lerp(Palette.lightishGray, Mathf.clamp(fin * 0.8f + f * 0.6f));
+                Draw.color(Tmp.c1);
+                Draw.alpha(alpha * (0.9f - f * 0.6f));
+                Draw.rect("circle", px2, py2, size, size);
+            }
+            for(int i = 0; i < 12; i++){
+                float f = (i / 12f + fin * 1.6f) % 1f;
+                float h = plumeBase + plumeLen * (1f - f * 0.95f) * 0.5f;
+                float angle = i * 137.5f + e.id * 7f;
+                float radial = f * (8f + 14f * ground);
+                float pwh = DrawPseudo3D.worldHeight(h);
+                float px2 = DrawPseudo3D.xHeight(e.x + Angles.trnsx(angle, radial), pwh);
+                float py2 = DrawPseudo3D.yHeight(e.y + h, pwh) + Angles.trnsy(angle, radial) * 0.4f;
+                float size = 8f + f * 8f;
 
-            // pod trail
-            if(Mathf.chance(0.5)){
-                float px = x + Mathf.range(1.5f);
-                float py = y + oy + 10f + Mathf.range(3f);
-                float particleAlpha = alpha * (1f - progress) * 0.4f;
-                Color color = Color.valueOf("ff971c").cpy().lerp(Palette.lightishGray, Mathf.clamp(smokeProgress * 3f));
-                float tsize = 1f + progress * 2f;
-
-                Effects.effect(new Effect(40f + Mathf.random(40f), p -> {
-                    Draw.color(color);
-                    Draw.alpha(p.fout() * particleAlpha);
-                    float s = tsize * (1f + p.fin() * 0.5f);
-                    Draw.rect(Draw.region("circle"), p.x, p.y, s, s);
-                }), px, py);
+                Draw.color(Palette.lightishGray);
+                Draw.alpha(alpha * (0.2f - f * 0.11f));
+                Draw.rect("circle", px2, py2, size, size);
             }
         }
+        if(alpha > 0f){
+            drawThrusterFlare(sx, sy, flareScale, alpha * flareFade, flareRotation, thrust);
+        }
+        if(alpha > 0f && landed <= 0f){
+            float rw = pod.getRegionWidth() * podScale;
+            float rh = pod.getRegionHeight() * podScale;
 
-        if (progress < 1f) {
+            Draw.color(0f, 0f, 0f, 0.22f * alpha);
+            Draw.rect(pod, sx + 5f, sy - 6f, rw, rh, rotation);
             Draw.color(Color.WHITE);
             Draw.alpha(alpha);
-            Draw.rect(pod, x, y + oy, pod.getRegionWidth() * size, pod.getRegionHeight() * size, rotation);
+            Draw.rect(pod, sx, sy, rw, rh, rotation);
         }
-        // particle wave
-        if(progress > 0.85f && progress < 1f){
-            float wave = (progress - 0.85f) / 0.15f;
-            Draw.color(Palette.lightishGray);
-            Draw.alpha(1f - wave);
-            for(int i = 0; i < 15; i++){
-                float ang = i / 15f * 360f;
-                Draw.rect(Draw.region("circle"), x + Mathf.sin(ang, 10f, 40f * wave), y + Mathf.cos(ang, 10f, 40f * wave), 5f, 5f);
-            }
+        if(alpha > 0f && landed <= 0f){
+            drawThrusterFlare(sx, sy, flareScale, alpha * flareFade * 0.35f, flareRotation, thrust);
         }
 
         Draw.reset();
     });
+
+    private void drawThrusterFlare(float x, float y, float scale, float alpha, float rotation, float thrust){
+        Draw.color(thrusterColor);
+        Draw.alpha(alpha * (0.5f + thrust * 0.3f));
+        float size = (24f + thrust * 16f) * scale * 1.2f;
+        Draw.rect(flare, x, y, size, size, rotation);
+    }
 
     public LandingPad(String name) {
         super(name);
@@ -104,6 +165,10 @@ public class LandingPad extends Block {
         consumes.liquid(Liquids.water, 0.05f);
         drawCached = true;
         drawDynamic = true;
+        emitLight = true;
+        lightColor = thrusterColor;
+        landPodEffect.lightRadius = 45f;
+        lightOpacity = 0.2f;
     }
 
     @Override
@@ -115,6 +180,7 @@ public class LandingPad extends Block {
     public void load() {
         super.load();
         pod = Draw.region("launchpod"); // Use same pod texture
+        flare = Draw.region("flare");
     }
 
     @Override
@@ -143,9 +209,15 @@ public class LandingPad extends Block {
                 alpha = entity.items.total() / threshold;
             }
 
+            DrawPseudo3D.shadow(tile.drawx(), tile.drawy(), 0f, 1f, 16f, 0.12f);
+            float podHeight = DrawPseudo3D.worldHeight(6f);
+            float podScale = DrawPseudo3D.hScale(podHeight);
+            float podX = DrawPseudo3D.xHeight(tile.drawx(), podHeight);
+            float podY = DrawPseudo3D.yHeight(tile.drawy(), podHeight);
+
             Draw.color(Color.WHITE);
             Draw.alpha(alpha);
-            Draw.rect(pod, tile.drawx(), tile.drawy());
+            Draw.rect(pod, podX, podY, pod.getRegionWidth() * podScale, pod.getRegionHeight() * podScale);
             Draw.reset();
         }
     }

@@ -4,6 +4,7 @@ import com.badlogic.gdx.utils.*;
 import io.anuke.mindustry.core.LaunchManager;
 import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Tile;
+import io.anuke.mindustry.world.modules.ItemModule;
 import io.anuke.ucore.core.Settings;
 import io.anuke.ucore.io.TypeSerializer;
 
@@ -21,6 +22,10 @@ public class SectorSim{
     public ObjectFloatMap<Item> production = new ObjectFloatMap<>();
     /** Average launch-pad output, in items per second. */
     public ObjectFloatMap<Item> export = new ObjectFloatMap<>();
+    /** Average items received from landing pads, in items per second. */
+    public ObjectFloatMap<Item> imports = new ObjectFloatMap<>();
+    /** Items stored in the sector's largest core graph. */
+    public ObjectIntMap<Item> stored = new ObjectIntMap<>();
     /** Combined core storage capacity. */
     public int capacity;
 
@@ -32,7 +37,7 @@ public class SectorSim{
         Settings.setSerializer(SectorSim.class, new TypeSerializer<SectorSim>(){
             @Override
             public void write(DataOutput stream, SectorSim object) throws IOException{
-                stream.writeByte(1);
+                stream.writeByte(3);
                 stream.writeInt(object.capacity);
 
                 stream.writeInt(object.items.size);
@@ -43,11 +48,18 @@ public class SectorSim{
 
                 writeFloats(stream, object.production);
                 writeFloats(stream, object.export);
+                writeFloats(stream, object.imports);
+
+                stream.writeInt(object.stored.size);
+                for(ObjectIntMap.Entry<Item> entry : object.stored.entries()){
+                    stream.writeInt(entry.key.id);
+                    stream.writeInt(entry.value);
+                }
             }
 
             @Override
             public SectorSim read(DataInput stream) throws IOException{
-                stream.readByte();
+                int version = stream.readByte();
                 SectorSim sim = new SectorSim();
                 sim.capacity = stream.readInt();
 
@@ -62,6 +74,19 @@ public class SectorSim{
 
                 readFloats(stream, sim.production);
                 readFloats(stream, sim.export);
+                if(version >= 2){
+                    readFloats(stream, sim.imports);
+                }
+                if(version >= 3){
+                    int storedSize = stream.readInt();
+                    for(int i = 0; i < storedSize; i++){
+                        Item item = content.item(stream.readInt());
+                        int amount = stream.readInt();
+                        if(item != null && amount > 0){
+                            sim.stored.put(item, amount);
+                        }
+                    }
+                }
                 sim.capacity = Math.max(sim.capacity, sim.totalItems());
                 return sim;
             }
@@ -111,13 +136,27 @@ public class SectorSim{
     /** Copies the active sector's core contents and capacity into this simulation. */
     public void captureWorld(){
         items.clear();
+        stored.clear();
         capacity = 0;
+
+        ItemModule largest = null;
+        int largestTotal = -1;
 
         for(Tile tile : state.teams.get(state.playerTeam).cores){
             if(tile == null || tile.entity == null || tile.entity.items == null) continue;
 
             capacity += tile.block().itemCapacity;
             tile.entity.items.forEach((item, amount) -> items.put(item, items.get(item, 0) + (int)amount));
+            int total = tile.entity.items.total();
+            if(total > largestTotal){
+                largestTotal = total;
+                largest = tile.entity.items;
+            }
+        }
+        if(largest != null){
+            largest.forEach((item, amount) -> {
+                if(amount > 0) stored.put(item, (int)amount);
+            });
         }
 
         capacity = Math.max(capacity, totalItems());

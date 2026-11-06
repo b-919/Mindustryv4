@@ -4,6 +4,9 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ObjectFloatMap;
+import com.badlogic.gdx.utils.ObjectIntMap;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.graphics.planet.PlanetHover;
@@ -13,6 +16,8 @@ import io.anuke.mindustry.maps.campaign.CampaignManager;
 import io.anuke.mindustry.maps.campaign.CampaignRegistry;
 import io.anuke.mindustry.maps.campaign.PlanetDefinition;
 import io.anuke.mindustry.maps.campaign.PlanetMap;
+import io.anuke.mindustry.type.Item;
+import io.anuke.mindustry.type.Liquid;
 import io.anuke.ucore.util.Log;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;
@@ -42,6 +47,7 @@ public class SectorsDialog extends FloatingDialog{
     private SectorView view;
     private final CampaignManager campaignManager = new CampaignManager();
     private final PlanetRenderer planetRenderer = new PlanetRenderer();
+    private final FloatingDialog infoDialog = new FloatingDialog("$text.sector.info");
     private PlanetDefinition selectedPlanet;
     private float selectedDrawX, selectedDrawY;
 
@@ -86,6 +92,9 @@ public class SectorsDialog extends FloatingDialog{
         getTitleTable().clear();
         clear();
         stack(content(), container, buttons()).grow();
+
+        infoDialog.setFillParent(false);
+        infoDialog.addCloseButton();
 
         shown(this::setup);
         hidden(() -> {
@@ -175,13 +184,101 @@ public class SectorsDialog extends FloatingDialog{
         exportedTable.pack();
     }
 
-    void selectSector(Sector sector){
-        selected = sector;
+    void showSectorInfo(Sector sector){
+        if(sector == null) return;
+        infoDialog.content().clear();
+        Table body = new Table();
+        body.defaults().pad(2);
+        body.top().left();
+        body.add(Bundles.format("text.sector", sector.x + ", " + sector.y)).left().padBottom(6);
+        body.row();
+        addRates(body, "$text.sector.info.production", sector.sim == null ? null : sector.sim.production);
+        addRates(body, "$text.sector.info.export", sector.sim == null ? null : sector.sim.export);
+        addRates(body, "$text.sector.info.import", sector.sim == null ? null : sector.sim.imports);
+        ObjectIntMap<Item> stored = world.sectors.getStoredItems(sector);
+        body.add("$text.sector.info.stored").color(Palette.accent).left().padTop(6);
+        body.row();
+        Table storedTable = new Table();
+        storedTable.left();
+        int i = 0;
+        for(ObjectIntMap.Entry<Item> entry : stored.entries()){
+            if(entry.value <= 0) continue;
+            storedTable.addImage(entry.key.getContentIcon()).size(8 * 3).padRight(4);
+            storedTable.add(entry.key.localizedName() + "  " + entry.value).left().padRight(10);
+            if(++i % 2 == 0) storedTable.row();
+        }
+        if(i == 0) storedTable.add("$text.none").color(Color.GRAY);
+        body.add(storedTable).left();
+        body.row();
+        Array<Item> ores = world.sectors.getOres(sector.x, sector.y);
+        Array<Liquid> liquids = world.sectors.getLiquids(sector);
+        body.add("$text.sector.info.resources").color(Palette.accent).left().padTop(6);
+        body.row();
+        Table resources = new Table();
+        resources.left();
+        i = 0;
+        for(Item item : ores){
+            resources.addImage(item.getContentIcon()).size(8 * 3).padRight(4);
+            resources.add(item.localizedName()).left().padRight(10);
+            if(++i % 2 == 0) resources.row();
+        }
+        if(i == 0) resources.add("$text.none").color(Color.GRAY);
+        body.add(resources).left();
+        body.row();
+        body.add("$text.sector.info.liquids").color(Palette.accent).left().padTop(6);
+        body.row();
+        Table liquidTable = new Table();
+        liquidTable.left();
+        i = 0;
+        for(Liquid liquid : liquids){
+            liquidTable.addImage(liquid.getContentIcon()).size(8 * 3).padRight(4);
+            liquidTable.add(liquid.localizedName()).left().padRight(10);
+            if(++i % 2 == 0) liquidTable.row();
+        }
+        if(i == 0) liquidTable.add("$text.none").color(Color.GRAY);
+        body.add(liquidTable).left();
+        infoDialog.content().add(body).center().pad(10);
+        infoDialog.pack();
+        infoDialog.show();
+    }
+
+    void addRates(Table table, String title, ObjectFloatMap<Item> map){
+        table.add(title).color(Palette.accent).left();
+        table.row();
+        boolean any = false;
+        if(map != null){
+            for(ObjectFloatMap.Entry<Item> entry : map.entries()){
+                if(entry.value < 0.001f) continue;
+                Table row = new Table();
+                row.left();
+                row.addImage(entry.key.getContentIcon()).size(8 * 3).padRight(4);
+                row.add(entry.key.localizedName() + "  " + rate(entry.value) + "/min").left();
+                table.add(row).left();
+                table.row();
+                any = true;
+            }
+        }
+
+        if(!any){
+            table.add("$text.none").color(Color.GRAY).left();
+            table.row();
+        }
+        table.row();
+    }
+
+    String rate(float value){
+        return "" + Math.max(1, Math.round(value * 60f));
+    }
+
+    void selectSector(Sector sector){        selected = sector;
 
         sectorTable.clear();
         sectorTable.background("button").margin(5);
         sectorTable.defaults().pad(3);
-        sectorTable.add(Bundles.format("text.sector", sector.x + ", " + sector.y));
+        sectorTable.table(h -> {
+            h.add(Bundles.format("text.sector", sector.x + ", " + sector.y)).expandX().left();
+            h.addImageButton("icon-info", "clear", 16 * 2, () -> showSectorInfo(sector)).right();
+        }).growX();
         sectorTable.row();
 
         if(selected.missions.size > 0 && selected.completedMissions < selected.missions.size && !selected.complete){

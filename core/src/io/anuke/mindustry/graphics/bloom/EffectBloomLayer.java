@@ -43,7 +43,12 @@ public class EffectBloomLayer implements BloomLayer{
     private void drawBloom(EffectEntity entity){
         if(entity.effect != null && entity.effect.emitLight
                 && renderer.isVisible(entity.x, entity.y, Renderer.bloomCullMargin)){
-            entity.draw();
+            Drawf.bloomPass = true;
+            try{
+                entity.draw();
+            }finally{
+                Drawf.bloomPass = false;
+            }
         }
     }
 }

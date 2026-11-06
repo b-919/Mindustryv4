@@ -6,6 +6,9 @@ import io.anuke.ucore.core.Effects;
 
 /** World-space drawing helpers */
 public final class Drawf{
+    /** True while effects are being re-rendered into the bloom emission buffer. */
+    public static boolean bloomPass;
+
     private Drawf(){
     }
 
