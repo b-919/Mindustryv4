@@ -29,20 +29,18 @@ public class Planets{
             isSun = true;
             radius = 2f;
             displayOrbit = false;
+            visual.sunRadius = 2f;
+            visual.sunDivisions = 3;
+            visual.sunLowColor.set(1f, 0.42f, 0.06f, 1f);
+            visual.sunHighColor.set(1f, 0.95f, 0.55f, 1f);
+            visual.sunColor.set(1f, 0.62f, 0.18f, 1f);
+            visual.bloomThreshold = 0.95f;
+            visual.bloomIntensity = 5.4f;
+            visual.sunGlows.clear();
+            visual.sunGlows.add(new SunGlowDef(2.55f, 0.18f));
+            visual.sunGlows.add(new SunGlowDef(3.60f, 0.07f));
         }};
 
-
-        PlanetVisual sunV = sun.visual;
-        sunV.sunRadius = 2f;
-        sunV.sunDivisions = 3;
-        sunV.sunLowColor.set(1f, 0.42f, 0.06f, 1f);
-        sunV.sunHighColor.set(1f, 0.95f, 0.55f, 1f);
-        sunV.sunColor.set(1f, 0.62f, 0.18f, 1f);
-        sunV.bloomThreshold = 0.95f;
-        sunV.bloomIntensity = 5.4f;
-        sunV.sunGlows.clear();
-        sunV.sunGlows.add(new SunGlowDef(2.55f, 0.18f));
-        sunV.sunGlows.add(new SunGlowDef(3.60f, 0.07f));
 
         serpulo = new PlanetDefinition("Serpulo", CampaignRegistry.serpulo,
             0.22f, 0.44f, 0.85f,
@@ -52,6 +50,34 @@ public class Planets{
             displayOrbit = true;
             generator = CampaignRegistry.generator(CampaignRegistry.serpulo);
             generator.meshHeightIntensity = 0.95f;
+            visual.terrainDivisions = 6;
+            visual.cloudDivisions = 5;
+            visual.gridColor.set(0.82f, 0.86f, 0.95f, 0.30f);
+            visual.atmosphereRadius = 1.35f;
+            visual.atmosphereInnerRadius = 1f;
+            visual.atmosphereAlpha = 1f;
+            visual.atmosphereIntensity = 0.35f;
+            visual.atmosphereDivisions = 3;
+            visual.atmosphereColor.set(0.36f, 0.55f, 0.95f, 1f);
+            visual.sectorGlow = true;
+            visual.sectorGlowAlpha = 10f;
+            visual.sectorGlowScale = 9f;
+            visual.sectorGlowThreshold = 0.58f;
+            visual.sectorGlowSoftness = 0.0f;
+            visual.sectorPlayerGlow.set(Vars.defaultTeam.color);
+            visual.sectorEnemyGlow.set(Team.red.color);
+            //visual.sectorInfectedGlow.set(Team.themass.color);
+            visual.sunDirection.set(0.82f, 0.34f, 0.48f).nor();
+            visual.sunDistance = 20f;
+            visual.orbitColor.set(0.62f, 0.74f, 1f, 0.12f);
+            visual.clouds.clear();
+            visual.clouds.add(new CloudDef(11, 1.11f, 1.18f, 0.38f,
+                    new Color(0.780f, 0.957f, 1f, 0.58f)));
+            visual.clouds.add(new CloudDef(1, 1.14f, 1.24f, 0.41f,
+                    new Color(0.671f, 0.918f, 0.984f, 0.52f)));
+            visual.moonPosition.set(-4.5f, 3.2f, -6f);
+            visual.moonRadius = 0.55f;
+            visual.moonColor.set(0.55f, 0.62f, 0.78f, 1f);
         }};
 
 
@@ -68,36 +94,6 @@ public class Planets{
             visual.moonColor.set(0.55f, 0.62f, 0.78f, 1f);
             visual.orbitColor.set(0.72f, 0.80f, 1f, 0.16f);
         }};
-
-        PlanetVisual v = serpulo.visual;
-        v.terrainDivisions = 6;
-        v.cloudDivisions = 5;
-        v.gridColor.set(0.82f, 0.86f, 0.95f, 0.30f);
-        v.atmosphereRadius = 1.35f;
-        v.atmosphereInnerRadius = 1f;
-        v.atmosphereAlpha = 1f;
-        v.atmosphereIntensity = 0.35f;
-        v.atmosphereDivisions = 3;
-        v.atmosphereColor.set(0.36f, 0.55f, 0.95f, 1f);
-        v.sectorGlow = true;
-        v.sectorGlowAlpha = 10f;
-        v.sectorGlowScale = 9f;
-        v.sectorGlowThreshold = 0.58f;
-        v.sectorGlowSoftness = 0.0f;
-        v.sectorPlayerGlow.set(Vars.defaultTeam.color);
-        v.sectorEnemyGlow.set(Team.red.color);
-        //v.sectorInfectedGlow.set(0.72f, 0.25f, 1f, 1f);
-        v.sunDirection.set(0.82f, 0.34f, 0.48f).nor();
-        v.sunDistance = 20f;
-        v.orbitColor.set(0.62f, 0.74f, 1f, 0.12f);
-        v.clouds.clear();
-        v.clouds.add(new CloudDef(11, 1.11f, 1.18f, 0.38f,
-            new Color(0.780f, 0.957f, 1f, 0.58f)));
-        v.clouds.add(new CloudDef(1, 1.14f, 1.24f, 0.41f,
-            new Color(0.671f, 0.918f, 0.984f, 0.52f)));
-        v.moonPosition.set(-4.5f, 3.2f, -6f);
-        v.moonRadius = 0.55f;
-        v.moonColor.set(0.55f, 0.62f, 0.78f, 1f);
 
         serpuloSystem.add(sun);
         serpuloSystem.add(serpulo);
