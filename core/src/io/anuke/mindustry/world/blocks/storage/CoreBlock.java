@@ -163,7 +163,7 @@ public class CoreBlock extends StorageBlock{
         if(!(tile.entity instanceof CoreEntity entity)) return;
 
         if(entity.droneID == unit.getID() ||
-                (droneType != null && unit instanceof BaseUnit && ((BaseUnit) unit).getType().id == droneType.id)){
+                (droneType != null && unit instanceof BaseUnit && !(unit instanceof io.anuke.mindustry.entities.Player) && ((BaseUnit) unit).getType() != null && ((BaseUnit) unit).getType().id == droneType.id)){
             entity.droneID = -1;
         }
         if(entity.currentUnit == unit){

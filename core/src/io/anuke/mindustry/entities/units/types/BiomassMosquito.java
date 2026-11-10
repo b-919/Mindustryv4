@@ -17,18 +17,13 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import static io.anuke.mindustry.Vars.content;
 
 public class BiomassMosquito extends BiomassAirUnit {
-    protected Weapon weapon;
     protected TextureRegion wing1, wing2;
 
     // After Crashing out for 2 hours why a good damn sprite region crashes, I think all this stupid stuff should fix it
     protected void ensureInitialized(){
         if(type == null) return;
-        if(weapon == null){
-            weapon = type.weapon;
-        }
 
         if(wing1 == null){
             wing1 = Draw.region(type.name + "-wing1");
@@ -42,7 +37,6 @@ public class BiomassMosquito extends BiomassAirUnit {
 
     public void init(UnitType type, Team team){
         super.init(type, team);
-        this.weapon = type.weapon;
         this.wing1 = Draw.region(type.name + "-wing1");
         this.wing2 = Draw.region(type.name + "-wing2");
         ensureInitialized();
@@ -50,14 +44,6 @@ public class BiomassMosquito extends BiomassAirUnit {
     @Override
     protected void attack(float circleLength){
         moveTo(circleLength);
-    }
-    @Override
-    public Weapon getWeapon(){
-        return weapon != null ? weapon : (type != null ? type.weapon : null);
-    }
-
-    public void setWeapon(Weapon weapon){
-        this.weapon = weapon;
     }
 
     @Override
@@ -102,14 +88,14 @@ public class BiomassMosquito extends BiomassAirUnit {
 
 
         for(int i : Mathf.signs){
-            if(!getWeapon().weaponMirror && i < 0) continue;
+            if(!getWeapon().mirror && i < 0) continue;
             Draw.alpha(hitTime / hitDuration);
             float tra = rotation - 90,
                     trY = -getWeapon().getRecoil(this, i > 0);
-            float wx = x + Angles.trnsx(tra, getWeapon().width * i, trY),
-                    wy = y + Angles.trnsy(tra, getWeapon().width * i, trY);
-            if(weapon != null && weapon.equipRegion != null){
-                Draw.rect(weapon.equipRegion, wx , wy, rotation - 90);
+            float wx = x + Angles.trnsx(tra, getWeapon().x * i, trY),
+                    wy = y + Angles.trnsy(tra, getWeapon().x * i, trY);
+            if(getWeapon() != null && getWeapon().equipRegion != null){
+                Draw.rect(getWeapon().equipRegion, wx , wy, rotation - 90);
             }
 
         }
@@ -132,25 +118,25 @@ public class BiomassMosquito extends BiomassAirUnit {
     @Override
     public void write(DataOutput data) throws IOException {
         super.write(data);
-        data.writeByte(weapon.id);
+        data.writeByte(type.weapon.id);
     }
 
     @Override
     public void read(DataInput data, long time) throws IOException{
         super.read(data, time);
-        weapon = content.getByID(ContentType.weapon, data.readByte() & 0xFF);
+        data.readByte();
         ensureInitialized();
     }
 
     @Override
     public void writeSave(DataOutput stream) throws IOException{
-        stream.writeByte(weapon.id);
+        stream.writeByte(type.weapon.id);
         super.writeSave(stream);
     }
 
     @Override
     public void readSave(DataInput stream) throws IOException{
-        weapon = content.getByID(ContentType.weapon, stream.readByte() & 0xFF);
+        stream.readByte();
         super.readSave(stream);
         ensureInitialized();
     }

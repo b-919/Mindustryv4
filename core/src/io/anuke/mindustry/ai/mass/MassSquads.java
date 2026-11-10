@@ -8,8 +8,12 @@ import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.ai.MassAI;
 import io.anuke.mindustry.entities.Unit;
+import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.Units;
+import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.mindustry.entities.units.BaseUnit;
+import io.anuke.mindustry.entities.units.CommandAI;
+import io.anuke.mindustry.entities.units.UnitCommand;
 import io.anuke.mindustry.entities.units.UnitOrderType;
 import io.anuke.mindustry.entities.units.UnitType;
 import io.anuke.mindustry.game.Team;
@@ -208,20 +212,23 @@ public class MassSquads{
     private static SquadPreset[] presetsFor(int evo){
         if(evo >= 3){
             return new SquadPreset[]{
-                SquadPreset.LOW, SquadPreset.HEAVY_ASSAULT, SquadPreset.ARTILLERY, SquadPreset.ULTRA,
+                SquadPreset.LOW_GROUND, SquadPreset.LOW_AIR, SquadPreset.HEAVY_ASSAULT,
+                SquadPreset.ARTILLERY_GROUND, SquadPreset.ARTILLERY_AIR, SquadPreset.ULTRA,
                 SquadPreset.AIR_STRIKE, SquadPreset.SWARM, SquadPreset.SIEGE, SquadPreset.DEMOLITION_AIR
             };
         }else if(evo == 2){
             return new SquadPreset[]{
-                SquadPreset.LOW, SquadPreset.HEAVY_ASSAULT, SquadPreset.ARTILLERY,
+                SquadPreset.LOW_GROUND, SquadPreset.LOW_AIR, SquadPreset.HEAVY_ASSAULT,
+                SquadPreset.ARTILLERY_GROUND, SquadPreset.ARTILLERY_AIR,
                 SquadPreset.AIR_STRIKE, SquadPreset.SIEGE, SquadPreset.DEMOLITION_GROUND
             };
         }else if(evo == 1){
             return new SquadPreset[]{
-                SquadPreset.LOW, SquadPreset.DEMOLITION_AIR, SquadPreset.DEMOLITION_GROUND, SquadPreset.AIR_STRIKE
+                SquadPreset.LOW_GROUND, SquadPreset.LOW_AIR,
+                SquadPreset.DEMOLITION_AIR, SquadPreset.DEMOLITION_GROUND, SquadPreset.AIR_STRIKE
             };
         }
-        return new SquadPreset[]{SquadPreset.LOW};
+        return new SquadPreset[]{SquadPreset.LOW_GROUND, SquadPreset.LOW_AIR};
     }
 
     private static int getMaxEvolution(ObjectSet<Tile> cores){
@@ -362,7 +369,7 @@ public class MassSquads{
     }
 
     public static void notifyUnitDamaged(Unit unit, Entity attacker){
-        if(!(unit instanceof BaseUnit) || unit.isDead() || !unit.isAdded()) return;
+        if(!(unit instanceof BaseUnit) || unit instanceof Player || unit.isDead() || !unit.isAdded()) return;
         BaseUnit damaged = (BaseUnit) unit;
 
         int squadId = unitSquadAssignments.get(damaged, -1);
@@ -395,7 +402,7 @@ public class MassSquads{
         MassSquad best = null;
         float bestD = MassAIConfig.defendRadius * tilesize;
         for(MassSquad squad : activeSquads){
-            if(squad.defensive || squad.memberCount == 0 || !isPatrolOrder(squad.order)) continue;
+            if(squad.defensive || squad.memberCount == 0 || !isPatrolOrder(squad.order) || squad.air != unit.isFlying()) continue;
             float d = Mathf.dst(unit.x - squad.cx, unit.y - squad.cy);
             if(d < bestD){
                 bestD = d;
@@ -505,6 +512,7 @@ public class MassSquads{
             int squadId = entry.value;
             if(squadId < 0 || squadId >= activeSquads.size) continue;
             MassSquad squad = activeSquads.get(squadId);
+            if(squad.air != entry.key.isFlying()) continue;
             squad.members.add(entry.key);
             squad.memberCount++;
             squad.cx += entry.key.x;
@@ -596,7 +604,7 @@ public class MassSquads{
             if(grace && isAttackOrder(o)){
                 w *= 0.08f;
             }
-            if((squad.preset == SquadPreset.ARTILLERY || squad.preset == SquadPreset.ULTRA) && o == MassOrder.ATTACK_BASE){
+            if((squad.preset == SquadPreset.ARTILLERY_GROUND || squad.preset == SquadPreset.ARTILLERY_AIR || squad.preset == SquadPreset.ULTRA) && o == MassOrder.ATTACK_BASE){
                 w *= 1.3f;
             }
             if(squad.preset.antiProduction){
@@ -741,19 +749,40 @@ public class MassSquads{
             for(int i = 0; i < count; i++){
                 float a = ang + (i - 1) * 14f;
                 float d = (extent + i * MassAIConfig.patrolOutsideSpacing) * tilesize;
-                squad.patrolX[i] = baseX + Angles.trnsx(a, d);
-                squad.patrolY[i] = baseY + Angles.trnsy(a, d);
+                setPatrolNode(squad, i, baseX + Angles.trnsx(a, d), baseY + Angles.trnsy(a, d));
             }
         }else{
             squad.nodeCount = count;
             float radius = MassAIConfig.patrolHiveRadius * tilesize;
             for(int i = 0; i < count; i++){
                 float a = i * 120f + squad.id * 47f;
-                squad.patrolX[i] = baseX + Angles.trnsx(a, radius);
-                squad.patrolY[i] = baseY + Angles.trnsy(a, radius);
+                setPatrolNode(squad, i, baseX + Angles.trnsx(a, radius), baseY + Angles.trnsy(a, radius));
             }
         }
         squad.nodeIndex = 0;
+    }
+
+    /** Picks a patrol node, pulling ground-squad nodes inward when the generated point is impassable. */
+    private static void setPatrolNode(MassSquad squad, int index, float x, float y){
+        if(squad.air || patrolSpotValid(x, y, false)){
+            squad.patrolX[index] = x;
+            squad.patrolY[index] = y;
+            return;
+        }
+
+        for(int i = 1; i <= 4; i++){
+            float scl = 1f - i * 0.2f;
+            float tx = baseX + (x - baseX) * scl;
+            float ty = baseY + (y - baseY) * scl;
+            if(patrolSpotValid(tx, ty, false)){
+                squad.patrolX[index] = tx;
+                squad.patrolY[index] = ty;
+                return;
+            }
+        }
+
+        squad.patrolX[index] = x;
+        squad.patrolY[index] = y;
     }
 
     private static void guaranteeAttackSquad(){
@@ -916,7 +945,7 @@ public class MassSquads{
             case ATTACK_PRODUCTION:
             case ATTACK_UNIT_PRODUCTION:
                 if(squad.attackTile == null){
-                    for(BaseUnit unit : squad.members) unit.clearOrder();
+                    clearSquadOrders(squad);
                     return;
                 }
                 tx = squad.attackTile.drawx();
@@ -925,7 +954,7 @@ public class MassSquads{
                 break;
             case ATTACK_UNITS:
                 if(squad.attackUnit == null || squad.attackUnit.isDead() || !squad.attackUnit.isAdded()){
-                    for(BaseUnit unit : squad.members) unit.clearOrder();
+                    clearSquadOrders(squad);
                     return;
                 }
                 tx = squad.attackUnit.x;
@@ -943,7 +972,7 @@ public class MassSquads{
             case PURSUE:
                 if(squad.pursuitTarget == null || squad.pursuitTarget.isDead() || !squad.pursuitTarget.isAdded()){
                     exitPursuit(squad);
-                    for(BaseUnit unit : squad.members) unit.clearOrder();
+                    clearSquadOrders(squad);
                     return;
                 }
                 tx = squad.pursuitTarget.x;
@@ -963,22 +992,23 @@ public class MassSquads{
                 break;
         }
 
-        for(BaseUnit unit : squad.members){
-            if(want == UnitOrderType.attackTarget){
-                if(squad.order == MassOrder.ATTACK_UNITS){
-                    unit.setDirectTarget(squad.attackUnit);
-                }else if(squad.order == MassOrder.DEFEND_HIVE){
-                    unit.setDirectTarget(defendTarget);
-                }else if(squad.order == MassOrder.PURSUE){
-                    unit.setDirectTarget(squad.pursuitTarget);
-                }else{
-                    unit.setDirectTarget(defendTarget);
-                }
+        TargetTrait commandTarget = null;
+        if(want == UnitOrderType.attackTarget){
+            if(squad.order == MassOrder.ATTACK_UNITS){
+                commandTarget = squad.attackUnit;
+            }else if(squad.order == MassOrder.DEFEND_HIVE){
+                commandTarget = defendTarget;
+            }else if(squad.order == MassOrder.PURSUE){
+                commandTarget = squad.pursuitTarget;
+            }else{
+                commandTarget = defendTarget;
             }
+        }
 
+        for(BaseUnit unit : squad.members){
             float ux = tx, uy = ty;
             boolean orbiting = false;
-            if(patrolOrder && squad.nodeCount > 0){
+            if(patrolOrder && squad.nodeCount > 0 && commandTarget == null){
                 float nodeX = squad.patrolX[squad.nodeIndex];
                 float nodeY = squad.patrolY[squad.nodeIndex];
                 if(Mathf.dst(unit.x - nodeX, unit.y - nodeY) <= patrolArriveDist(unit) && orbitTarget(unit, nodeX, nodeY)){
@@ -991,14 +1021,39 @@ public class MassSquads{
             float orderThreshold = orbiting ? tilesize * 0.5f : tilesize;
             boolean moved = Mathf.dst(unit.getOrderX() - ux, unit.getOrderY() - uy) > orderThreshold;
             if(!unit.hasOrder() || unit.getOrderType() != want || moved){
-                unit.clearOrder();
-                if(want == UnitOrderType.move){
-                    unit.orderMove(ux, uy);
-                }else if(want == UnitOrderType.attackMove){
-                    unit.orderAttackMove(ux, uy);
+                CommandAI ai = unit.commandAI();
+                if(ai != null && commandTarget != null){
+                    ai.command(UnitCommand.attack);
+                    ai.commandTarget(commandTarget);
+                }else if(ai != null && want == UnitOrderType.move){
+                    ai.command(UnitCommand.move);
+                    ai.commandPosition(ux, uy);
+                }else if(ai != null && want == UnitOrderType.attackMove){
+                    ai.command(UnitCommand.attack);
+                    ai.commandAttackMove(ux, uy);
                 }else{
-                    unit.orderAttackTarget(ux, uy);
+                    unit.clearOrder();
+                    if(want == UnitOrderType.move){
+                        unit.orderMove(ux, uy);
+                    }else if(want == UnitOrderType.attackMove){
+                        unit.orderAttackMove(ux, uy);
+                    }else if(commandTarget != null){
+                        unit.orderAttackTarget(ux, uy);
+                        unit.setDirectTarget(commandTarget);
+                    }
                 }
+            }
+        }
+    }
+
+    private static void clearSquadOrders(MassSquad squad){
+        for(BaseUnit unit : squad.members){
+            CommandAI ai = unit.commandAI();
+            if(ai != null){
+                ai.clearCommands();
+            }else{
+                unit.clearOrder();
+                unit.setDirectTarget(null);
             }
         }
     }
@@ -1042,13 +1097,13 @@ public class MassSquads{
         float ox = unit.x + tx * lead + nx * correction;
         float oy = unit.y + ty * lead + ny * correction;
 
-        if(!patrolSpotValid(ox, oy)){
+        if(!patrolSpotValid(ox, oy, unit)){
             //mirror the direction around the node before giving up
             ox = unit.x - tx * lead + nx * correction;
             oy = unit.y - ty * lead + ny * correction;
         }
 
-        if(!patrolSpotValid(ox, oy)){
+        if(!patrolSpotValid(ox, oy, unit)){
             orbitScratch[0] = nodeX;
             orbitScratch[1] = nodeY;
             return false;
@@ -1059,9 +1114,14 @@ public class MassSquads{
         return true;
     }
 
-    private static boolean patrolSpotValid(float x, float y){
+    private static boolean patrolSpotValid(float x, float y, BaseUnit unit){
+        return patrolSpotValid(x, y, unit.isFlying());
+    }
+
+    private static boolean patrolSpotValid(float x, float y, boolean air){
         Tile tile = world.tileWorld(x, y);
-        return tile != null && !tile.solid() && !tile.floor().isLiquid;
+        if(tile == null) return false;
+        return air || (!tile.solid() && !tile.floor().isLiquid);
     }
 
     private static boolean isAttackOrder(MassOrder order){

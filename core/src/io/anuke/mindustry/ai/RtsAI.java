@@ -3,6 +3,8 @@ package io.anuke.mindustry.ai;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.entities.units.BaseUnit;
+import io.anuke.mindustry.entities.units.CommandAI;
+import io.anuke.mindustry.entities.units.UnitCommand;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.Teams.TeamData;
 import io.anuke.mindustry.type.Item;
@@ -123,7 +125,7 @@ public class RtsAI{
             float dist = dx * dx + dy * dy;
 
             if(dist < 800 * 800 && assigned < 30){
-                unit.orderAttackMove(targetX, targetY);
+                attackMove(unit, targetX, targetY);
                 assigned++;
             }
         }
@@ -156,7 +158,7 @@ public class RtsAI{
 
             float ux = unit.x - dx, uy = unit.y - dy;
             if(ux * ux + uy * uy < 500 * 500){
-                unit.orderAttackMove(dx, dy);
+                attackMove(unit, dx, dy);
             }
         }
     }
@@ -192,7 +194,7 @@ public class RtsAI{
 
             float dx = unit.x - coreX, dy = unit.y - coreY;
             if(dx * dx + dy * dy < 400 * 400){
-                unit.orderAttackMove(tx, ty);
+                attackMove(unit, tx, ty);
             }
         }
     }
@@ -225,9 +227,19 @@ public class RtsAI{
 
             float dx = unit.x - coreX, dy = unit.y - coreY;
             if(dx * dx + dy * dy < 600 * 600){
-                unit.orderAttackMove(tx, ty);
+                attackMove(unit, tx, ty);
                 sent++;
             }
+        }
+    }
+
+    private void attackMove(BaseUnit unit, float x, float y){
+        CommandAI ai = unit.commandAI();
+        if(ai != null){
+            ai.command(UnitCommand.attack);
+            ai.commandAttackMove(x, y);
+        }else{
+            unit.orderAttackMove(x, y);
         }
     }
 

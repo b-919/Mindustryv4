@@ -38,13 +38,13 @@ public class BiomassExterminator extends BiomassGroundUnit {
         Draw.rect(type.region, x, y, rotation - 90);
 
         for(int i : Mathf.signs){
-            if(!weapon.weaponMirror && i < 0) continue;
+            if(!weapon.mirror && i < 0) continue;
             float tra = rotation - 90, trY = -weapon.getRecoil(this, i > 0);
             float w = i > 0 ? -12 : 16;
             float h = i > 0 ? 32 : 42;
             Draw.rect(weapon.equipRegion,
-                    x + Angles.trnsx(tra, weapon.width * i, trY),
-                    y + Angles.trnsy(tra, weapon.width * i, trY), w, h, rotation - 90);
+                    x + Angles.trnsx(tra, weapon.x * i, trY),
+                    y + Angles.trnsy(tra, weapon.x * i, trY), w, h, rotation - 90);
         }
 
         drawItems();

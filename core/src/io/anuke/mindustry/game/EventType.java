@@ -77,6 +77,11 @@ public class EventType{
         }
     }
 
+    /** Fired when the player's unit selection or available commands/stances change. */
+    public static class UnitCommandChangeEvent implements Event{
+
+    }
+
     /**Called when block building begins by placing down the BuildBlock.
      * The tile's block will nearly always be a BuildBlock.*/
     public static class BlockBuildBeginEvent implements Event{

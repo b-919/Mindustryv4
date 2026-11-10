@@ -14,6 +14,8 @@ import io.anuke.mindustry.content.Mechs;
 import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.effect.ScorchDecal;
 import io.anuke.mindustry.entities.traits.*;
+import io.anuke.mindustry.entities.units.BaseUnit;
+import io.anuke.mindustry.entities.units.UnitCommand;
 import io.anuke.mindustry.entities.weapon.WeaponMount;
 import io.anuke.mindustry.entities.weapon.WeaponMounts;
 import io.anuke.mindustry.game.Team;
@@ -45,7 +47,7 @@ import java.io.IOException;
 import static io.anuke.mindustry.Vars.*;
 import static io.anuke.mindustry.sounds.Sounds.unitExplode;
 
-public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTrait{
+public class Player extends BaseUnit implements BuilderTrait, CarryTrait{
     public static final int timerSync = 2;
     public static final int timerAbility = 3;
     public static final int timerHeal = 4;
@@ -216,6 +218,19 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
     @Override
     public void added(){
         baseRotation = 90f;
+        if(mech != null) type = mech.unitType;
+    }
+
+    @Override
+    public void onCommand(UnitCommand command){
+        //the player is controlled by input, not commands
+    }
+
+    @Override
+    public void onDeath(){
+        inventory.clear();
+        drownTime = 0f;
+        status.clear();
     }
 
     @Override
@@ -313,7 +328,7 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
 
         float x = snappedX(), y = snappedY();
 
-        if(!movement.isZero() && moved && !state.isPaused()){
+        if(!movement.isZero() && moved && !Vars.state.isPaused()){
             walktime += movement.len() / 0.7f * getFloorOn().speedMultiplier;
             baseRotation = Mathf.slerpDelta(baseRotation, movement.angle(), 0.13f);
         }
@@ -413,7 +428,7 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
 
         if(mech.flying || boostHeat > 0.001f){
             float wobblyness = 0.6f;
-            if(!state.isPaused()) trail.update(x + Angles.trnsx(rotation + 180f, 5f) + Mathf.range(wobblyness),
+            if(!Vars.state.isPaused()) trail.update(x + Angles.trnsx(rotation + 180f, 5f) + Mathf.range(wobblyness),
                     y + Angles.trnsy(rotation + 180f, 5f) + Mathf.range(wobblyness));
             trail.draw(Hue.mix(mech.trailColor, mech.trailColorTo, mech.flying ? 0f : boostHeat, Tmp.c1), 5f * (isFlying() ? 1f : boostHeat));
         }else{
@@ -531,6 +546,7 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
     @Override
     public void update(){
         hitTime -= Timers.delta();
+        if(mech != null) type = mech.unitType;
 
         ensureWeaponMounts();
 
@@ -843,7 +859,7 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
 
     public void resetNoAdd(){
         status.clear();
-        team = state.playerTeam;
+        team = Vars.state.playerTeam;
         inventory.clear();
         placeQueue.clear();
         dead = true;
@@ -851,8 +867,14 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
         carrier = null;
         health = maxHealth();
         boostHeat = drownTime = hitTime = 0f;
-        mech = (isMobile ? Mechs.starterMobile : Mechs.starterDesktop);
+        setMech(isMobile ? Mechs.starterMobile : Mechs.starterDesktop);
         placeQueue.clear();
+    }
+
+    /** Sets the active mech and keeps the player's unit data in sync. */
+    public void setMech(Mech mech){
+        this.mech = mech;
+        this.type = mech == null ? null : mech.unitType;
     }
 
     public boolean isShooting(){
@@ -909,19 +931,19 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
             byte mechid = stream.readByte();
             int index = stream.readByte();
             players[index].readSaveSuper(stream);
-            players[index].mech = content.getByID(ContentType.mech, mechid);
+            players[index].setMech(content.getByID(ContentType.mech, mechid));
             players[index].dead = false;
         }else if(local){
             byte mechid = stream.readByte();
             stream.readByte();
             readSaveSuper(stream);
-            mech = content.getByID(ContentType.mech, mechid);
+            setMech(content.getByID(ContentType.mech, mechid));
             dead = false;
         }
     }
 
     private void readSaveSuper(DataInput stream) throws IOException{
-        super.readSave(stream);
+        readSaveBase(stream);
 
         add();
     }
@@ -943,14 +965,14 @@ public class Player extends Unit implements BuilderTrait, CarryTrait, ShooterTra
     @Override
     public void read(DataInput buffer, long time) throws IOException{
         float lastx = x, lasty = y, lastrot = rotation;
-        super.readSave(buffer);
+        readSaveBase(buffer);
         name = TypeIO.readStringData(buffer);
         byte bools = buffer.readByte();
         isAdmin = (bools & 1) != 0;
         dead = (bools & 2) != 0;
         boolean boosting = (bools & 4) != 0;
         color.set(buffer.readInt());
-        mech = content.getByID(ContentType.mech, buffer.readByte() & 0xFF);
+        setMech(content.getByID(ContentType.mech, buffer.readByte() & 0xFF));
         long mine = buffer.readLong();
         long spawner = buffer.readLong();
         float baseRotation = buffer.readShort() / 2f;

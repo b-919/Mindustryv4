@@ -24,6 +24,15 @@ public interface TypeTrait{
     }
 
     /**
+     * Registers a supplier for a historical save id without exposing the old class.
+     * Used when an empty entity subclass is merged into a shared archetype.
+     */
+    static void registerLegacy(Supplier<? extends TypeTrait> supplier){
+        registeredTypes.add(supplier);
+        lastRegisteredID[0]++;
+    }
+
+    /**
      * Registers a syncable type by ID.
      */
     static Supplier<? extends TypeTrait> getTypeByID(int id){

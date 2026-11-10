@@ -45,7 +45,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
     @Override
     public boolean canShootWeapons(){
         //don't shoot while mining, building or rebuilding you baka!
-        return !(state.is(mine) || state.is(build) || state.is(rebuild));
+        return super.canShootWeapons() && !(state.is(mine) || state.is(build) || state.is(rebuild));
     }
 
     protected Item targetItem;
@@ -127,7 +127,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
 
         public void update(){
 
-            retarget(() -> {
+            if(retarget()){
                 target = Units.findDamagedTile(team, x, y);
 
                 if(target == null){
@@ -136,7 +136,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
                         setState(mine);
                     }
                 }
-            });
+            }
 
             //state may have changed to rebuild inside retarget
             if(state.is(rebuild)) return;
@@ -146,7 +146,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
             if(target.distanceTo(Drone.this) > type.range){
                 circle(type.range*0.9f);
             }else{
-                getWeapon().update(Drone.this, target.getX(), target.getY());
+                shootAt(target);
             }
         }
     },
@@ -215,15 +215,15 @@ public class Drone extends FlyingUnit implements BuilderTrait{
                     return;
                 }
 
-                retarget(() -> {
+                if(retarget()){
                     if(getMineTile() == null){
                         findItem();
                     }
 
-                    if(targetItem == null) return;
-
-                    target = world.indexer.findClosestOre(x, y, targetItem);
-                });
+                    if(targetItem != null){
+                        target = world.indexer.findClosestOre(x, y, targetItem);
+                    }
+                }
 
                 if(target instanceof Tile){
                     moveTo(type.range / 1.5f);
@@ -453,7 +453,11 @@ public class Drone extends FlyingUnit implements BuilderTrait{
 
     @Override
     public void onCommand(UnitCommand command){
-        //no
+        if(command == UnitCommand.mine){
+            setState(mine);
+        }else if(command == UnitCommand.repair){
+            setState(repair);
+        }
     }
 
     @Override
@@ -507,7 +511,7 @@ public class Drone extends FlyingUnit implements BuilderTrait{
                 }
 
                 if(this.target != null && this.target != p && distanceTo(this.target) < type.range){
-                    getWeapon().update(this, this.target.getX(), this.target.getY());
+                    shootAt(this.target);
                 }
             }
         }

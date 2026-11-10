@@ -8,6 +8,7 @@ import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.entities.EntityGroup;
 import io.anuke.ucore.entities.EntityQuery;
+import io.anuke.ucore.entities.trait.SolidTrait;
 import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.function.Predicate;
 import io.anuke.ucore.util.EnumSet;
@@ -29,6 +30,13 @@ public class Units{
     private static Predicate<Unit> anyPredicate;
     private static final Consumer<Unit> anyConsumer = Units::checkAny;
     private static final Consumer<Unit> anyPredConsumer = Units::checkAnyPredicate;
+    /**Reused adapter so getNearby never allocates a per-team lambda in the update path.*/
+    private static Consumer<Unit> nearbyCons;
+    private static final Consumer<SolidTrait> nearbySolidAdapter = Units::dispatchNearby;
+
+    private static void dispatchNearby(SolidTrait solid){
+        nearbyCons.accept((Unit)solid);
+    }
 
     /**
      * Validates a target.
@@ -245,16 +253,20 @@ public class Units{
 
     /**Iterates over all units in a rectangle.*/
     public static void getNearby(Rectangle rect, Consumer<Unit> cons){
+        Consumer<Unit> prev = nearbyCons;
+        nearbyCons = cons;
 
         for(Team team : Team.all){
             EntityGroup<BaseUnit> group = unitGroups[team.ordinal()];
             if(!group.isEmpty()){
-                EntityQuery.getNearby(group, rect, entity -> cons.accept((Unit) entity));
+                EntityQuery.getNearby(group, rect, nearbySolidAdapter);
             }
         }
 
         //now check all enemy players
-        EntityQuery.getNearby(playerGroup, rect, player -> cons.accept((Unit) player));
+        EntityQuery.getNearby(playerGroup, rect, nearbySolidAdapter);
+
+        nearbyCons = prev;
     }
 
     /**Iterates over all units that are enemies of this team.*/

@@ -61,7 +61,7 @@ public class BlockDefenseDrone extends FlyingUnit { // Copy paste of the Alpha D
                     AmmoType ammo = getWeapon().getAmmo();
 
                     Vector2 to = Predict.intercept(BlockDefenseDrone.this, target, ammo.bullet.speed);
-                    getWeapon().update(BlockDefenseDrone.this, to.x, to.y);
+                    shootAt(target);
                 }
             }
 

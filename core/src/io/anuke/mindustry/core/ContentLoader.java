@@ -81,6 +81,8 @@ public class ContentLoader{
 
         //units
         new UnitTypes(),
+        //player unit data
+        new PlayerUnitTypes(),
 
         //blocks
         new Blocks(),

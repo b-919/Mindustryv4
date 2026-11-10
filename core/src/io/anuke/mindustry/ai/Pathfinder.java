@@ -1,11 +1,11 @@
 package io.anuke.mindustry.ai;
 
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.utils.Bits;
 import com.badlogic.gdx.utils.FloatArray;
 import com.badlogic.gdx.utils.IntArray;
+import com.badlogic.gdx.utils.IntFloatMap;
+import com.badlogic.gdx.utils.IntIntMap;
 import com.badlogic.gdx.utils.LongArray;
-import com.badlogic.gdx.utils.LongMap;
 import com.badlogic.gdx.utils.TimeUtils;
 import io.anuke.mindustry.game.EventType.TileChangeEvent;
 import io.anuke.mindustry.game.EventType.WorldLoadEvent;
@@ -16,16 +16,28 @@ import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.meta.BlockFlag;
 import io.anuke.ucore.core.Events;
-import io.anuke.ucore.util.Mathf;
+import io.anuke.ucore.util.*;
 
 import static io.anuke.mindustry.Vars.*;
 
 
 public class Pathfinder{
-    private long maxUpdate = TimeUtils.millisToNanos(2);
-    private PathData[] paths;
+    /**Budget for the background flood thread; larger than the old main-thread budget since it runs off the logic thread.*/
+    private long threadMaxUpdate = TimeUtils.millisToNanos(4);
+    private volatile PathData[] paths;
     private ChunkWaypointGraph graph;
     public volatile long editStamp = 0;
+    /**Background daemon thread that advances the Dijkstra frontier so the logic thread never floods.*/
+    private Thread thread;
+
+    //scratch for findUnitPath/findFallbackWaypoint; reused so the A*/BFS never allocates or boxes.
+    private final IntIntMap pathCameFrom = new IntIntMap();
+    private final IntFloatMap pathGScore = new IntFloatMap();
+    private final IntArray pathHeap = new IntArray();
+    private final FloatArray pathFKeys = new FloatArray();
+    private final IntIntMap fallbackParent = new IntIntMap();
+    private final IntArray fallbackQueue = new IntArray();
+    private long[] fallbackVisited;
 
     //packed cell layout
     private static final int B_SOLID = 1;
@@ -53,6 +65,46 @@ public class Pathfinder{
                 path.dirty = true;
             }
         });
+
+        start();
+    }
+
+    /**Starts the background flood thread; a no-op when it is already running.*/
+    private void start(){
+        if(thread != null) return;
+        thread = new Thread(this::run, "Pathfinder");
+        thread.setDaemon(true);
+        thread.setPriority(Thread.MIN_PRIORITY);
+        thread.start();
+    }
+
+    /**Background flood loop. Only touches paths whose {@code flooding} flag is set.*/
+    private void run(){
+        while(true){
+            try{
+                if(!Net.client()){
+                    PathData[] snapshot = paths;
+                    if(snapshot != null){
+                        for(int i = 0; i < snapshot.length; i++){
+                            PathData path = snapshot[i];
+                            if(path == null || !path.flooding) continue;
+                            synchronized(path.floodLock){
+                                if(!path.flooding) continue;
+                                updateFrontier(path, i, threadMaxUpdate);
+                                if(path.heapSize == 0){
+                                    path.flooding = false;
+                                }
+                            }
+                        }
+                    }
+                }
+                Thread.sleep(16);
+            }catch(InterruptedException e){
+                return;
+            }catch(Throwable e){
+                Log.err(e);
+            }
+        }
     }
 
     /**
@@ -147,13 +199,12 @@ public class Pathfinder{
             PathData path = ensurePath(i);
             if(path == null) continue;
 
-            if(path.dirty && path.heapSize == 0){
+            if(path.dirty && !path.flooding && path.heapSize == 0){
                 java.util.Arrays.fill(path.weights, Float.MAX_VALUE);
                 seedTargets(team, path);
                 path.dirty = false;
+                path.flooding = true;
             }
-
-            updateFrontier(team, maxUpdate);
         }
     }
 
@@ -354,7 +405,7 @@ public class Pathfinder{
         path.heapSize = 0;
 
         seedTargets(team, path);
-        updateFrontier(team, -1); //blocking initial flood
+        updateFrontier(path, team.ordinal(), -1); //blocking initial flood
         System.arraycopy(path.weights, 0, path.completeWeights, 0, path.weights.length);
         path.hasComplete = true;
         return path;
@@ -389,14 +440,17 @@ public class Pathfinder{
             System.arraycopy(path.weights, srcRow, newWeights, dstRow, Math.max(0, copyX1 - copyX0));
         }
 
-        path.tileData = newData;
-        path.weights = newWeights;
-        path.offsetX = newOffX;
-        path.offsetY = newOffY;
-        path.completeWeights = newWeights.clone();
-        path.hasComplete = true;
-        path.dirty = true;
-        path.heapSize = 0;
+        synchronized(path.floodLock){
+            path.flooding = false;
+            path.tileData = newData;
+            path.weights = newWeights;
+            path.offsetX = newOffX;
+            path.offsetY = newOffY;
+            path.completeWeights = newWeights.clone();
+            path.hasComplete = true;
+            path.dirty = true;
+            path.heapSize = 0;
+        }
     }
 
     /**
@@ -429,21 +483,19 @@ public class Pathfinder{
 
         int teamOrdinal = team.ordinal();
 
-        LongMap<Long> cameFrom = new LongMap<>();
-        LongMap<Float> gScore = new LongMap<>();
-        //binary min-heap keyed by f-score; parallel arrays store node positions and keys
-        IntArray heap = new IntArray();
-        FloatArray fKeys = new FloatArray();
+        pathCameFrom.clear();
+        pathGScore.clear();
+        pathHeap.clear();
+        pathFKeys.clear();
 
-        long startPacked = start, goalPacked = goal;
-        gScore.put(startPacked, 0f);
+        pathGScore.put(start, 0f);
 
         //push start
         {
             float h0 = Math.abs(sx - gx) + Math.abs(sy - gy);
-            heap.add(start);
-            fKeys.add(h0);
-            siftHeapUp(heap, fKeys, heap.size - 1);
+            pathHeap.add(start);
+            pathFKeys.add(h0);
+            siftHeapUp(pathHeap, pathFKeys, pathHeap.size - 1);
         }
 
         float deepBias = 0.02f;
@@ -455,25 +507,25 @@ public class Pathfinder{
         float bestH = Math.abs(sx - gx) + Math.abs(sy - gy);
         LongArray result = null;
 
-        while(heap.size > 0 && expanded++ < maxExpansions){
+        while(pathHeap.size > 0 && expanded++ < maxExpansions){
             //extract min
-            int current = heap.get(0);
-            int last = heap.pop();
-            float lastKey = fKeys.pop();
-            if(heap.size > 0){
-                heap.set(0, last);
-                fKeys.set(0, lastKey);
-                siftHeapDown(heap, fKeys, 0);
+            int current = pathHeap.get(0);
+            int last = pathHeap.pop();
+            float lastKey = pathFKeys.pop();
+            if(pathHeap.size > 0){
+                pathHeap.set(0, last);
+                pathFKeys.set(0, lastKey);
+                siftHeapDown(pathHeap, pathFKeys, 0);
             }
 
-            if(current == goalPacked){
+            if(current == goal){
                 result = new LongArray();
-                long c = current;
-                while(c != startPacked){
-                    int cx = (int)(c % size) + path.offsetX;
-                    int cy = (int)(c / size) + path.offsetY;
+                int c = current;
+                while(c != start){
+                    int cx = (c % size) + path.offsetX;
+                    int cy = (c / size) + path.offsetY;
                     result.add(((long)cx << 32) | (cy & 0xFFFFFFFFL));
-                    c = cameFrom.get(c, c);
+                    c = pathCameFrom.get(c, c);
                 }
                 result.reverse();
                 break;
@@ -494,19 +546,19 @@ public class Pathfinder{
 
                 int npos = nx + ny * size;
                 int cell = path.tileData[npos];
-                boolean isGoal = npos == goalPacked;
+                boolean isGoal = npos == goal;
                 if(!isGoal && !passable(cell, teamOrdinal)) continue;
 
                 float step = costOf(cell);
-                float ng = gScore.get(current, Float.MAX_VALUE) + step;
+                float ng = pathGScore.get(current, Float.MAX_VALUE) + step;
                 //diagonals not used keeps paths wall-safe without corner checks
-                if(ng < gScore.get(npos, Float.MAX_VALUE)){
-                    cameFrom.put(npos, (long)current);
-                    gScore.put(npos, ng);
+                if(ng < pathGScore.get(npos, Float.MAX_VALUE)){
+                    pathCameFrom.put(npos, current);
+                    pathGScore.put(npos, ng);
                     float hf = Math.abs(nx - gx) + Math.abs(ny - gy);
-                    heap.add(npos);
-                    fKeys.add(ng + hf + ng * deepBias);
-                    siftHeapUp(heap, fKeys, heap.size - 1);
+                    pathHeap.add(npos);
+                    pathFKeys.add(ng + hf + ng * deepBias);
+                    siftHeapUp(pathHeap, pathFKeys, pathHeap.size - 1);
                 }
             }
         }
@@ -515,12 +567,12 @@ public class Pathfinder{
         if(bestSlot == start) return null;
 
         result = new LongArray();
-        long c = bestSlot;
-        while(c != startPacked){
-            int cx = (int)(c % size) + path.offsetX;
-            int cy = (int)(c / size) + path.offsetY;
+        int c = bestSlot;
+        while(c != start){
+            int cx = (c % size) + path.offsetX;
+            int cy = (c / size) + path.offsetY;
             result.add(((long)cx << 32) | (cy & 0xFFFFFFFFL));
-            c = cameFrom.get(c, c);
+            c = pathCameFrom.get(c, c);
         }
         result.reverse();
         return decimate(result);
@@ -604,12 +656,18 @@ public class Pathfinder{
         int start = sx + sy * size;
         int teamOrdinal = team.ordinal();
 
-        Bits visited = new Bits(size * sizeY);
-        int[] parent = new int[size * sizeY];
-        java.util.Arrays.fill(parent, -1);
-        IntArray queue = new IntArray();
-        queue.add(start);
-        visited.set(start);
+        int total = size * sizeY;
+        int words = (total + 63) >>> 6;
+        if(fallbackVisited == null || fallbackVisited.length < words){
+            fallbackVisited = new long[words];
+        }else{
+            java.util.Arrays.fill(fallbackVisited, 0, words, 0L);
+        }
+
+        fallbackParent.clear();
+        fallbackQueue.clear();
+        fallbackQueue.add(start);
+        fallbackVisited[start >>> 6] |= 1L << (start & 63);
 
         float sdx = sx + 0.5f - gx, sdy = sy + 0.5f - gy;
         float bestDist = sdx * sdx + sdy * sdy;
@@ -617,8 +675,8 @@ public class Pathfinder{
 
         int maxCells = 8000;
         int head = 0;
-        while(head < queue.size && maxCells-- > 0){
-            int current = queue.get(head++);
+        while(head < fallbackQueue.size && maxCells-- > 0){
+            int current = fallbackQueue.get(head++);
 
             float cdx = current % size + 0.5f - gx, cdy = current / size + 0.5f - gy;
             float curDist = cdx * cdx + cdy * cdy;
@@ -634,14 +692,14 @@ public class Pathfinder{
                 if(nx < 0 || ny < 0 || nx >= size || ny >= sizeY) continue;
 
                 int npos = nx + ny * size;
-                if(visited.get(npos)) continue;
+                if((fallbackVisited[npos >>> 6] & (1L << (npos & 63))) != 0) continue;
 
                 //walk through breakable blocks the waypoint may sit against an enemy wall
                 if(!passable(path.tileData[npos], teamOrdinal)) continue;
 
-                visited.set(npos);
-                parent[npos] = current;
-                queue.add(npos);
+                fallbackVisited[npos >>> 6] |= 1L << (npos & 63);
+                fallbackParent.put(npos, current);
+                fallbackQueue.add(npos);
             }
         }
 
@@ -654,7 +712,7 @@ public class Pathfinder{
             int wx = cur % size + path.offsetX;
             int wy = cur / size + path.offsetY;
             out.add(((long)wx << 32) | (wy & 0xFFFFFFFFL));
-            cur = parent[cur];
+            cur = fallbackParent.get(cur, -1);
         }
         out.reverse();
         return decimate(out);
@@ -675,9 +733,7 @@ public class Pathfinder{
         }
     }
 
-    private void updateFrontier(Team team, long nsToRun){
-        PathData path = paths[team.ordinal()];
-        int teamOrdinal = team.ordinal();
+    private void updateFrontier(PathData path, int teamOrdinal, long nsToRun){
         int size = path.size;
         int sizeY = path.sizeY;
 
@@ -785,12 +841,15 @@ public class Pathfinder{
         int offsetX, offsetY;
         float[] weights;
         float[] completeWeights;
-        boolean hasComplete;
+        volatile boolean hasComplete;
+        volatile boolean flooding;
         boolean dirty;
         int[] tileData;
         int[] heap = new int[512];
         float[] heapVals = new float[512];
         int heapSize = 0;
+        /**Guards the array-replacement ops against the background flood thread.*/
+        final Object floodLock = new Object();
 
         PathData(){
             size = world.width();
@@ -818,6 +877,7 @@ public class Pathfinder{
             heapSize = 0;
             dirty = false;
             hasComplete = false;
+            flooding = false;
         }
     }
 }

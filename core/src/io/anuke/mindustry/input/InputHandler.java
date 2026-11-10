@@ -12,8 +12,11 @@ import io.anuke.mindustry.content.fx.EnvironmentFx;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.UnitOrderType;
+import io.anuke.mindustry.entities.units.CommandAI;
+import io.anuke.mindustry.entities.units.UnitCommand;
+import io.anuke.mindustry.entities.units.UnitStance;
 import io.anuke.mindustry.entities.units.types.Drone;
+import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.mindustry.entities.effect.ItemTransfer;
 import io.anuke.mindustry.entities.traits.BuilderTrait.BuildRequest;
 import io.anuke.mindustry.game.Schematic;
@@ -135,36 +138,99 @@ public abstract class InputHandler extends InputAdapter{
     }
 
     @Remote(targets = Loc.both, called = Loc.server, forward = true)
-    public static void issueUnitOrder(Player player, int unitID, byte orderType, float x, float y){
-        if(player == null) return;
-
-        BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(unitID);
-        if(unit == null || unit.getTeam() != player.getTeam() || !unit.isPlayerControllable) return;
-
-        UnitOrderType[] values = UnitOrderType.values();
-        if(orderType < 0 || orderType >= values.length) return;
-        UnitOrderType type = values[orderType];
-
-        if(type == UnitOrderType.move){
-            unit.orderMove(x, y);
-        }else if(type == UnitOrderType.attackMove){
-            unit.orderAttackMove(x, y);
-        }else if(type == UnitOrderType.attackTarget){
-            unit.orderAttackTarget(x, y);
-            unit.setDirectTarget(Units.getClosestTarget(unit.getTeam(), x, y, 80f, u -> true));
-        }else{
-            unit.clearOrder();
-        }
-    }
-
-    @Remote(targets = Loc.both, called = Loc.server, forward = true)
     public static void issueUnitAttackTarget(Player player, int unitID, float x, float y){
         if(player == null) return;
         BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(unitID);
         if(unit == null || unit.getTeam() != player.getTeam() || !unit.isPlayerControllable) return;
 
-        unit.orderAttackTarget(x, y);
-        unit.setDirectTarget(Units.getClosestTarget(unit.getTeam(), x, y, 80f, u -> true));
+        TargetTrait target = Units.getClosestTarget(unit.getTeam(), x, y, 80f, u -> true);
+        unit.onCommand(UnitCommand.attack);
+
+        CommandAI ai = unit.commandAI();
+        if(ai != null){
+            ai.command(UnitCommand.attack);
+            if(target != null){
+                ai.commandTarget(target);
+            }else{
+                ai.commandAttackMove(x, y);
+            }
+        }else if(target != null){
+            unit.orderAttackTarget(target.getX(), target.getY());
+            unit.setDirectTarget(target);
+        }else{
+            unit.orderAttackTarget(x, y);
+        }
+    }
+
+    /** Issues a modern unit command (move, attack-move, stop). */
+    @Remote(targets = Loc.both, called = Loc.server, forward = true)
+    public static void issueUnitCommand(Player player, int unitID, byte commandType, float x, float y){
+        if(player == null) return;
+
+        BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(unitID);
+        if(unit == null || unit.getTeam() != player.getTeam() || !unit.isPlayerControllable) return;
+
+        UnitCommand command = UnitCommand.byOrdinal(commandType);
+
+        if(command == UnitCommand.stop){
+            unit.stopOrders();
+            return;
+        }
+        if(unit.getType() == null || !unit.getType().commands.contains(command, true)){
+            return;
+        }
+
+        if(command == UnitCommand.move){
+            unit.orderMove(x, y);
+            if(unit.getController() instanceof CommandAI){
+                ((CommandAI)unit.getController()).command = command;
+            }
+            return;
+        }
+
+        if(command == UnitCommand.attack){
+            TargetTrait target = Units.getClosestTarget(unit.getTeam(), x, y, 80f, u -> true);
+            unit.onCommand(UnitCommand.attack);
+
+            CommandAI ai = unit.commandAI();
+            if(ai != null){
+                ai.command(command);
+                if(target != null){
+                    ai.commandTarget(target);
+                }else{
+                    ai.commandAttackMove(x, y);
+                }
+            }else if(target != null){
+                unit.orderAttackTarget(target.getX(), target.getY());
+                unit.setDirectTarget(target);
+            }else{
+                unit.orderAttackMove(x, y);
+            }
+            return;
+        }
+
+        unit.onCommand(command);
+    }
+
+    /** Toggles a stance on a single selected unit. */
+    @Remote(targets = Loc.both, called = Loc.server, forward = true)
+    public static void setUnitStance(Player player, int unitID, byte stanceType, boolean enabled){
+        if(player == null) return;
+
+        BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(unitID);
+        if(unit == null || unit.getTeam() != player.getTeam() || !unit.isPlayerControllable) return;
+
+        UnitStance[] stances = UnitStance.values();
+        if(stanceType < 0 || stanceType >= stances.length) return;
+
+        UnitStance stance = stances[stanceType];
+        if(unit.getType() == null || !unit.getType().stances.contains(stance, true)) return;
+
+        unit.setStance(stance, enabled);
+
+        if(stance == UnitStance.follow && unit instanceof Drone){
+            ((Drone)unit).setFollowPlayer(enabled, player.id);
+        }
     }
 
     @Remote(targets = Loc.both, called = Loc.server, forward = true)

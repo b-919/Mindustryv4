@@ -18,8 +18,10 @@ import io.anuke.mindustry.entities.traits.BuilderTrait.BuildRequest;
 import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.entities.units.GroundUnit;
-import io.anuke.mindustry.entities.units.UnitOrderType;
+import io.anuke.mindustry.entities.units.UnitCommand;
+import io.anuke.mindustry.entities.units.UnitStance;
 import io.anuke.mindustry.entities.units.types.Drone;
+import io.anuke.mindustry.game.EventType.UnitCommandChangeEvent;
 import io.anuke.mindustry.game.Schematic;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.gen.Call;
@@ -33,6 +35,7 @@ import io.anuke.mindustry.world.Tile;
 import io.anuke.ucore.core.Graphics;
 import io.anuke.ucore.core.Inputs;
 import io.anuke.ucore.core.KeyBinds;
+import io.anuke.ucore.core.Events;
 import io.anuke.ucore.core.Settings;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
@@ -65,7 +68,9 @@ public class DesktopInput extends InputHandler{
     private final Vector2 unitSelectStart = new Vector2();
     private final Vector2 unitSelectEnd = new Vector2();
     private boolean leftWasDown, rightWasDown;
-    private UnitOrderType activeOrderType = UnitOrderType.move;
+    private UnitCommand activeCommand = UnitCommand.move;
+    private final Array<UnitCommand> selectedCommands = new Array<>();
+    private final Array<UnitStance> selectedStances = new Array<>();
 
     public DesktopInput(Player player){
         super(player);
@@ -434,9 +439,9 @@ public class DesktopInput extends InputHandler{
                 return;
             }
 
-            UnitOrderType issued = activeOrderType == UnitOrderType.none ? UnitOrderType.move : activeOrderType;
+            UnitCommand issued = activeCommand;
             if(shift){
-                issued = UnitOrderType.attackMove;
+                issued = UnitCommand.attack;
             }
             issueSelectedOrders(mouseWorld.x, mouseWorld.y, issued);
             leftWasDown = leftDown;
@@ -594,9 +599,11 @@ public class DesktopInput extends InputHandler{
                 selectedUnits.add(unit.getID());
             }
         }
+
+        Events.fire(new UnitCommandChangeEvent());
     }
 
-    private void issueSelectedOrders(float x, float y, UnitOrderType type){
+    private void issueSelectedOrders(float x, float y, UnitCommand command){
         if(selectedUnits.size == 0) return;
 
         IntSet.IntSetIterator it = selectedUnits.iterator();
@@ -605,9 +612,9 @@ public class DesktopInput extends InputHandler{
             BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(id);
             if(unit == null || unit.isDead()) continue;
             if(Net.active() && Net.client()){
-                Call.issueUnitOrder(player, id, (byte)type.ordinal(), x, y);
+                Call.issueUnitCommand(player, id, (byte)command.ordinal(), x, y);
             }else{
-                InputHandler.issueUnitOrder(player, id, (byte)type.ordinal(), x, y);
+                InputHandler.issueUnitCommand(player, id, (byte)command.ordinal(), x, y);
             }
         }
     }
@@ -629,55 +636,107 @@ public class DesktopInput extends InputHandler{
     }
 
     private boolean hasSelectedUnits(){
-        return selectedUnits.size > 0;
+        if(selectedUnits.size == 0) return false;
+        IntSet.IntSetIterator it = selectedUnits.iterator();
+        while(it.hasNext){
+            BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(it.next());
+            if(unit != null && !unit.isDead() && unit.isAdded()) return true;
+        }
+        return false;
     }
 
     public boolean isUnitCommandMode(){
         return hasSelectedUnits();
     }
 
-    public UnitOrderType getActiveOrderType(){
-        return activeOrderType;
+    public UnitCommand getActiveCommand(){
+        return activeCommand;
     }
 
-    public void setActiveOrderType(UnitOrderType activeOrderType){
-        if(activeOrderType != null){
-            this.activeOrderType = activeOrderType;
+    public void setActiveCommand(UnitCommand command){
+        if(command != null){
+            this.activeCommand = command;
         }
+    }
+
+    public int getSelectedUnitCount(){
+        int count = 0;
+        IntSet.IntSetIterator it = selectedUnits.iterator();
+        while(it.hasNext){
+            BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(it.next());
+            if(unit != null && !unit.isDead() && unit.isAdded()) count++;
+        }
+        return count;
+    }
+
+    /** Union of commands available on the selected unit types. */
+    public Array<UnitCommand> getSelectedCommands(){
+        selectedCommands.clear();
+        IntSet.IntSetIterator it = selectedUnits.iterator();
+        while(it.hasNext){
+            BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(it.next());
+            if(unit == null || unit.isDead() || !unit.isAdded() || unit.getType() == null) continue;
+            for(UnitCommand command : unit.getType().commands){
+                if(!selectedCommands.contains(command, true)) selectedCommands.add(command);
+            }
+        }
+        return selectedCommands;
+    }
+
+    /** Union of stances available on the selected unit types. */
+    public Array<UnitStance> getSelectedStances(){
+        selectedStances.clear();
+        IntSet.IntSetIterator it = selectedUnits.iterator();
+        while(it.hasNext){
+            BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(it.next());
+            if(unit == null || unit.isDead() || !unit.isAdded() || unit.getType() == null) continue;
+            for(UnitStance stance : unit.getType().stances){
+                if(!selectedStances.contains(stance, true)) selectedStances.add(stance);
+            }
+        }
+        return selectedStances;
+    }
+
+    /** Immediately cancels every selected unit's orders and returns to move mode. */
+    public void stopSelectedUnits(){
+        issueSelectedOrders(player.x, player.y, UnitCommand.stop);
+        activeCommand = UnitCommand.move;
+    }
+
+    /** Toggles a stance for every selected unit. */
+    public void setSelectedStance(UnitStance stance, boolean enabled){
+        IntSet.IntSetIterator it = selectedUnits.iterator();
+        while(it.hasNext){
+            int id = it.next();
+            BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(id);
+            if(unit == null || unit.isDead()) continue;
+            if(Net.active() && Net.client()){
+                Call.setUnitStance(player, id, (byte)stance.ordinal(), enabled);
+            }else{
+                InputHandler.setUnitStance(player, id, (byte)stance.ordinal(), enabled);
+            }
+        }
+    }
+
+    /** Returns true when at least one selected unit has the stance. */
+    public boolean selectedHasStance(UnitStance stance){
+        IntSet.IntSetIterator it = selectedUnits.iterator();
+        while(it.hasNext){
+            BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(it.next());
+            if(unit != null && unit.hasStance(stance)) return true;
+        }
+        return false;
     }
 
     public void clearUnitSelection(){
         selectedUnits.clear();
     }
 
-    public void setSelectedDronesFollow(boolean follow){
-        IntSet.IntSetIterator it = selectedUnits.iterator();
-        while(it.hasNext){
-            int id = it.next();
-            BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(id);
-            if(!(unit instanceof Drone)) continue;
-            if(Net.active() && Net.client()){
-                Call.setDroneFollowMode(player, id, follow);
-            }else{
-                InputHandler.setDroneFollowMode(player, id, follow);
-            }
-        }
-    }
-
     public boolean hasSelectedDrones(){
         IntSet.IntSetIterator it = selectedUnits.iterator();
         while(it.hasNext){
             BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(it.next());
-            if(unit instanceof Drone) return true;
-        }
-        return false;
-    }
-
-    public boolean selectedDronesFollowing(){
-        IntSet.IntSetIterator it = selectedUnits.iterator();
-        while(it.hasNext){
-            BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(it.next());
-            if(unit instanceof Drone && ((Drone)unit).isFollowPlayerMode()) return true;
+            if(unit instanceof Drone && !unit.isDead() && unit.isAdded()) return true;
         }
         return false;
     }

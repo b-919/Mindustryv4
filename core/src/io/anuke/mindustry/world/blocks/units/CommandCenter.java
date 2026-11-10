@@ -63,6 +63,7 @@ public class CommandCenter extends Block{
         super.load();
 
         for(UnitCommand cmd : UnitCommand.values()){
+            if(!cmd.commandCenter) continue;
             commandRegions[cmd.ordinal()] = Draw.region("command-" + cmd.name());
         }
     }
@@ -96,6 +97,7 @@ public class CommandCenter extends Block{
         Table buttons = new Table();
 
         for(UnitCommand cmd : UnitCommand.values()){
+            if(!cmd.commandCenter) continue;
             buttons.addImageButton("command-" + cmd.name(), "clear-toggle", 8*3, () -> threads.run(() -> Call.onCommandCenterSet(players[0], tile, cmd)))
             .size(38f).checked(entity.command == cmd).group(group);
         }

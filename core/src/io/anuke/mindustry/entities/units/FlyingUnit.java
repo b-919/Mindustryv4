@@ -12,15 +12,14 @@ import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.meta.BlockFlag;
 import io.anuke.ucore.core.Timers;
-import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.*;
 
 import static io.anuke.mindustry.Vars.world;
 
-public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
+public class FlyingUnit extends BaseUnit implements CarryTrait{
     @Override
     public boolean isRetreating(){
-        return state.is(retreat);
+        return controller instanceof FlyingAI ? ((FlyingAI)controller).isRetreating() : state.is(retreat);
     }
     protected static Translator vec = new Translator();
     protected static float wobblyness = 0.6f;
@@ -57,7 +56,7 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
         }
 
         public void update(){
-            if(health < maxHealth() * 0.5f){
+            if(health < maxHealth() * 0.5f && timer.get(timerRetreat, 30f)){
                 Tile repair = Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair));
                 Unit healer = Units.getClosest(team, x, y, getType().healRange, u -> u.isHealer() && u != FlyingUnit.this);
                 if(repair != null && distanceTo(repair) < getType().healRange){
@@ -71,6 +70,12 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
 
             if(Units.invalidateTarget(target, team, x, y)){
                 target = null;
+            }
+
+            if(getOrderType() == UnitOrderType.attackTarget && target != null){
+                //use the unit's own engagement distance so custom hit-and-run attacks stay intact
+                attack(type.attackLength);
+                return;
             }
 
             if(retarget()){
@@ -163,10 +168,21 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
 
     @Override
     public void onCommand(UnitCommand command){
+        if(controller instanceof FlyingAI){
+            ((FlyingAI)controller).command(command);
+        }
         state.set(command == UnitCommand.retreat ? retreat :
                   command == UnitCommand.attack ? attack :
                   command == UnitCommand.patrol ? patrol :
                   null);
+    }
+
+    protected void holdState(){
+        if(controller instanceof FlyingAI){
+            ((FlyingAI)controller).setMode(FlyingAI.Mode.hold);
+        }else{
+            setState(hold);
+        }
     }
 
     @Override
@@ -226,7 +242,7 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
             vec.set(getOrderX() - x, getOrderY() - y);
             if(vec.len() <= Math.max(type.hitsize, 10f)){
                 clearOrder();
-                setState(hold);
+                holdState();
                 return false;
             }
 
@@ -243,7 +259,7 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
             vec.set(getOrderX() - x, getOrderY() - y);
             if(vec.len() <= Math.max(type.hitsize, 10f)){
                 clearOrder();
-                setState(hold);
+                holdState();
                 return false;
             }
 
@@ -255,27 +271,12 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
         if(getOrderType() == UnitOrderType.attackTarget){
             if(target == null || target.isDead() || target.getTeam() == team){
                 clearOrder();
-                setState(hold);
+                holdState();
                 return false;
             }
 
-            if(target != null && !Units.invalidateTarget(target, team, x, y)
-            && distanceTo(target) < Math.max(getWeapon().getAmmo().getRange(), type.range)){
-                AmmoType ammo = getWeapon().getAmmo();
-                Vector2 to = Predict.intercept(FlyingUnit.this, target, ammo.bullet.speed);
-                getWeapon().update(FlyingUnit.this, to.x, to.y);
-            }
-
-            vec.set(target.getX() - x, target.getY() - y);
-            if(vec.len() <= Math.max(type.hitsize, 10f)){
-                clearOrder();
-                setState(hold);
-                return false;
-            }
-
-            vec.setLength(type.speed * Timers.delta());
-            velocity.add(vec);
-            return true;
+            //leave movement to the unit's attack controller/state so custom hit-and-run AI is preserved
+            return false;
         }
 
         return false;
@@ -283,16 +284,7 @@ public abstract class FlyingUnit extends BaseUnit implements CarryTrait{
 
     @Override
     public void draw(){
-        Draw.alpha(hitTime / hitDuration);
-
-        Draw.rect(type.name, x, y, rotation - 90);
-
-        Draw.alpha(hitTime / hitDuration);
-        drawWeaponMounts();
-
-        drawItems();
-
-        Draw.alpha(1f);
+        UnitRenderer.drawFlying(this);
     }
 
     @Override

@@ -10,6 +10,7 @@ import io.anuke.mindustry.world.Tile;
 class MassSquad{
     final int id;
     final SquadPreset preset;
+    final boolean air;
     final Array<BaseUnit> members = new Array<>();
 
     MassOrder order = MassOrder.PATROL_HIVES;
@@ -42,5 +43,6 @@ class MassSquad{
     MassSquad(int id, SquadPreset preset){
         this.id = id;
         this.preset = preset;
+        this.air = preset.air;
     }
 }

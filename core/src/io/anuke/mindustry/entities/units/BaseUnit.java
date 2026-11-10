@@ -4,12 +4,15 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.LongArray;
 import io.anuke.annotations.Annotations.Loc;
 import io.anuke.annotations.Annotations.Remote;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.fx.ExplosionFx;
 import io.anuke.mindustry.entities.Damage;
+import io.anuke.mindustry.entities.Predict;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.Units;
@@ -17,11 +20,13 @@ import io.anuke.mindustry.entities.effect.ScorchDecal;
 import io.anuke.mindustry.entities.traits.ShooterTrait;
 import io.anuke.mindustry.entities.traits.SpawnerTrait;
 import io.anuke.mindustry.entities.traits.TargetTrait;
-import io.anuke.mindustry.entities.units.ai.AIController;
+import io.anuke.mindustry.entities.weapon.WeaponMount;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Palette;
+import io.anuke.mindustry.io.SaveFileVersion;
 import io.anuke.mindustry.net.Net;
+import io.anuke.mindustry.type.AmmoType;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.ItemStack;
 import io.anuke.mindustry.type.Weapon;
@@ -49,18 +54,33 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     protected static final int timerTarget = timerIndex++;
     protected static final int timerShootLeft = timerIndex++;
     protected static final int timerShootRight = timerIndex++;
+    protected static final int timerRetreat = timerIndex++;
+    protected static final int timerFallback = timerIndex++;
 
     public UnitType type;
     protected Timer timer = new Timer(10);
     protected StateMachine state = new StateMachine();
     protected TargetTrait target;
-    protected AIController controller;
+    protected UnitController controller;
     protected UnitOrderType orderType = UnitOrderType.none;
     protected float orderX, orderY;
+    /** Bitmask of active {@link UnitStance} values. */
+    public long stances;
 
     protected boolean isWave;
     protected Squad squad;
     protected long spawner = -1;
+
+    /** Shared ground path/steering state. Unused by flying units. */
+    public final UnitPath path = new UnitPath();
+    /** Per-unit copies of {@link UnitType#abilities}. */
+    public final Array<Ability> abilities = new Array<>();
+    /** Ticks this unit has been unable to move; owned here so the shared path can read it. */
+    protected float stuckTime;
+    /** Body-facing rotation used by ground units and turrets. */
+    protected float baseRotation;
+    /** Scratch vector for shared ground movement helpers. */
+    protected final Translator pathVec = new Translator();
 
     /**internal constructor used for deserialization, DO NOT USE*/
     public BaseUnit(){
@@ -119,6 +139,87 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         this.team = team;
         this.isPlayerControllable = type.playerControllable;
         this.isRTSAIControllable = type.rtsAIControllable;
+
+        initComponents();
+    }
+
+    /** Creates the controller and per-unit ability copies. Safe to call after a save/network read. */
+    protected void initComponents(){
+        if(type == null) return;
+
+        isPlayerControllable = type.playerControllable;
+        isRTSAIControllable = type.rtsAIControllable;
+
+        if(controller == null){
+            if(type.controller != null){
+                controller = type.controller.get(this);
+            }
+            Class<?> typeClass = getClass();
+            if(controller == null && (typeClass == GroundUnit.class || typeClass == LegsUnit.class || typeClass == TankUnit.class)){
+                controller = new GroundAI(this);
+            }else if(controller == null && typeClass == FlyingUnit.class){
+                controller = new FlyingAI(this);
+            }else if(controller == null){
+                controller = new CommandAI(this);
+            }
+        }
+
+        if(abilities.size == 0){
+            for(Ability ability : type.abilities){
+                Ability copy = ability.copy();
+                abilities.add(copy);
+                copy.created(this);
+            }
+        }
+    }
+
+    public UnitController getController(){
+        return controller;
+    }
+
+    /** Returns the command controller when this unit uses one, otherwise null. */
+    public CommandAI commandAI(){
+        return controller instanceof CommandAI ? (CommandAI)controller : null;
+    }
+
+    public void setController(UnitController controller){
+        this.controller = controller;
+        if(controller != null) controller.unit(this);
+    }
+
+    public boolean hasStance(UnitStance stance){
+        return (stances & stance.bit) != 0L;
+    }
+
+    @Override
+    public boolean canShootWeapons(){
+        return !hasStance(UnitStance.holdFire);
+    }
+
+    public void setStance(UnitStance stance, boolean enabled){
+        if(enabled){
+            stances |= stance.bit;
+        }else{
+            stances &= ~stance.bit;
+        }
+        if(controller instanceof CommandAI){
+            ((CommandAI)controller).stances = stances;
+        }
+    }
+
+    /** Cancels explicit orders and asks the controller to hold position. */
+    public void stopOrders(){
+        clearOrder();
+        setDirectTarget(null);
+        if(controller instanceof CommandAI){
+            ((CommandAI)controller).orderCleared();
+            ((CommandAI)controller).command = UnitCommand.stop;
+        }
+        if(controller instanceof GroundAI){
+            ((GroundAI)controller).setMode(GroundAI.Mode.hold);
+        }else if(controller instanceof FlyingAI){
+            ((FlyingAI)controller).setMode(FlyingAI.Mode.hold);
+        }
     }
 
     public boolean isCommanded(){
@@ -141,6 +242,9 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
     public void setDirectTarget(TargetTrait target){
         this.target = target;
+        if(controller instanceof CommandAI){
+            ((CommandAI)controller).orderTarget(target);
+        }
     }
 
     public UnitOrderType getOrderType(){
@@ -151,28 +255,61 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         return orderType != UnitOrderType.none;
     }
 
+    /** Longest usable weapon range for this unit, including type-level range. */
+    public float attackRange(){
+        float range = getWeaponMountRange();
+        Weapon weapon = getWeapon();
+        if(weapon != null && weapon.getAmmo() != null){
+            range = Math.max(range, weapon.getAmmo().getRange());
+        }
+        if(type != null){
+            range = Math.max(range, type.range);
+        }
+        if(range <= 0f){
+            range = Math.max(type == null ? 8f : type.hitsize, 8f);
+        }
+        return range;
+    }
+
+    /** Distance at which an ordered attack should stop and let the controller fight. */
+    public float engageRange(){
+        return Math.max(attackRange() * 0.8f, Math.max(type == null ? 8f : type.hitsize, 8f));
+    }
+
     public void clearOrder(){
         orderType = UnitOrderType.none;
+        if(controller instanceof CommandAI){
+            ((CommandAI)controller).orderCleared();
+        }
     }
 
     public void orderMove(float x, float y){
         orderType = UnitOrderType.move;
         orderX = x;
         orderY = y;
+        if(controller instanceof CommandAI){
+            ((CommandAI)controller).orderMove(x, y);
+        }
     }
 
     public void orderAttackMove(float x, float y){
         orderType = UnitOrderType.attackMove;
         orderX = x;
         orderY = y;
+        if(controller instanceof CommandAI){
+            ((CommandAI)controller).orderMove(x, y);
+        }
     }
 
     public void orderAttackTarget(float x, float y){
         orderType = UnitOrderType.attackTarget;
         orderX = x;
         orderY = y;
+        if(controller instanceof CommandAI){
+            ((CommandAI)controller).orderMove(x, y);
+        }
     }
-
+    //ballin
     public TargetTrait getTarget(){
         return target;
     }
@@ -239,7 +376,31 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         }
     }
     public boolean retarget(){
-        return timer.get(timerTarget, 20);
+        return orderType != UnitOrderType.attackTarget && timer.get(timerTarget, 20);
+    }
+
+    /**Default mover used by the shared path when an archetype does not override it.*/
+    protected void moveTo(float x, float y){
+        float angle = avoidAngle(angleTo(x, y));
+        velocity.add(Angles.trnsx(angle, type.speed * Timers.delta()), Angles.trnsy(angle, type.speed * Timers.delta()));
+        if(!isAiming()){
+            rotation = Mathf.slerpDelta(rotation, angle, type.rotatespeed);
+        }
+    }
+
+    /** Aims every mount at a target and requests fire when it is inside weapon range. */
+    protected void shootAt(TargetTrait target){
+        if(target == null) return;
+
+        ensureWeaponMounts();
+        if(getWeaponMounts().length == 0) return;
+
+        AmmoType ammo = getWeaponMountAmmo();
+        if(ammo == null) return;
+
+        Vector2 to = Predict.intercept(this, target, ammo.bullet.speed);
+        aimWeaponMounts(to.x, to.y);
+        controlWeaponMounts(false, !Units.invalidateTarget(target, team, x, y, getWeaponMountRange()));
     }
 
     /**Only runs when the unit has a target.*/
@@ -801,6 +962,93 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         return null;
     }
 
+    protected void patrol(){
+        pathVec.trns(baseRotation, type.speed * Timers.delta());
+        velocity.add(pathVec.x, pathVec.y);
+        pathVec.trns(baseRotation, type.hitsizeTile);
+        Tile tile = world.tileWorld(x + pathVec.x, y + pathVec.y);
+        if((tile == null || tile.solid() || tile.floor().drownTime > 0) || stuckTime > 10f){
+            baseRotation += Mathf.sign(id % 2 - 0.5f) * Timers.delta() * 3f;
+        }
+
+        if(!isAiming()) rotation = Mathf.slerpDelta(rotation, velocity.angle(), type.rotatespeed);
+    }
+
+    protected void circle(float circleLength){
+        if(target == null) return;
+
+        pathVec.set(target.getX() - x, target.getY() - y);
+
+        if(pathVec.len() < circleLength){
+            pathVec.rotate((circleLength - pathVec.len()) / circleLength * 180f);
+        }
+
+        float moveAngle = avoidAngle(pathVec.angle());
+        float len = type.speed * Timers.delta();
+        pathVec.set(Angles.trnsx(moveAngle, len), Angles.trnsy(moveAngle, len));
+
+        velocity.add(pathVec);
+    }
+
+    protected void moveToEnemyCore(){
+        Tile tile = world.tileWorld(x, y);
+        if(tile == null) return;
+
+        TileEntity core = getClosestEnemyCore();
+        if(core == null) return;
+
+        Tile targetTile = world.pathfinder.getTargetTile(team, tile);
+
+        if(tile == targetTile){
+            //gradient exhausted either arrived, or (open world) the field has no coverage here
+            float ddx = core.getX() - x, ddy = core.getY() - y;
+            boolean nearCore = ddx * ddx + ddy * ddy < (12 * tilesize) * (12 * tilesize);
+
+            if(!nearCore && steerAlongChunkPath(core.getX(), core.getY())){
+                return;
+            }
+
+            if(!hopClear(core.getX(), core.getY())){
+                path.recenter(this);
+                return;
+            }
+
+            float angle = avoidAngle(angleTo(core));
+            velocity.add(pathVec.trns(angle, type.speed * Timers.delta()));
+            return;
+        }
+
+        float gangle = avoidAngle(angleTo(targetTile));
+        velocity.add(pathVec.trns(gangle, type.speed*Timers.delta()));
+    }
+
+    protected void moveToHome(){
+        Team enemy = null;
+        for(Team other : Vars.state.teams.enemiesOf(team)){
+            if(Vars.state.teams.isActive(other)){
+                enemy = other;
+                break;
+            }
+        }
+
+        if(enemy == null) return;
+
+        Tile tile = world.tileWorld(x, y);
+        if(tile == null) return;
+        Tile targetTile = world.pathfinder.getTargetTile(enemy, tile);
+
+        if(tile == targetTile) return;
+
+        float angle = angleTo(targetTile);
+
+        velocity.add(pathVec.trns(angleTo(targetTile), type.speed*Timers.delta()));
+        rotation = Mathf.slerpDelta(rotation, angle, type.rotatespeed);
+    }
+
+    protected void moveAwayFromCore(){
+        moveToHome();
+    }
+
     protected boolean updateOrder(){
         if(!hasOrder()) return false;
 
@@ -819,12 +1067,25 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
                 return false;
             }
 
-            orderX = target.getX();
-            orderY = target.getY();
+            float dst = distanceTo(target);
+            float engage = engageRange();
 
-            if(target != null && !Units.invalidateTarget(target, this) && distanceTo(target) < getWeapon().getAmmo().getRange()){
-                rotate(angleTo(target));
+            if(dst <= engage){
+                velocity.scl(0.85f);
+                return false;
             }
+
+            float dx = x - target.getX(), dy = y - target.getY();
+            float len = Math.max(dst, 0.001f);
+            orderX = target.getX() + dx / len * engage;
+            orderY = target.getY() + dy / len * engage;
+
+            float angle = angleTo(getOrderX(), getOrderY());
+            float rad = angle * 0.01745329252f;
+            velocity.add(type.speed * Timers.delta() * (float)Math.cos(rad),
+                         type.speed * Timers.delta() * (float)Math.sin(rad));
+            if(!isAiming()) rotation = Mathf.slerpDelta(rotation, angle, type.rotatespeed);
+            return true;
         }
 
         float dst = distanceTo(getOrderX(), getOrderY());
@@ -964,6 +1225,10 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
         updateTargeting();
 
+        for(int i = 0; i < abilities.size; i++){
+            abilities.get(i).update(this);
+        }
+
         if(controller != null){
             controller.updateUnit();
         }else{
@@ -1059,6 +1324,9 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         stream.writeByte(type.id);
         stream.writeBoolean(isWave);
         stream.writeLong(spawner);
+        if(SaveFileVersion.currentVersion >= 22){
+            writeUnitState(stream);
+        }
     }
 
     @Override
@@ -1069,7 +1337,75 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         this.spawner = stream.readLong();
 
         this.type = content.getByID(ContentType.unit, type & 0xFF);
+        initComponents();
+        ensureWeaponMounts();
         add();
+        if(SaveFileVersion.currentVersion >= 22){
+            readUnitState(stream);
+        }
+    }
+
+    /** Save22+ controller, stance, mount and ability state. */
+    private void writeUnitState(DataOutput stream) throws IOException{
+        stream.writeByte(orderType.ordinal());
+        stream.writeFloat(orderX);
+        stream.writeFloat(orderY);
+        stream.writeLong(stances);
+
+        int command = controller instanceof CommandAI && ((CommandAI)controller).command != null ? ((CommandAI)controller).command.ordinal() : -1;
+        stream.writeByte(command);
+
+        WeaponMount[] mounts = getWeaponMounts();
+        stream.writeByte(mounts.length);
+        for(WeaponMount mount : mounts){
+            stream.writeFloat(mount.reload);
+            stream.writeFloat(mount.rotation);
+            stream.writeFloat(mount.recoil);
+        }
+
+        stream.writeByte(abilities.size);
+        for(int i = 0; i < abilities.size; i++){
+            stream.writeFloat(abilities.get(i).data);
+        }
+    }
+
+    /** Reads Save22+ state; old saves simply skip this block. */
+    private void readUnitState(DataInput stream) throws IOException{
+        int order = stream.readUnsignedByte();
+        orderType = order < UnitOrderType.values().length ? UnitOrderType.values()[order] : UnitOrderType.none;
+        orderX = stream.readFloat();
+        orderY = stream.readFloat();
+        stances = stream.readLong();
+
+        int command = stream.readByte();
+        if(command >= 0){
+            onCommand(UnitCommand.byOrdinal(command));
+        }
+
+        int mountCount = stream.readUnsignedByte();
+        WeaponMount[] mounts = getWeaponMounts();
+        for(int i = 0; i < mountCount; i++){
+            float reload = stream.readFloat();
+            float rotation = stream.readFloat();
+            float recoil = stream.readFloat();
+            if(i < mounts.length){
+                mounts[i].reload = reload;
+                mounts[i].rotation = rotation;
+                mounts[i].recoil = recoil;
+            }
+        }
+
+        int abilityCount = stream.readUnsignedByte();
+        for(int i = 0; i < abilityCount; i++){
+            float data = stream.readFloat();
+            if(i < abilities.size){
+                abilities.get(i).data = data;
+            }
+        }
+
+        if(controller instanceof CommandAI){
+            ((CommandAI)controller).stances = stances;
+        }
     }
 
     @Override
@@ -1083,12 +1419,16 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         float lastx = x, lasty = y, lastrot = rotation;
         super.readSave(data);
         this.type = content.getByID(ContentType.unit, data.readByte() & 0xFF);
+        initComponents();
 
         interpolator.read(lastx, lasty, x, y, time, rotation);
         rotation = lastrot;
     }
 
     public void onSuperDeath(){
+        for(int i = 0; i < abilities.size; i++){
+            abilities.get(i).death(this);
+        }
         super.onDeath();
     }
 }

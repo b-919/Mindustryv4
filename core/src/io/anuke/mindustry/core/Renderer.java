@@ -1246,10 +1246,10 @@ public class Renderer extends RendererModule{
         }
         batch.setTransformMatrix(mat);
 
-        if(entity instanceof BaseUnit){
-            ((BaseUnit)entity).drawOver();
-        }else if(entity instanceof Player){
+        if(entity instanceof Player){
             ((Player)entity).drawOver();
+        }else if(entity instanceof BaseUnit){
+            ((BaseUnit)entity).drawOver();
         }
     }
 

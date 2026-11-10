@@ -27,7 +27,7 @@ public class DroneMiner extends FlyingUnit implements MinerTrait {
 
     @Override
     public boolean canShootWeapons(){
-        return !state.is(mine);
+        return super.canShootWeapons() && !state.is(mine);
     }
 
     protected Item targetItem;
@@ -66,15 +66,15 @@ public class DroneMiner extends FlyingUnit implements MinerTrait {
                     return;
                 }
 
-                retarget(() -> {
+                if(retarget()){
                     if(getMineTile() == null){
                         findItem();
                     }
 
-                    if(targetItem == null) return;
-
-                    target = world.indexer.findClosestOre(x, y, targetItem);
-                });
+                    if(targetItem != null){
+                        target = world.indexer.findClosestOre(x, y, targetItem);
+                    }
+                }
 
                 if(target instanceof Tile){
                     moveTo(type.range / 1.5f);
@@ -148,7 +148,9 @@ public class DroneMiner extends FlyingUnit implements MinerTrait {
 
     @Override
     public void onCommand(UnitCommand command){
-        //no
+        if(command == UnitCommand.mine){
+            setState(mine);
+        }
     }
 
     @Override

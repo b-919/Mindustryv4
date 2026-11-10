@@ -50,6 +50,8 @@ public class BlockIndexer{
     private ObjectSet<Tile> emptySet = new ObjectSet<>();
     /**Array used for returning and reusing.*/
     private Array<Tile> returnArray = new ThreadArray<>();
+    /**Memoized combined enemy flag arrays [team][flag]; invalidated on tile change and world load.*/
+    private Array<Tile>[][] enemyFlagCache = new Array[Team.all.length][BlockFlag.all.length];
     /**Scratch array for sorting ore anchor candidates by distance.*/
     private Array<Tile> candidateArray = new ThreadArray<>();
 
@@ -64,6 +66,7 @@ public class BlockIndexer{
             }
             process(event.tile);
             updateQuadrant(event.tile);
+            clearEnemyCache();
         });
 
         Events.on(WorldLoadEvent.class, event -> {
@@ -77,6 +80,7 @@ public class BlockIndexer{
             }
 
             typeMap.clear();
+            clearEnemyCache();
             ores = null;
 
             //create occupied-quadrant sets for each team
@@ -161,17 +165,30 @@ public class BlockIndexer{
         return flagMap[team.ordinal()][type.ordinal()];
     }
 
-    /**Get all enemy blocks with a flag.*/
+    /**Get all enemy blocks with a flag. The result is cached and invalidated on tile changes.*/
     public Array<Tile> getEnemy(Team team, BlockFlag type){
-        returnArray.clear();
+        Array<Tile> cached = enemyFlagCache[team.ordinal()][type.ordinal()];
+        if(cached != null) return cached;
+
+        Array<Tile> result = new Array<>();
         for(Team enemy : state.teams.enemiesOf(team)){
             if(state.teams.isActive(enemy)){
                 for(Tile tile : getFlagged(enemy)[type.ordinal()]){
-                    returnArray.add(tile);
+                    result.add(tile);
                 }
             }
         }
-        return returnArray;
+        enemyFlagCache[team.ordinal()][type.ordinal()] = result;
+        return result;
+    }
+
+    /**Drops every memoized enemy flag array; called when a tile change may have altered flag membership.*/
+    private void clearEnemyCache(){
+        for(int i = 0; i < enemyFlagCache.length; i++){
+            for(int j = 0; j < enemyFlagCache[i].length; j++){
+                enemyFlagCache[i][j] = null;
+            }
+        }
     }
 
     public void notifyTileDamaged(TileEntity entity){

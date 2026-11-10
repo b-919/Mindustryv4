@@ -58,7 +58,7 @@ public class AlphaDrone extends FlyingUnit {
                     AmmoType ammo = getWeapon().getAmmo();
 
                     Vector2 to = Predict.intercept(AlphaDrone.this, target, ammo.bullet.speed);
-                    getWeapon().update(AlphaDrone.this, to.x, to.y);
+                    shootAt(target);
                 }
             }
 

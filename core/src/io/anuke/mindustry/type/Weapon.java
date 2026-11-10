@@ -26,8 +26,6 @@ import io.anuke.ucore.util.Translator;
 public class Weapon extends Content{
     public final String name;
 
-    /**minimum cursor distance from player, fixes 'cross-eyed' shooting.*/
-    protected static float minPlayerDist = 20f;
     /**ammo type map. set with setAmmo()*/
     protected AmmoType ammo;
     /**shell ejection effect*/
@@ -46,27 +44,13 @@ public class Weapon extends Content{
     protected float recoil = 1.5f;
     //modern weapon mount/barrel offsets
     /**mount lateral offset from unit center*/
-    public float x = 5f;
+    public float x = 4f;
     /**mount forward offset from unit center*/
     public float y = 0f;
     /**barrel lateral offset from mount center*/
     public float shootX = 0f;
     /**barrel forward offset from mount center*/
     public float shootY = 3f;
-
-    //legacy fields (I'm lazy to update everything)
-    /**@deprecated use {@link #x}*/
-    @Deprecated
-    public float width = 4f;
-    /**@deprecated use {@link #shootY}*/
-    @Deprecated
-    public float length = 3f;
-    /**@deprecated use {@link #mirror}*/
-    @Deprecated
-    public boolean weaponMirror = true;
-    /**@deprecated use {@link #alternate}*/
-    @Deprecated
-    public boolean roundrobin = false;
 
     /**whether the weapon is mirrored on both sides (modern name)*/
     public boolean mirror = true;
@@ -97,38 +81,11 @@ public class Weapon extends Content{
 
     public Weapon(String name){
         this.name = name;
-        syncLegacyToModern();
-    }
-
-    /**Sync legacy fields to modern ones after content initialization.*/
-    public void syncLegacyToModern(){
-        if(width != 4f || x == 5f) x = width;
-        if(length != 3f || shootY == 3f) shootY = length;
-        if(!weaponMirror || !mirror) mirror = weaponMirror;
-        if(roundrobin || !alternate) alternate = roundrobin;
     }
 
     public void setShootSound(String name){
         shootSoundName = name;
         shootSound = Sounds.get(name);
-    }
-
-    @Remote(targets = Loc.server, called = Loc.both, unreliable = true)
-    public static void onPlayerShootWeapon(Player player, float x, float y, float rotation, boolean left){
-        if(player == null || !player.isAdded()) return;
-        //clients do not see their own shoot events: they are simulated completely clientside to prevent laggy visuals
-        //messing with the firerate or any other stats does not affect the server (take that, script kiddies!)
-        if(Net.client() && player == Vars.players[0]){
-            return;
-        }
-
-        shootDirect(player, x, y, rotation, left);
-    }
-
-    @Remote(targets = Loc.server, called = Loc.both, unreliable = true)
-    public static void onGenericShootWeapon(ShooterTrait shooter, float x, float y, float angle, boolean left){
-        if(shooter == null || !shooter.isAdded()) return;
-        shootDirect(shooter, x, y, angle, left);
     }
 
     @Remote(targets = Loc.server, called = Loc.both, unreliable = true)
@@ -186,39 +143,10 @@ public class Weapon extends Content{
         mount.reload = weapon.reload;
     }
 
-    public static void shootDirect(ShooterTrait shooter, float offsetX, float offsetY, float rotation, boolean left){
-        float x = shooter.getX() + offsetX;
-        float y = shooter.getY() + offsetY;
-
-        Weapon weapon = shooter.getWeapon();
-
-        Angles.shotgun(weapon.shots, weapon.spacing, rotation, f -> weapon.bullet(shooter, x, y, f + Mathf.range(weapon.inaccuracy)));
-        AmmoType ammo = weapon.ammo;
-
-        weapon.tr.trns(rotation + 180f, ammo.recoil);
-
-        shooter.getVelocity().add(weapon.tr);
-
-        weapon.tr.trns(rotation, 3f);
-
-        Effects.shake(weapon.shake, weapon.shake, x, y);
-        Effects.effect(weapon.ejectEffect, x, y, rotation * -Mathf.sign(left));
-        Effects.effect(ammo.shootEffect, x + weapon.tr.x, y + weapon.tr.y, rotation, shooter);
-        Effects.effect(ammo.smokeEffect, x + weapon.tr.x, y + weapon.tr.y, rotation, shooter);
-        Sound sound = weapon.shootSound == null ? Sounds.shoot : weapon.shootSound;
-        if(Vars.soundController != null && sound != null){
-            Vars.soundController.at(sound, x, y, 1f, 1f);
-        }
-
-        //reset timer for remote players
-        shooter.getTimer().get(shooter.getShootTimer(left), weapon.reload);
-    }
-
     @Override
     public void load(){
         equipRegion = Draw.region(name + "-equip");
         region = Draw.region(name);
-        syncLegacyToModern();
     }
 
     @Override
@@ -228,39 +156,6 @@ public class Weapon extends Content{
 
     public AmmoType getAmmo(){
         return ammo;
-    }
-
-    public void update(ShooterTrait shooter, float pointerX, float pointerY){
-        update(shooter, true, pointerX, pointerY);
-        if(mirror) update(shooter, false, pointerX, pointerY);
-    }
-
-    private void update(ShooterTrait shooter, boolean left, float pointerX, float pointerY){
-        if(shooter.getTimer().get(shooter.getShootTimer(left), reload)){
-            if(alternate){
-                shooter.getTimer().reset(shooter.getShootTimer(!left), reload / 2f);
-            }
-
-            tr.set(pointerX, pointerY).sub(shooter.getX(), shooter.getY());
-            if(tr.len() < minPlayerDist) tr.setLength(minPlayerDist);
-
-            float cx = tr.x + shooter.getX(), cy = tr.y + shooter.getY();
-
-            float ang = tr.angle();
-            tr.trns(ang - 90, x * Mathf.sign(left), shootY);
-
-            shoot(shooter, tr.x, tr.y, Angles.angle(shooter.getX() + tr.x, shooter.getY() + tr.y, cx, cy), left);
-        }
-    }
-
-    public void update(ShooterTrait shooter, float mountX, float mountY, float angle, boolean left){
-        if(shooter.getTimer().get(shooter.getShootTimer(left), reload)){
-            if(alternate){
-                shooter.getTimer().reset(shooter.getShootTimer(!left), reload / 2f);
-            }
-
-            shoot(shooter, mountX - shooter.getX(), mountY - shooter.getY(), angle, left);
-        }
     }
 
     public float getRecoil(ShooterTrait player, boolean left){
@@ -318,8 +213,8 @@ public class Weapon extends Content{
         }
 
         float weaponRotation = bodyRotation + mount.rotation;
-        float barrelX = mountX + Angles.trnsx(weaponRotation - 90f, shootX, length);
-        float barrelY = mountY + Angles.trnsy(weaponRotation - 90f, shootX, length);
+        float barrelX = mountX + Angles.trnsx(weaponRotation - 90f, shootX, shootY);
+        float barrelY = mountY + Angles.trnsy(weaponRotation - 90f, shootX, shootY);
 
         if(!mount.shoot || !owner.canShootWeapons() || mount.reload > 0f) return;
 
@@ -336,7 +231,7 @@ public class Weapon extends Content{
         mount.reload = reload;
 
         //mirror weapons alternate: the partner becomes eligible halfway through the reload
-        if(roundrobin && mount.otherSide >= 0 && mount.otherSide < owner.getWeaponMounts().length){
+        if(alternate && mount.otherSide >= 0 && mount.otherSide < owner.getWeaponMounts().length){
             WeaponMount other = owner.getWeaponMounts()[mount.otherSide];
             other.reload = Math.min(other.reload, reload / 2f);
         }
@@ -389,19 +284,6 @@ public class Weapon extends Content{
     /**Lateral offset of this weapon's mount, including any per-owner adjustment.*/
     private float lateral(WeaponMounts owner, WeaponMount mount){
         return mount.mountX() + owner.getMountOffsetX(mount);
-    }
-
-    public void shoot(ShooterTrait p, float x, float y, float angle, boolean left){
-        if(Net.client()){
-            //call it directly, don't invoke on server
-            shootDirect(p, x, y, angle, left);
-        }else{
-            if(p instanceof Player){ //players need special weapon handling logic
-                Call.onPlayerShootWeapon((Player) p, x, y, angle, left);
-            }else{
-                Call.onGenericShootWeapon(p, x, y, angle, left);
-            }
-        }
     }
 
     void bullet(ShooterTrait owner, float x, float y, float angle){

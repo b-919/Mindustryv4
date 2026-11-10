@@ -183,6 +183,11 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
         return velocity;
     }
 
+    /**Current drowning progress, 0 to 1. Read by the shared unit renderer.*/
+    public float getDrownTime(){
+        return drownTime;
+    }
+
     @Override
     public void move(float x, float y){
         if(!isFlying()){
@@ -199,6 +204,11 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
 
     @Override
     public void readSave(DataInput stream) throws IOException{
+        readSaveBase(stream);
+    }
+
+    /** Reads only the shared unit body; used by subclasses with their own save layout. */
+    public void readSaveBase(DataInput stream) throws IOException{
         byte team = stream.readByte();
         boolean dead = stream.readBoolean();
         float x = stream.readFloat();

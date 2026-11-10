@@ -9,13 +9,15 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Scaling;
 import io.anuke.mindustry.core.GameState.State;
 import io.anuke.mindustry.game.EventType.StateChangeEvent;
+import io.anuke.mindustry.game.EventType.UnitCommandChangeEvent;
 import io.anuke.mindustry.game.GameMode;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.maps.missions.WaveExtraMission;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.net.Packets.AdminAction;
-import io.anuke.mindustry.entities.units.UnitOrderType;
+import io.anuke.mindustry.entities.units.UnitCommand;
+import io.anuke.mindustry.entities.units.UnitStance;
 import io.anuke.mindustry.input.DesktopInput;
 import io.anuke.mindustry.type.Recipe;
 import io.anuke.mindustry.ui.IntFormat;
@@ -47,6 +49,7 @@ public class HudFragment extends Fragment{
     private Table infolabel;
     private Table lastUnlockTable;
     private Table lastUnlockLayout;
+    private Table commandTable;
     private boolean shown = true;
     private float dsize = 58;
     private float isize = 40;
@@ -60,6 +63,8 @@ public class HudFragment extends Fragment{
     private String biomassAlertText = "";
 
     public void build(Group parent){
+
+        Events.on(UnitCommandChangeEvent.class, event -> rebuildCommandTable());
 
         //menu at top left
         parent.fill(cont -> {
@@ -253,41 +258,47 @@ public class HudFragment extends Fragment{
 
             t.table("button", pane -> {
                 pane.left().margin(6f);
-                pane.label(() -> {
-                    if(!(control.input(0) instanceof DesktopInput)) return "";
-                    DesktopInput input = (DesktopInput)control.input(0);
-                    UnitOrderType type = input.getActiveOrderType();
-                    return "Units: " + (type == UnitOrderType.attackMove ? "Attack-Move" : type == UnitOrderType.move ? "Move" : "Clear");
-                }).padRight(8f);
-
-                pane.addButton("Move", "clear-partial", () -> { if(control.input(0) instanceof DesktopInput) ((DesktopInput)control.input(0)).setActiveOrderType(UnitOrderType.move); })
-                    .size(78f, 42f)
-                    .update(b -> { if(control.input(0) instanceof DesktopInput) b.setChecked(((DesktopInput)control.input(0)).getActiveOrderType() == UnitOrderType.move); });
-
-                pane.addButton("Attack", "clear-partial", () -> { if(control.input(0) instanceof DesktopInput) ((DesktopInput)control.input(0)).setActiveOrderType(UnitOrderType.attackMove); })
-                    .size(78f, 42f)
-                    .padLeft(4f)
-                    .update(b -> { if(control.input(0) instanceof DesktopInput) b.setChecked(((DesktopInput)control.input(0)).getActiveOrderType() == UnitOrderType.attackMove); });
-
-                pane.addButton("Clear", "clear-partial", () -> { if(control.input(0) instanceof DesktopInput) ((DesktopInput)control.input(0)).clearUnitSelection(); })
-                    .size(78f, 42f)
-                    .padLeft(4f);
-
-                pane.addButton("Normal", "clear-partial", () -> { if(control.input(0) instanceof DesktopInput) ((DesktopInput)control.input(0)).setSelectedDronesFollow(false); })
-                    .size(84f, 42f)
-                    .padLeft(8f)
-                    .visible(() -> control.input(0) instanceof DesktopInput && ((DesktopInput)control.input(0)).hasSelectedDrones())
-                    .update(b -> { if(control.input(0) instanceof DesktopInput) b.setChecked(!((DesktopInput)control.input(0)).selectedDronesFollowing()); });
-
-                pane.addButton("Follow", "clear-partial", () -> { if(control.input(0) instanceof DesktopInput) ((DesktopInput)control.input(0)).setSelectedDronesFollow(true); })
-                    .size(84f, 42f)
-                    .padLeft(4f)
-                    .visible(() -> control.input(0) instanceof DesktopInput && ((DesktopInput)control.input(0)).hasSelectedDrones())
-                    .update(b -> { if(control.input(0) instanceof DesktopInput) b.setChecked(((DesktopInput)control.input(0)).selectedDronesFollowing()); });
+                commandTable = pane;
+                rebuildCommandTable();
             }).margin(8f);
         });
 
         blockfrag.build(Core.scene.getRoot());
+    }
+
+    /** Rebuilds the selected-unit command/stance bar from the unit types' data. */
+    private void rebuildCommandTable(){
+        if(commandTable == null) return;
+
+        commandTable.clearChildren();
+        commandTable.left().margin(6f);
+
+        if(!(control.input(0) instanceof DesktopInput)) return;
+        DesktopInput input = (DesktopInput)control.input(0);
+
+        commandTable.label(() -> "Units: " + input.getSelectedUnitCount() + "  •  " + input.getActiveCommand().localized()).padRight(8f);
+
+        Array<UnitCommand> commands = input.getSelectedCommands();
+        for(int i = 0; i < commands.size; i++){
+            UnitCommand command = commands.get(i);
+            commandTable.addButton(command.localized(), "clear-partial", () -> input.setActiveCommand(command))
+                .size(78f, 42f).padLeft(i == 0 ? 0f : 4f)
+                .update(b -> b.setChecked(input.getActiveCommand() == command));
+        }
+
+        commandTable.addButton(UnitCommand.stop.localized(), "clear-partial", input::stopSelectedUnits)
+            .size(78f, 42f).padLeft(4f);
+
+        Array<UnitStance> stances = input.getSelectedStances();
+        for(int i = 0; i < stances.size; i++){
+            UnitStance stance = stances.get(i);
+            commandTable.addButton(stance.localized(), "clear-partial", () -> input.setSelectedStance(stance, !input.selectedHasStance(stance)))
+                .size(96f, 42f).padLeft(4f)
+                .update(b -> b.setChecked(input.selectedHasStance(stance)));
+        }
+
+        commandTable.addButton("Deselect", "clear-partial", input::clearUnitSelection)
+            .size(96f, 42f).padLeft(4f);
     }
 
     public void showBiomassAlert(String text){

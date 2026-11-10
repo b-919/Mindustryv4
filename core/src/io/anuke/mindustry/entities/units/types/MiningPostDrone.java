@@ -48,9 +48,9 @@ public class MiningPostDrone extends FlyingUnit implements MinerTrait {
                     return;
                 }
 
-                retarget(() -> {
+                if (retarget()) {
                     target = Vars.world.indexer.findClosestOre(x, y, targetItem);
-                });
+                }
 
                 if (target instanceof Tile tile) {
                     moveTo(mineDistance * 0.8f);

@@ -1,6 +1,5 @@
 package io.anuke.mindustry.entities.units;
 
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Vector2;
 import io.anuke.mindustry.entities.Damage;
 import io.anuke.mindustry.entities.Leg;
@@ -10,9 +9,6 @@ import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Timers;
-import io.anuke.ucore.graphics.CapStyle;
-import io.anuke.ucore.graphics.Draw;
-import io.anuke.ucore.graphics.Lines;
 import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Mathf;
 import io.anuke.ucore.util.Translator;
@@ -24,12 +20,12 @@ import static io.anuke.mindustry.content.blocks.Blocks.air;
  * A unit type that walks using multiple articulated legs, backported from modern Mindustry.
  * Legs are solved with two-segment inverse kinematics and drawn as articulated segments.
  */
-public abstract class LegsUnit extends GroundUnit{
+public class LegsUnit extends GroundUnit{
     private static final Translator straightVec = new Translator();
     private static final Translator moveVec = new Translator();
-    private static final Translator offsetVec = new Translator();
+    static final Translator offsetVec = new Translator();
     private static final Translator tmpVec = new Translator();
-    private static final Vector2 tmp1 = new Vector2(), tmp2 = new Vector2(), tmp3 = new Vector2();
+    static final Vector2 tmp1 = new Vector2(), tmp2 = new Vector2(), tmp3 = new Vector2();
 
     transient Leg[] legs = {};
     transient float totalLength;
@@ -206,62 +202,6 @@ public abstract class LegsUnit extends GroundUnit{
 
     @Override
     public void draw(){
-        Draw.alpha(hitTime / hitDuration);
-
-        Floor floor = getFloorOn();
-
-        if(floor.isLiquid){
-            Draw.tint(Color.WHITE, floor.liquidColor, 0.5f);
-        }
-
-        //legs are drawn front first
-        for(int j = legs.length - 1; j >= 0; j--){
-            int i = (j % 2 == 0 ? j / 2 : legs.length - 1 - j / 2);
-            Leg leg = legs[i];
-            boolean flip = i >= legs.length / 2f;
-            int flips = Mathf.sign(flip);
-
-            Vector2 position = legOffset(offsetVec, i).add(x, y);
-
-            tmp1.set(leg.base).sub(leg.joint).scl(-1f).setLength(type.legExtension);
-
-            if(type.footRegion != null){
-                Draw.rect(type.footRegion, leg.base.x, leg.base.y, Angles.angle(position.x, position.y, leg.base.x, leg.base.y));
-            }
-
-            Lines.stroke(type.legRegion.getRegionHeight() * flips);
-            Lines.line(type.legRegion, position.x, position.y, leg.joint.x, leg.joint.y, CapStyle.none, 0f);
-
-            Lines.stroke(type.legBaseRegion.getRegionHeight() * flips);
-            Lines.line(type.legBaseRegion, leg.joint.x + tmp1.x, leg.joint.y + tmp1.y, leg.base.x, leg.base.y, CapStyle.none, 0f);
-
-            if(type.jointRegion != null){
-                Draw.rect(type.jointRegion, leg.joint.x, leg.joint.y);
-            }
-        }
-
-        //base joints are drawn after everything else
-        if(type.baseJointRegion != null){
-            for(int j = legs.length - 1; j >= 0; j--){
-                Vector2 position = legOffset(offsetVec, (j % 2 == 0 ? j / 2 : legs.length - 1 - j / 2)).add(x, y);
-                Draw.rect(type.baseJointRegion, position.x, position.y, baseRotation);
-            }
-        }
-
-        if(floor.isLiquid){
-            Draw.tint(Color.WHITE, floor.liquidColor, drownTime * 0.4f);
-        }else{
-            Draw.tint(Color.WHITE);
-        }
-
-        Draw.rect(type.baseRegion, x, y, baseRotation - 90);
-
-        Draw.rect(type.region, x, y, rotation - 90);
-
-        drawWeaponMounts();
-
-        drawItems();
-
-        Draw.reset();
+        UnitRenderer.drawLegs(this);
     }
 }

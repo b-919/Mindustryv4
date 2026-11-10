@@ -1,34 +1,15 @@
 package io.anuke.mindustry.content;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.Rectangle;
-import io.anuke.mindustry.content.fx.BulletFx;
 import io.anuke.mindustry.content.fx.ShootFx;
-import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.Player;
-import io.anuke.mindustry.entities.Units;
-import io.anuke.mindustry.entities.effect.Lightning;
-import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.types.AlphaDrone;
 import io.anuke.mindustry.game.ContentList;
 import io.anuke.mindustry.graphics.Palette;
-import io.anuke.mindustry.graphics.Shaders;
-import io.anuke.mindustry.maps.TutorialSector;
-import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Mech;
 import io.anuke.mindustry.type.Weapon;
-import io.anuke.ucore.core.Core;
-import io.anuke.ucore.core.Effects;
-import io.anuke.ucore.core.Graphics;
-import io.anuke.ucore.core.Timers;
-import io.anuke.ucore.graphics.Draw;
-import io.anuke.ucore.graphics.Shapes;
-import io.anuke.ucore.util.Angles;
-import io.anuke.ucore.util.Mathf;
+import io.anuke.mindustry.type.abilities.*;
 
-import static io.anuke.mindustry.Vars.unitGroups;
 
 public class Mechs implements ContentList{
     public static Mech alpha, delta, tau, omega, dart, javelin, trident, glaive, debugGround, debugAir;
@@ -39,234 +20,64 @@ public class Mechs implements ContentList{
     @Override
     public void load(){
 
-        alpha = new Mech("alpha-mech", false){
-            int maxDrones = 3;
-            float buildTime = 20f;
+        alpha = new Mech("alpha-mech", false){{
 
-            {
-                drillPower = 1;
-                mineSpeed = 1.5f;
-                mass = 1.2f;
-                speed = 0.5f;
-                boostSpeed = 0.85f;
-                weapon = Weapons.blaster;
-                trailColorTo = Color.valueOf("ffd37f");
-                armor = 20f;
-            }
+            drillPower = 1;
+            mineSpeed = 1.5f;
+            mass = 1.2f;
+            speed = 0.5f;
+            boostSpeed = 0.85f;
+            weapon = Weapons.blaster;
+            trailColorTo = Color.valueOf("ffd37f");
+            armor = 20f;
+            abilities.add(new AlphaDroneAbility());
+        }};
 
-            @Override
-            public void updateAlt(Player player){
+        delta = new Mech("delta-mech", false){{
 
-                if(player.isShooting && getDrones(player) < maxDrones && !TutorialSector.supressDrone()){
-                    player.timer.get(Player.timerAbility, buildTime);
+            drillPower = -1;
+            speed = 0.75f;
+            boostSpeed = 0.95f;
+            itemCapacity = 15;
+            mass = 0.9f;
+            armor = 30f;
+            weapon = Weapons.shockgun;
+            trailColorTo = Color.valueOf("d3ddff");
+            abilities.add(new LandShockAbility());
+        }};
 
-                    if(player.timer.getTime(Player.timerAbility) > buildTime/2f){
-                        if(!Net.client()){
-                            AlphaDrone drone = (AlphaDrone) UnitTypes.alphaDrone.create(player.getTeam());
-                            drone.leader = player;
-                            drone.set(player.x, player.y);
-                            drone.add();
+        tau = new Mech("tau-mech", false){{
 
-                            Effects.effect(UnitFx.unitLand, player);
-                        }
-                    }
-                }
-            }
+            drillPower = 4;
+            mineSpeed = 3f;
+            itemCapacity = 70;
+            healTurretOffsetX = 5f;
+            healTurretOffsetY = -2f;
+            mass = 1.75f;
+            speed = 0.44f;
+            drag = 0.35f;
+            boostSpeed = 0.8f;
+            weapon = Weapons.healBlaster;
+            armor = 15f;
+            trailColorTo = Palette.heal;
+            isHealer = true;
+            abilities.add(new TauHealAbility());
+        }};
 
-            int getDrones(Player player){
-                int sum = 0;
-                for(BaseUnit unit : unitGroups[player.getTeam().ordinal()].all()){
-                    if(unit instanceof AlphaDrone && ((AlphaDrone) unit).leader == player) sum ++;
-                }
-                return sum;
-            }
-        };
+        omega = new Mech("omega-mech", false){{
 
-        delta = new Mech("delta-mech", false){
-            float cooldown = 120;
-
-            {
-                drillPower = -1;
-                speed = 0.75f;
-                boostSpeed = 0.95f;
-                itemCapacity = 15;
-                mass = 0.9f;
-                armor = 30f;
-                weapon = Weapons.shockgun;
-                trailColorTo = Color.valueOf("d3ddff");
-            }
-
-            @Override
-            public void onLand(Player player){
-                if(player.timer.get(Player.timerAbility, cooldown)){
-                    Effects.shake(1f, 1f, player);
-                    Effects.effect(UnitFx.landShock, player);
-                    for(int i = 0; i < 8; i++){
-                        Timers.run(Mathf.random(8f), () -> Lightning.create(player.getTeam(), Palette.lancerLaser, 17f, player.x, player.y, Mathf.random(360f), 14));
-                    }
-                }
-            }
-        };
-
-        tau = new Mech("tau-mech", false){
-            float healRange = 90f;
-            float healAmount = 0.3f;
-            float healReload = 160f;
-            Rectangle rect = new Rectangle();
-            boolean wasHealed;
-            TextureRegion turretRegion;
-
-            {
-                drillPower = 4;
-                mineSpeed = 3f;
-                itemCapacity = 70;
-                healTurretOffsetX = 5f;
-                healTurretOffsetY = -2f;
-                mass = 1.75f;
-                speed = 0.44f;
-                drag = 0.35f;
-                boostSpeed = 0.8f;
-                weapon = Weapons.healBlaster;
-                armor = 15f;
-                trailColorTo = Palette.heal;
-                isHealer = true;
-            }
-
-            @Override
-            public void load(){
-                super.load();
-                turretRegion = Draw.region("repair-point-turret");
-            }
-
-            @Override
-            public void updateAlt(Player player){
-
-                if(player.timer.get(Player.timerAbility, healReload)){
-                    wasHealed = false;
-
-                    rect.setSize(healRange*2f).setCenter(player.x, player.y);
-                    Units.getNearby(player.getTeam(), rect, unit -> {
-                        if(unit.distanceTo(player) <= healRange){
-                            if(unit.health < unit.maxHealth()){
-                                Effects.effect(UnitFx.heal, unit);
-                                wasHealed = true;
-                            }
-                            unit.healBy(10f);
-                        }
-                    });
-
-                    if(wasHealed){
-                        Effects.effect(UnitFx.healWave, player);
-                    }
-                }
-
-                if(player.healTarget != null && (player.healTarget.isDead() || player.distanceTo(player.healTarget) > healRange ||
-                        player.healTarget.health >= player.healTarget.maxHealth())){
-                    player.healTarget = null;
-                }else if(player.healTarget != null){
-                    player.healTarget.health += healAmount * Timers.delta() * player.healStrength;
-                    player.healTarget.clampHealth();
-                    player.healRotation = Mathf.slerpDelta(player.healRotation, player.angleTo(player.healTarget), 0.5f);
-                }else{
-                    player.healRotation = Mathf.slerpDelta(player.healRotation, player.rotation, 0.2f);
-                }
-
-                if(player.healTarget != null){
-                    player.healStrength = Mathf.lerpDelta(player.healStrength, 1f, 0.08f * Timers.delta());
-                }else{
-                    player.healStrength = Mathf.lerpDelta(player.healStrength, 0f, 0.07f * Timers.delta());
-                }
-
-                if(player.timer.get(Player.timerHeal, 20)){
-                    player.healTarget = Units.getClosest(player.getTeam(), player.x, player.y, healRange,
-                            unit -> unit.health < unit.maxHealth() && unit != player);
-                }
-            }
-
-            @Override
-            public void draw(Player player){
-            }
-
-            @Override
-            public void drawOver(Player player){
-                float tx = player.snappedX() + Angles.trnsx(player.rotation - 90, healTurretOffsetX, healTurretOffsetY);
-                float ty = player.snappedY() + Angles.trnsy(player.rotation - 90, healTurretOffsetX, healTurretOffsetY);
-
-                Draw.rect(turretRegion, tx, ty, player.healRotation - 90);
-
-                if(player.healTarget != null && player.healStrength > 0.01f &&
-                        Angles.angleDist(player.angleTo(player.healTarget), player.healRotation) < 30f){
-                    float ang = player.angleTo(player.healTarget);
-                    float len = 5f;
-
-                    Draw.color(Color.valueOf("70f17f"));
-                    Shapes.laser("laser", "laser-end",
-                            tx + Angles.trnsx(ang, len), ty + Angles.trnsy(ang, len),
-                            player.healTarget.x, player.healTarget.y, player.healStrength);
-                    Draw.color();
-                }
-            }
-        };
-
-        omega = new Mech("omega-mech", false){
-            protected TextureRegion armorRegion;
-
-            {
-                drillPower = 2;
-                mineSpeed = 1.5f;
-                itemCapacity = 50;
-                speed = 0.36f;
-                boostSpeed = 0.6f;
-                mass = 4f;
-                shake = 4f;
-                weapon = Weapons.swarmer;
-                trailColorTo = Color.valueOf("feb380");
-                armor = 45f;
-            }
-
-            @Override
-            public float getRotationAlpha(Player player){
-                return 0.6f - player.shootHeat * 0.3f;
-            }
-
-            @Override
-            public float spreadX(Player player){
-                return player.shootHeat*2f;
-            }
-
-            @Override
-            public void load(){
-                super.load();
-                armorRegion = Draw.region(name + "-armor");
-            }
-
-            @Override
-            public void updateAlt(Player player){
-                float scl = 1f - player.shootHeat/2f;
-                player.getVelocity().scl(scl);
-            }
-
-            @Override
-            public float getExtraArmor(Player player){
-                return player.shootHeat * 30f;
-            }
-
-            @Override
-            public void draw(Player player){
-                if(player.shootHeat <= 0.01f) return;
-
-                float alpha = Core.batch.getColor().a;
-                Shaders.build.progress = player.shootHeat;
-                Shaders.build.region = armorRegion;
-                Shaders.build.time = Timers.time() / 10f;
-                Shaders.build.color.set(Palette.accent).a = player.shootHeat;
-                Graphics.shader(Shaders.build);
-                Draw.alpha(1f);
-                Draw.rect(armorRegion, player.snappedX(), player.snappedY(), player.rotation);
-                Graphics.shader(Shaders.mix);
-                Draw.color(1f, 1f, 1f, alpha);
-            }
-        };
+            drillPower = 2;
+            mineSpeed = 1.5f;
+            itemCapacity = 50;
+            speed = 0.36f;
+            boostSpeed = 0.6f;
+            mass = 4f;
+            shake = 4f;
+            weapon = Weapons.swarmer;
+            trailColorTo = Color.valueOf("feb380");
+            armor = 45f;
+            abilities.add(new OmegaHeatAbility());
+        }};
 
         dart = new Mech("dart-ship", true){{
             drillPower = 1;
@@ -279,92 +90,33 @@ public class Mechs implements ContentList{
             cellTrnsY = 1f;
         }};
 
-        javelin = new Mech("javelin-ship", true){
-            float minV = 3.6f;
-            float maxV = 6f;
-            TextureRegion shield;
-            {
-                drillPower = -1;
-                speed = 0.11f;
-                drag = 0.01f;
-                mass = 2f;
-                armor = 5f;
-                weapon = Weapons.missiles;
-                trailColor = Color.valueOf("d3ddff");
-                cellTrnsY = 1f;
-            }
+        javelin = new Mech("javelin-ship", true){{
 
-            @Override
-            public void load(){
-                super.load();
-                shield = Draw.region(name + "-shield");
-            }
+            drillPower = -1;
+            speed = 0.11f;
+            drag = 0.01f;
+            mass = 2f;
+            armor = 5f;
+            weapon = Weapons.missiles;
+            trailColor = Color.valueOf("d3ddff");
+            cellTrnsY = 1f;
+            abilities.add(new JavelinShieldAbility());
+        }};
 
-            @Override
-            public float getRotationAlpha(Player player){
-                return 0.5f;
-            }
+        trident = new Mech("trident-ship", true){{
 
-            @Override
-            public void updateAlt(Player player){
-                float scl = scld(player);
-                if(Mathf.chance(Timers.delta() * (0.15*scl))){
-                    Effects.effect(BulletFx.hitLancer, Palette.lancerLaser, player.x, player.y);
-                    Lightning.create(player.getTeam(), Palette.lancerLaser, 10f,
-                    player.x + player.getVelocity().x, player.y + player.getVelocity().y, player.rotation, 14);
-                }
-            }
-
-            @Override
-            public void draw(Player player){
-                float scl = scld(player);
-                if(scl < 0.01f) return;
-                float alpha = Core.batch.getColor().a;
-                Graphics.shader();
-                Graphics.setAdditiveBlending();
-                Draw.color(Palette.lancerLaser);
-                Draw.alpha(scl/2f);
-                Draw.rect(shield, player.snappedX() + Mathf.range(scl/2f), player.snappedY() + Mathf.range(scl/2f), player.rotation - 90);
-                Graphics.setNormalBlending();
-                Graphics.shader(Shaders.mix);
-                Draw.color();
-                Draw.alpha(alpha);
-            }
-
-            @Override
-            public void drawBloom(Player player){
-                float scl = scld(player);
-                if(scl < 0.01f) return;
-                Draw.color(Palette.lancerLaser);
-                Draw.alpha(scl * 0.6f);
-                Draw.rect(shield, player.snappedX() + Mathf.range(scl/2f), player.snappedY() + Mathf.range(scl/2f), player.rotation - 90);
-                Draw.color();
-            }
-
-            float scld(Player player){
-                return Mathf.clamp((player.getVelocity().len() - minV) / (maxV - minV));
-            }
-        };
-
-        trident = new Mech("trident-ship", true){
-            {
-                drillPower = 2;
-                speed = 0.12f;
-                drag = 0.035f;
-                mass = 2.5f;
-                turnCursor = false;
-                armor = 20f;
-                itemCapacity = 30;
-                trailColor = Color.valueOf("84f491");
-                weapon = Weapons.bomberTrident;
-                cellTrnsY = 1f;
-            }
-
-            @Override
-            public boolean canShoot(Player player){
-                return player.getVelocity().len() > 1.2f;
-            }
-        };
+            drillPower = 2;
+            speed = 0.12f;
+            drag = 0.035f;
+            mass = 2.5f;
+            turnCursor = false;
+            armor = 20f;
+            itemCapacity = 30;
+            trailColor = Color.valueOf("84f491");
+            weapon = Weapons.bomberTrident;
+            cellTrnsY = 1f;
+            abilities.add(new VelocityShootAbility());
+        }};
 
         glaive = new Mech("glaive-ship", true){
             {

@@ -33,7 +33,7 @@ public class StatusController implements Saveable{
     public void handleApply(Unit unit, StatusEffect effect, float intensity){
         if(effect == StatusEffects.none) return; //don't apply empty effects
 
-        if(unit instanceof BaseUnit && ((BaseUnit) unit).getType().immunities.contains(effect)) return; //immune to this effect
+        if(unit instanceof BaseUnit && ((BaseUnit) unit).getType() != null && ((BaseUnit) unit).getType().immunities.contains(effect)) return; //immune to this effect
 
         float newTime = effect.baseDuration * intensity;
 

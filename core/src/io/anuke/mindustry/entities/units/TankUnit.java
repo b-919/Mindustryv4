@@ -1,9 +1,6 @@
 package io.anuke.mindustry.entities.units;
 
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.utils.LongArray;
-import com.badlogic.gdx.utils.LongMap;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.entities.Predict;
 import io.anuke.mindustry.entities.TileEntity;
@@ -14,7 +11,6 @@ import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Weapon;
 import io.anuke.mindustry.world.Tile;
-import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.mindustry.world.meta.BlockFlag;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
@@ -28,24 +24,12 @@ import static io.anuke.mindustry.Vars.*;
 
 public class TankUnit extends BaseUnit{
     protected static Translator vec = new Translator();
-    private static final int maxOrderPathNodes = 700;
-    private static final int orderPathRepathDelay = 30;
-    protected static final int movePathMaxNodes = 400;
-    protected static final int movePathRepathDelay = 15;
 
     protected float walkTime;
-    protected float stuckTime;
     protected float baseRotation;
     protected float weaponRotation;
     protected float treadTime;
     protected Weapon weapon;
-    protected LongArray orderPath = new LongArray();
-    protected int orderPathCursor = 0;
-    protected int orderPathRepath = 0;
-    protected LongArray movePath = new LongArray();
-    protected int movePathCursor = 0;
-    protected int movePathRepath = 0;
-    protected float movePathTargetX, movePathTargetY;
 
     public final UnitState
 
@@ -55,7 +39,7 @@ public class TankUnit extends BaseUnit{
         }
 
         public void update(){
-            if(health < maxHealth() * 0.5f){
+            if(health < maxHealth() * 0.5f && timer.get(timerRetreat, 30f)){
                 Tile repair = Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair));
                 Unit healer = Units.getClosest(team, x, y, getType().healRange, u -> u.isHealer() && u != TankUnit.this);
                 if(repair != null && distanceTo(repair) < getType().healRange){
@@ -68,18 +52,28 @@ public class TankUnit extends BaseUnit{
             }
 
             TileEntity core = getClosestEnemyCore();
+
+            if(getOrderType() == UnitOrderType.attackTarget && target != null){
+                if(distanceTo(target) > engageRange()){
+                    path.moveWithPathfinding(TankUnit.this, target.getX(), target.getY());
+                }else{
+                    velocity.scl(0.85f);
+                }
+                return;
+            }
+
             float dst = core == null ? 0 : distanceTo(core);
 
             if(core != null && dst < getWeapon().getAmmo().getRange() / 1.1f){
                 target = core;
             }
 
-            if(target == null && core == null){
+            if(target == null && core == null && timer.get(timerFallback, 20f)){
                 targetClosestEnemyFlag(BlockFlag.producer);
                 if(target == null) targetClosestEnemyFlag(BlockFlag.turret);
                 if(target == null) targetClosestEnemyFlag(BlockFlag.target);
                 if(target != null){
-                    moveWithPathfinding(target.getX(), target.getY());
+                    path.moveWithPathfinding(TankUnit.this, target.getX(), target.getY());
                     return;
                 }
             }
@@ -107,8 +101,6 @@ public class TankUnit extends BaseUnit{
         }
 
         public void update(){
-            Unit healer = Units.getClosest(team, x, y, getType().healRange, u -> u.isHealer() && u != TankUnit.this);
-            Tile repair = Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair));
             if(health >= maxHealth()){
                 clearMovePath();
                 if(isCommanded()){
@@ -120,6 +112,8 @@ public class TankUnit extends BaseUnit{
             }
 
             if(retarget() || target == null || (target instanceof TileEntity && (((TileEntity)target).getTile() == null || ((TileEntity)target).getTile().target().block().flags == null || !((TileEntity)target).getTile().target().block().flags.contains(BlockFlag.repair))) || (target instanceof Unit && !((Unit)target).isHealer())){
+                Unit healer = Units.getClosest(team, x, y, getType().healRange, u -> u.isHealer() && u != TankUnit.this);
+                Tile repair = Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair));
                 clearMovePath();
                 if(repair != null) target = repair.entity();
                 else if(healer != null) target = healer;
@@ -130,12 +124,12 @@ public class TankUnit extends BaseUnit{
                 float dst = distanceTo(target);
                 if(dst > 7f){
                     if(target instanceof TileEntity && ((TileEntity)target).getTile() != null && ((TileEntity)target).getTile().target().block().flags != null && ((TileEntity)target).getTile().target().block().flags.contains(BlockFlag.repair)){
-                        moveWithPathfinding(target.getX(), target.getY());
+                        path.moveWithPathfinding(TankUnit.this, target.getX(), target.getY());
                     }else if(target instanceof Unit && ((Unit)target).isHealer()){
                         if(dst > type.healRange){
                             moveToHome();
                         }else{
-                            moveWithPathfinding(target.getX(), target.getY());
+                            path.moveWithPathfinding(TankUnit.this, target.getX(), target.getY());
                         }
                     }else{
                         moveToHome();
@@ -159,10 +153,14 @@ public class TankUnit extends BaseUnit{
     };
 
     public TankUnit(){
+        path.setTankLimits();
     }
 
     @Override
     public void onCommand(UnitCommand command){
+        if(controller instanceof GroundAI){
+            ((GroundAI)controller).command(command);
+        }
         state.set(command == UnitCommand.retreat ? retreat :
                   command == UnitCommand.attack ? attack :
                   command == UnitCommand.patrol ? patrol :
@@ -192,7 +190,7 @@ public class TankUnit extends BaseUnit{
 
     @Override
     public boolean isRetreating(){
-        return state.is(retreat);
+        return controller instanceof GroundAI ? ((GroundAI)controller).isRetreating() : state.is(retreat);
     }
 
     @Override
@@ -262,15 +260,7 @@ public class TankUnit extends BaseUnit{
 
     @Override
     protected void updateShooting(){
-        Weapon weapon = getWeapon();
-        if(weapon == null || weapon.getAmmo() == null || target == null) return;
-
-        if(Units.invalidateTarget(target, team, x, y, weapon.getAmmo().getRange())) return;
-
-        Vector2 to = Predict.intercept(this, target, weapon.getAmmo().bullet.speed);
-        if(Mathf.angNear(angleTo(target), weaponRotation, type.shootCone)){
-            weapon.update(this, to.x, to.y);
-        }
+        shootAt(target);
     }
 
     @Override
@@ -281,8 +271,8 @@ public class TankUnit extends BaseUnit{
             target = null;
         }
 
-        if(getOrderType() != UnitOrderType.attackTarget){
-            retarget(this::targetClosest);
+        if(retarget()){
+            targetClosest();
         }
     }
 
@@ -321,7 +311,7 @@ public class TankUnit extends BaseUnit{
             }
 
             if(!hopClear(core.getX(), core.getY())){
-                recenter();
+                path.recenter(this);
                 return;
             }
 
@@ -405,11 +395,15 @@ public class TankUnit extends BaseUnit{
                 clearOrder();
                 clearOrderPath();
                 velocity.scl(0.5f);
-                state.set(hold);
+                if(controller instanceof GroundAI){
+                    ((GroundAI)controller).setMode(GroundAI.Mode.hold);
+                }else{
+                    state.set(hold);
+                }
                 return false;
             }
 
-            followOrderPath();
+            path.followOrderPath(this);
             return true;
         }
 
@@ -422,11 +416,15 @@ public class TankUnit extends BaseUnit{
             if(dst <= arrivalDst){
                 clearOrder();
                 clearOrderPath();
-                state.set(hold);
+                if(controller instanceof GroundAI){
+                    ((GroundAI)controller).setMode(GroundAI.Mode.hold);
+                }else{
+                    state.set(hold);
+                }
                 return false;
             }
 
-            followOrderPath();
+            path.followOrderPath(this);
             return true;
         }
 
@@ -434,472 +432,31 @@ public class TankUnit extends BaseUnit{
             if(target == null || target.isDead() || target.getTeam() == team){
                 clearOrder();
                 clearOrderPath();
-                state.set(hold);
+                if(controller instanceof GroundAI){
+                    ((GroundAI)controller).setMode(GroundAI.Mode.hold);
+                }else{
+                    state.set(hold);
+                }
                 return false;
             }
 
-            orderX = target.getX();
-            orderY = target.getY();
-
-            followOrderPath();
-            return true;
+            //leave movement to the unit's attack controller/state so custom behavior is preserved
+            return false;
         }
 
         return false;
     }
 
     protected void clearOrderPath(){
-        orderPath.clear();
-        orderPathCursor = 0;
-        orderPathRepath = 0;
+        path.clearOrder();
     }
 
     protected void clearMovePath(){
-        movePath.clear();
-        movePathCursor = 0;
-        movePathRepath = 0;
+        path.clearMove();
     }
 
-    /**Straight-line fallback for an order: only used when the body can actually traverse it.*/
-    private void moveOrHoldOrder(Tile goal){
-        if(goal != null && hopClear(goal)){
-            moveTo(goal.worldx(), goal.worldy());
-            return;
-        }
-        orderPathRepath = 0;
-        recenter();
-    }
-
-    /**Straight-line fallback for combat movement: only used when the body can traverse it.*/
-    private void moveOrHoldMove(float wx, float wy){
-        if(hopClear(wx, wy)){
-            moveTo(wx, wy);
-            return;
-        }
-        movePathRepath = 0;
-        recenter();
-    }
-
-    /**Re-aligns on the current tile so the next repath starts from a known, safe spot.*/
-    private void recenter(){
-        Tile here = world.tileWorld(x, y);
-        if(here != null && Mathf.dst(x - here.worldx(), y - here.worldy()) > 1f){
-            moveTo(here.worldx(), here.worldy());
-        }
-    }
-
-    protected void moveWithPathfinding(float targetX, float targetY){
-        Tile start = world.tileWorld(x, y);
-        Tile goal = world.tileWorld(targetX, targetY);
-
-        if(start == null || goal == null){
-            moveOrHoldMove(targetX, targetY);
-            return;
-        }
-
-        goal = findPassableGoal(goal);
-        if(start == goal) return;
-
-        boolean needsRepath = movePathRepath <= 0 || movePath.size == 0 || movePathCursor >= movePath.size ||
-                Mathf.dst(movePathTargetX - targetX, movePathTargetY - targetY) > tilesize * 3;
-
-        if(needsRepath){
-            buildMovePath(start, goal);
-            movePathTargetX = targetX;
-            movePathTargetY = targetY;
-            movePathRepath = movePathRepathDelay;
-        }else{
-            movePathRepath--;
-        }
-
-        if(movePath.size == 0 || movePathCursor >= movePath.size){
-            moveOrHoldMove(targetX, targetY);
-            return;
-        }
-
-        Tile waypoint = world.tile(movePath.get(movePathCursor));
-        if(waypoint == null){
-            moveOrHoldMove(targetX, targetY);
-            return;
-        }
-
-        if(Mathf.dst(x - waypoint.worldx(), y - waypoint.worldy()) <= tilesize * 0.4f
-            && (movePathCursor + 1 >= movePath.size || hopClear(world.tile(movePath.get(movePathCursor + 1))))){
-            movePathCursor++;
-            if(movePathCursor >= movePath.size){
-                moveOrHoldMove(targetX, targetY);
-                return;
-            }
-            waypoint = world.tile(movePath.get(movePathCursor));
-            if(waypoint == null){
-                moveOrHoldMove(targetX, targetY);
-                return;
-            }
-        }
-
-        if(stuckTime > 8f){
-            clearMovePath();
-            float jitterAngle = Mathf.atan2(targetX - x, targetY - y) + Mathf.range(120f);
-            velocity.add(vec.trns(jitterAngle, type.speed * 0.7f * Timers.delta()));
-            return;
-        }
-
-        if(!hopClear(waypoint)){
-            movePathRepath = 0;
-            recenter();
-            return;
-        }
-
-        moveTo(waypoint.worldx(), waypoint.worldy());
-    }
-
-    protected void buildMovePath(Tile start, Tile goal){
-        movePath.clear();
-        movePathCursor = 0;
-
-        if(start == goal) return;
-
-        LongArray open = new LongArray();
-        LongMap<Long> cameFrom = new LongMap<Long>();
-        LongMap<Integer> gScore = new LongMap<Integer>();
-        LongMap<Integer> fScore = new LongMap<Integer>();
-        LongMap<Integer> closed = new LongMap<Integer>();
-
-        long startPos = start.packedPosition();
-        long goalPos = goal.packedPosition();
-
-        open.add(startPos);
-        gScore.put(startPos, 0);
-        fScore.put(startPos, (Math.abs(start.x - goal.x) + Math.abs(start.y - goal.y)) * 10);
-
-        int expanded = 0;
-
-        while(open.size > 0 && expanded < movePathMaxNodes){
-            int bestIndex = 0;
-            long current = open.get(0);
-            int bestScore = fScore.get(current, Integer.MAX_VALUE);
-
-            for(int i = 1; i < open.size; i++){
-                long node = open.get(i);
-                int score = fScore.get(node, Integer.MAX_VALUE);
-                if(score < bestScore){
-                    bestScore = score;
-                    current = node;
-                    bestIndex = i;
-                }
-            }
-
-            open.removeIndex(bestIndex);
-
-            if(current == goalPos){
-                reconstructMovePath(cameFrom, current, startPos);
-                return;
-            }
-
-            closed.put(current, 1);
-            expanded++;
-
-            Tile currentTile = world.tile(current);
-            if(currentTile == null) continue;
-
-            for(int sx = -1; sx <= 1; sx++){
-                for(int sy = -1; sy <= 1; sy++){
-                    if(sx == 0 && sy == 0) continue;
-                    int nx = currentTile.x + sx, ny = currentTile.y + sy;
-                    Tile next = world.tile(nx, ny);
-                    if(next == null || !orderPassable(next)) continue;
-                    if(sx != 0 && sy != 0 && (world.solid(currentTile.x + sx, currentTile.y) || world.solid(currentTile.x, currentTile.y + sy))){
-                        continue;
-                    }
-
-                    long nextPos = next.packedPosition();
-                    if(closed.get(nextPos, 0) == 1) continue;
-
-                    int currentScore = gScore.get(current, Integer.MAX_VALUE / 8);
-                    int stepCost = (sx == 0 || sy == 0 ? 10 : 14) + (int)(next.cost * 2f);
-                    int tentativeG = currentScore + stepCost;
-                    int known = gScore.get(nextPos, Integer.MAX_VALUE / 8);
-
-                    if(tentativeG < known){
-                        cameFrom.put(nextPos, current);
-                        gScore.put(nextPos, tentativeG);
-                        int heuristic = (Math.abs(next.x - goal.x) + Math.abs(next.y - goal.y)) * 10;
-                        fScore.put(nextPos, tentativeG + heuristic);
-
-                        boolean exists = false;
-                        for(int i = 0; i < open.size; i++){
-                            if(open.get(i) == nextPos){
-                                exists = true;
-                                break;
-                            }
-                        }
-                        if(!exists) open.add(nextPos);
-                    }
-                }
-            }
-        }
-    }
-
-    protected void reconstructMovePath(LongMap<Long> cameFrom, long current, long startPos){
-        LongArray rev = new LongArray();
-        rev.add(current);
-
-        while(cameFrom.containsKey(current)){
-            current = cameFrom.get(current, startPos);
-            rev.add(current);
-            if(current == startPos) break;
-        }
-
-        for(int i = rev.size - 2; i >= 0; i--){
-            movePath.add(rev.get(i));
-        }
-        movePathCursor = 0;
-    }
-
-    protected void followOrderPath(){
-        Tile start = world.tileWorld(x, y);
-        Tile goal = world.tileWorld(getOrderX(), getOrderY());
-
-        if(start == null || goal == null){
-            moveOrHoldOrder(goal);
-            return;
-        }
-
-        goal = findPassableGoal(goal);
-        if(start == goal){
-            return;
-        }
-
-        if(orderPathRepath <= 0 || orderPath.size == 0 || orderPathCursor >= orderPath.size){
-            buildOrderPath(start, goal);
-            orderPathRepath = orderPathRepathDelay;
-        }else{
-            orderPathRepath--;
-        }
-
-        if(orderPath.size == 0 || orderPathCursor >= orderPath.size){
-            if(steerAlongChunkPath(goal.worldx(), goal.worldy())){
-                return;
-            }
-            moveOrHoldOrder(goal);
-            return;
-        }
-
-        Tile waypoint = world.tile(orderPath.get(orderPathCursor));
-        if(waypoint == null){
-            buildOrderPath(start, goal);
-            if(orderPath.size == 0){
-                moveOrHoldOrder(goal);
-                return;
-            }
-            waypoint = world.tile(orderPath.get(orderPathCursor));
-            if(waypoint == null){
-                moveOrHoldOrder(goal);
-                return;
-            }
-        }
-
-        if(Mathf.dst(x - waypoint.worldx(), y - waypoint.worldy()) <= tilesize * 0.4f
-            && (orderPathCursor + 1 >= orderPath.size || hopClear(world.tile(orderPath.get(orderPathCursor + 1))))){
-            orderPathCursor++;
-            if(orderPathCursor >= orderPath.size){
-                moveOrHoldOrder(goal);
-                return;
-            }
-            waypoint = world.tile(orderPath.get(orderPathCursor));
-            if(waypoint == null){
-                moveOrHoldOrder(goal);
-                return;
-            }
-        }
-
-        if(!hopClear(waypoint)){
-            orderPathRepath = 0;
-            recenter();
-            return;
-        }
-
-        moveTo(waypoint.worldx(), waypoint.worldy());
-    }
-
-    private Tile findPassableGoal(Tile goal){
-        if(orderPassable(goal)) return goal;
-        for(int r = 1; r <= 3; r++){
-            for(int dx = -r; dx <= r; dx++){
-                for(int dy = -r; dy <= r; dy++){
-                    if(Math.abs(dx) != r && Math.abs(dy) != r) continue;
-                    Tile t = world.tile(goal.x + dx, goal.y + dy);
-                    if(t != null && orderPassable(t)) return t;
-                }
-            }
-        }
-        return goal;
-    }
-
-    protected void buildOrderPath(Tile start, Tile goal){
-        orderPath.clear();
-        orderPathCursor = 0;
-
-        if(start == goal){
-            return;
-        }
-
-        LongArray open = new LongArray();
-        LongMap<Long> cameFrom = new LongMap<Long>();
-        LongMap<Integer> gScore = new LongMap<Integer>();
-        LongMap<Integer> fScore = new LongMap<Integer>();
-        LongMap<Integer> closed = new LongMap<Integer>();
-
-        long startPos = start.packedPosition();
-        long goalPos = goal.packedPosition();
-
-        open.add(startPos);
-        gScore.put(startPos, 0);
-        fScore.put(startPos, (Math.abs(start.x - goal.x) + Math.abs(start.y - goal.y)) * 10);
-
-        int expanded = 0;
-
-        while(open.size > 0 && expanded < maxOrderPathNodes){
-            int bestIndex = 0;
-            long current = open.get(0);
-            int bestScore = fScore.get(current, Integer.MAX_VALUE);
-
-            for(int i = 1; i < open.size; i++){
-                long node = open.get(i);
-                int score = fScore.get(node, Integer.MAX_VALUE);
-                if(score < bestScore){
-                    bestScore = score;
-                    current = node;
-                    bestIndex = i;
-                }
-            }
-
-            open.removeIndex(bestIndex);
-
-            if(current == goalPos){
-                reconstructOrderPath(cameFrom, current, startPos);
-                return;
-            }
-
-            closed.put(current, 1);
-            expanded++;
-
-            Tile currentTile = world.tile(current);
-            if(currentTile == null) continue;
-
-            for(int sx = -1; sx <= 1; sx++){
-                for(int sy = -1; sy <= 1; sy++){
-                    if(sx == 0 && sy == 0) continue;
-                    int nx = currentTile.x + sx, ny = currentTile.y + sy;
-                    Tile next = world.tile(nx, ny);
-                    if(next == null || !orderPassable(next)) continue;
-                    if(sx != 0 && sy != 0 && (world.solid(currentTile.x + sx, currentTile.y) || world.solid(currentTile.x, currentTile.y + sy))){
-                        continue;
-                    }
-
-                    long nextPos = next.packedPosition();
-                    if(closed.get(nextPos, 0) == 1) continue;
-
-                    int currentScore = gScore.get(current, Integer.MAX_VALUE / 8);
-                    int stepCost = (sx == 0 || sy == 0 ? 10 : 14) + (int)(next.cost * 2f);
-                    int tentativeG = currentScore + stepCost;
-                    int known = gScore.get(nextPos, Integer.MAX_VALUE / 8);
-
-                    if(tentativeG < known){
-                        cameFrom.put(nextPos, current);
-                        gScore.put(nextPos, tentativeG);
-                        int heuristic = (Math.abs(next.x - goal.x) + Math.abs(next.y - goal.y)) * 10;
-                        fScore.put(nextPos, tentativeG + heuristic);
-
-                        boolean exists = false;
-                        for(int i = 0; i < open.size; i++){
-                            if(open.get(i) == nextPos){
-                                exists = true;
-                                break;
-                            }
-                        }
-                        if(!exists) open.add(nextPos);
-                    }
-                }
-            }
-        }
-    }
-
-    protected void reconstructOrderPath(LongMap<Long> cameFrom, long current, long startPos){
-        LongArray rev = new LongArray();
-        rev.add(current);
-
-        while(cameFrom.containsKey(current)){
-            current = cameFrom.get(current, startPos);
-            rev.add(current);
-            if(current == startPos) break;
-        }
-
-        for(int i = rev.size - 2; i >= 0; i--){
-            orderPath.add(rev.get(i));
-        }
-        orderPathCursor = 0;
-    }
-
-    protected boolean orderPassable(Tile tile){
-        if(tile.solid() && !(tile.breakable() && tile.target().getTeam() != team)) return false;
-        return tile.floor().drownTime <= 0f;
-    }
-
-    @Override
     public void draw(){
-        Draw.alpha(hitTime / hitDuration);
-
-        float speed = velocity.len();
-        float speedFrac = Mathf.clamp(speed / type.maxVelocity);
-
-        float trackVibrate = Mathf.sin(walkTime * type.speed * 12f, 2f, 0.5f) * speedFrac;
-        float trackJitter = Mathf.sin(walkTime * type.speed * 18f + 1.7f, 1.5f, 0.15f) * speedFrac;
-
-        Floor floor = getFloorOn();
-
-        // Soft shadow
-        if(!io.anuke.mindustry.core.Renderer.captureReflections){
-            Draw.color(0f, 0f, 0f, 0.35f);
-            Draw.rect(type.iconRegion, x, y - 1.5f);
-            Draw.color(Color.WHITE);
-        }
-
-        // Treads
-        if(floor.isLiquid){
-            Draw.tint(Color.WHITE, floor.liquidColor, 0.5f);
-        }
-
-        for(int i : Mathf.signs){
-            Draw.rect(type.treadRegion,
-                    x + Angles.trnsx(baseRotation, trackJitter * i, trackVibrate),
-                    y + Angles.trnsy(baseRotation, trackJitter * i, trackVibrate),
-                    16 * i, 24f, baseRotation - 90);
-        }
-
-        if(floor.isLiquid){
-            Draw.tint(Color.WHITE, floor.liquidColor, drownTime * 0.4f);
-        }else{
-            Draw.tint(Color.WHITE);
-        }
-
-        // Hull base plate
-        Draw.rect(type.baseRegion, x, y, baseRotation - 90);
-
-        // Body at baseRotation (tank hull faces track direction)
-        Draw.rect(type.region, x, y, baseRotation - 90);
-
-        // Turret
-        float trY = -weapon.getRecoil(this, true);
-        Draw.rect(weapon.equipRegion,
-                x + Angles.trnsx(rotation - 90, weapon.width, trY),
-                y + Angles.trnsy(rotation - 90, weapon.width, trY),
-                weaponRotation - 90);
-
-        // Items
-        drawItems();
-
-        Draw.alpha(1f);
+        UnitRenderer.drawTank(this);
     }
 
     @Override

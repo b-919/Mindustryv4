@@ -2,8 +2,10 @@ package io.anuke.mindustry.entities.units;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.content.Weapons;
+import io.anuke.mindustry.entities.units.types.Drone;
 import io.anuke.mindustry.entities.traits.TypeTrait;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.UnlockableContent;
@@ -12,6 +14,7 @@ import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.StatusEffect;
 import io.anuke.mindustry.type.Weapon;
 import io.anuke.mindustry.ui.ContentDisplay;
+import io.anuke.ucore.function.Function;
 import io.anuke.ucore.function.Supplier;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.scene.ui.layout.Table;
@@ -21,6 +24,14 @@ import io.anuke.ucore.util.Strings;
 
 public class UnitType extends UnlockableContent{
     protected final Supplier<? extends BaseUnit> constructor;
+    /** Movement/entity family; derived from the constructor class. */
+    public UnitArchetype archetype = UnitArchetype.ground;
+    /** Controller factory; null selects the archetype default. */
+    public Function<BaseUnit, ? extends UnitController> controller;
+    /** Commands exposed to the player when units of this type are selected. */
+    public final Array<UnitCommand> commands = new Array<>();
+    /** Stances exposed to the player when units of this type are selected. */
+    public final Array<UnitStance> stances = new Array<>();
 
     public final String name;
     public final String description;
@@ -69,6 +80,8 @@ public class UnitType extends UnlockableContent{
     public Color lightColor = Color.WHITE;
     public float lightOpacity = 0.5f;
     public ObjectSet<StatusEffect> immunities = new ObjectSet<>();
+    /** Passive behaviours; each unit receives a copy at spawn. */
+    public final Array<Ability> abilities = new Array<>();
 
     //leg unit fields
     /**number of legs this unit has*/
@@ -119,6 +132,28 @@ public <T extends BaseUnit> UnitType(String name, Class<T> type, Supplier<T> mai
         this.description = Bundles.getOrNull("unit." + name + ".description");
 
         TypeTrait.registerType(type, mainConstructor);
+
+        if(TankUnit.class.isAssignableFrom(type)){
+            archetype = UnitArchetype.tank;
+        }else if(LegsUnit.class.isAssignableFrom(type)){
+            archetype = UnitArchetype.legs;
+        }else if(MainTrain.class.isAssignableFrom(type)){
+            archetype = UnitArchetype.train;
+        }else if(FlyingUnit.class.isAssignableFrom(type)){
+            archetype = UnitArchetype.flying;
+        }
+
+        if(BiomassGroundUnit.class.isAssignableFrom(type)){
+            controller = CommandAI::new;
+        }
+
+        commands.add(UnitCommand.move);
+        commands.add(UnitCommand.attack);
+        stances.add(UnitStance.holdFire);
+
+        if(Drone.class.isAssignableFrom(type)){
+            stances.add(UnitStance.follow);
+        }
 
         if(!Bundles.has("unit." + this.name + ".name")){
             Log.err("Warning: unit '" + name + "' is missing a localized name. Add the follow to bundle.properties:");
@@ -191,6 +226,10 @@ public <T extends BaseUnit> UnitType(String name, Class<T> type, Supplier<T> mai
 
     @Override
     public void load(){
+        for(Ability ability : abilities){
+            ability.init(this);
+        }
+
         iconRegion = Draw.region("unit-icon-" + name);
         region = Draw.region(name);
 

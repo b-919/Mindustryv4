@@ -8,6 +8,7 @@ import io.anuke.mindustry.ai.MassAI;
 import io.anuke.mindustry.ai.mass.MassAIConfig;
 import io.anuke.mindustry.ai.mass.MassSave;
 import io.anuke.mindustry.content.Items;
+import io.anuke.mindustry.content.Mechs;
 import io.anuke.mindustry.content.UnitTypes;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.content.blocks.CraftingBlocks;
@@ -18,6 +19,9 @@ import io.anuke.mindustry.core.Logic;
 import io.anuke.mindustry.core.NetServer;
 import io.anuke.mindustry.core.World;
 import io.anuke.mindustry.entities.units.BaseUnit;
+import io.anuke.mindustry.entities.units.UnitCommand;
+import io.anuke.mindustry.entities.units.UnitStance;
+import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.game.Content;
 import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.Team;
@@ -109,6 +113,22 @@ public class ApplicationTests{
         Timers.setDeltaProvider(() ->  1f);
         logic.reset();
         state.set(State.menu);
+    }
+
+    @Test
+    void playerHasUnitType(){
+        assertNotNull(Mechs.alpha.unitType);
+        Player player = new Player();
+        player.setMech(Mechs.alpha);
+        assertSame(Mechs.alpha.unitType, player.getType());
+    }
+
+    @Test
+    void unitTypeControlData(){
+        assertTrue(UnitTypes.spirit.commands.contains(UnitCommand.mine, true));
+        assertTrue(UnitTypes.spirit.commands.contains(UnitCommand.repair, true));
+        assertTrue(UnitTypes.spirit.stances.contains(UnitStance.follow, true));
+        assertFalse(UnitTypes.dagger.stances.contains(UnitStance.follow, true));
     }
 
     @Test
@@ -244,13 +264,13 @@ public class ApplicationTests{
         world.loadMap(world.maps.all().first());
 
         //legacy layout: no header, no response timers, old global-command tail
-        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.FORMAT_LEGACY, 555f))),
-            MassSave.FORMAT_LEGACY);
+        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.formatLegacy, 555f))),
+            MassSave.formatLegacy);
         assertEquals(555f, MassAI.getInfectionTime(), 0.01f);
 
         //format 4: header + response timers, still with the tail
-        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.FORMAT_HEADERED, 777f))),
-            MassSave.FORMAT_HEADERED);
+        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.formatHeadered, 777f))),
+            MassSave.formatHeadered);
         assertEquals(777f, MassAI.getInfectionTime(), 0.01f);
 
         //format 5: writer/reader symmetry
@@ -260,19 +280,19 @@ public class ApplicationTests{
             MassSave.write(out);
         }
         MassAI.setInfectionTime(0f);
-        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray())), MassSave.SAVE_VERSION);
+        MassSave.read(new DataInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray())), MassSave.saveVersion);
         assertEquals(1234.5f, MassAI.getInfectionTime(), 0.01f);
 
         //a mismatched header must fail instead of desynchronizing the rest of the save
         assertThrows(java.io.IOException.class, () -> MassSave.read(
-            new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.FORMAT_HEADERED, 0f))),
-            MassSave.SAVE_VERSION));
+            new DataInputStream(new java.io.ByteArrayInputStream(massBlock(MassSave.formatHeadered, 0f))),
+            MassSave.saveVersion));
     }
 
     private static byte[] massBlock(int format, float infectionTime) throws Exception{
         java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
         try(java.io.DataOutputStream out = new java.io.DataOutputStream(bytes)){
-            if(format >= MassSave.FORMAT_HEADERED) out.writeInt(format);
+            if(format >= MassSave.formatHeadered) out.writeInt(format);
             out.writeInt(0); //cores
             out.writeInt(0); //lines
             out.writeInt(0); //subsections
@@ -281,7 +301,7 @@ public class ApplicationTests{
             out.writeFloat(3f); //next turret
             out.writeFloat(4f); //damage turret timer
             out.writeFloat(5f); //next damage turret
-            if(format >= MassSave.FORMAT_HEADERED){
+            if(format >= MassSave.formatHeadered){
                 out.writeFloat(6f); //response timer
                 out.writeFloat(7f); //next response
             }
@@ -289,9 +309,9 @@ public class ApplicationTests{
             out.writeInt(0); //pending builds
             for(int i = 0; i < 7; i++) out.writeInt(0); //ore boosts
             out.writeInt(0); //expanded cores
-            if(format < MassSave.SAVE_VERSION) out.writeInt(0); //legacy currentCommand
+            if(format < MassSave.saveVersion) out.writeInt(0); //legacy currentCommand
             out.writeFloat(123f); //grace timer
-            if(format < MassSave.SAVE_VERSION){
+            if(format < MassSave.saveVersion){
                 out.writeFloat(0f); //legacy enemy nearby timer
                 out.writeBoolean(false); //legacy enemy nearby flag
             }

@@ -1,13 +1,8 @@
 package io.anuke.mindustry.entities.units.types;
 
-
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.entities.units.FlyingUnit;
-import io.anuke.mindustry.entities.units.UnitType;
-import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.net.Net;
-import io.anuke.mindustry.type.ContentType;
-import io.anuke.mindustry.type.Weapon;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.util.Mathf;
 
@@ -15,29 +10,15 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import static io.anuke.mindustry.Vars.content;
+public class MissileFlyer extends FlyingUnit{// i need a better name
 
-
-public class Lich extends FlyingUnit{
-    protected Weapon weapon;
-    public Lich() {
+    public MissileFlyer(){
         itWobbles = false;
     }
-    public void init(UnitType type, Team team){
-        super.init(type, team);
-        this.weapon = type.weapon;
-    }
+
     @Override
     protected void attack(float circleLength){
         moveTo(circleLength);
-    }
-    @Override
-    public Weapon getWeapon(){
-        return weapon;
-    }
-
-    public void setWeapon(Weapon weapon){
-        this.weapon = weapon;
     }
 
     @Override
@@ -48,40 +29,37 @@ public class Lich extends FlyingUnit{
             rotation = Mathf.slerpDelta(rotation, velocity.angle(), type.baseRotateSpeed);
         }
     }
+
     @Override
     protected void wobble(){
         if(Net.client()) return;
-        {
-            x += Mathf.sin(Timers.time() + id * 999, 25f, 0.08f)*Timers.delta();
-            y += Mathf.cos(Timers.time() + id * 999, 25f, 0.08f)*Timers.delta();
 
-            if(velocity.len() <= 0.05f){
-               // rotation += Mathf.sin(Timers.time() + id * 99, 10f, 2.5f)*Timers.delta();
-            }
-        }
+        x += Mathf.sin(Timers.time() + id * 999, 25f, 0.08f) * Timers.delta();
+        y += Mathf.cos(Timers.time() + id * 999, 25f, 0.08f) * Timers.delta();
     }
 
     @Override
-    public void write(DataOutput data) throws IOException {
+    public void write(DataOutput data) throws IOException{
         super.write(data);
-        data.writeByte(weapon.id);
+        data.writeByte(type.weapon.id);
     }
 
     @Override
     public void read(DataInput data, long time) throws IOException{
         super.read(data, time);
-        weapon = content.getByID(ContentType.weapon, data.readByte() & 0xFF);
+        data.readByte();
     }
 
     @Override
     public void writeSave(DataOutput stream) throws IOException{
-        stream.writeByte(weapon.id);
+        //kept from the old Lich/Revenant layout so pre-merge saves stay byte-compatible
+        stream.writeByte(type.weapon.id);
         super.writeSave(stream);
     }
 
     @Override
     public void readSave(DataInput stream) throws IOException{
-        weapon = content.getByID(ContentType.weapon, stream.readByte() & 0xFF);
+        stream.readByte();
         super.readSave(stream);
     }
 }
