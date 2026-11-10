@@ -16,8 +16,8 @@ public class Recipes implements ContentList{
 
     @Override
     public void load(){
-        //DEBUG
         String classicTech = TechTree.create("Classic");
+        //DEBUG
         new Recipe(turret, TurretBlocks.evilDuo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(turret, TurretBlocks.evilSalvo).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(turret, TurretBlocks.evilScatter).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
@@ -41,6 +41,8 @@ public class Recipes implements ContentList{
         new Recipe(power, DebugBlocks.powerInfinite).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(effect, DebugBlocks.superBooster).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         new Recipe(units, DebugBlocks.debugFactory).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(upgrade, UpgradeBlocks.debugAir).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
+        new Recipe(upgrade, UpgradeBlocks.debugGround).setHidden(true).setAlwaysUnlocked(true).setShowIf(m -> m.infiniteResources).joinAllTechTrees();
         //new Recipe(effect, PowerBlocks.lightBlock).setMode(GameMode.sandbox).setAlwaysUnlocked(true);
 
         /*new Recipe(defense, DefenseBlocks.thoriumWallEXTRALarge).setMode(GameMode.sandbox).setHidden(true).setAlwaysUnlocked(true);*/

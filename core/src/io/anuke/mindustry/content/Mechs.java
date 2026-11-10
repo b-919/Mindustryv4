@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
 import io.anuke.mindustry.content.fx.BulletFx;
+import io.anuke.mindustry.content.fx.ShootFx;
 import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.Units;
@@ -17,6 +18,7 @@ import io.anuke.mindustry.maps.TutorialSector;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Mech;
+import io.anuke.mindustry.type.Weapon;
 import io.anuke.ucore.core.Core;
 import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Graphics;
@@ -29,7 +31,7 @@ import io.anuke.ucore.util.Mathf;
 import static io.anuke.mindustry.Vars.unitGroups;
 
 public class Mechs implements ContentList{
-    public static Mech alpha, delta, tau, omega, dart, javelin, trident, glaive;
+    public static Mech alpha, delta, tau, omega, dart, javelin, trident, glaive, debugGround, debugAir;
 
     /**These are not new mechs, just re-assignments for convenience.*/
     public static Mech starterDesktop, starterMobile;
@@ -376,6 +378,61 @@ public class Mechs implements ContentList{
                 itemCapacity = 60;
                 trailColor = Color.valueOf("feb380");
                 cellTrnsY = 1f;
+            }
+        };
+        //debug
+        debugAir = new Mech("debug-ship", true){
+            {
+                weapon = new Weapon("debug-air"){{
+                    shootY = 1.5f;
+                    reload = 0f;
+                    alternate = true;
+                    ejectEffect = ShootFx.shellEjectSmall;
+                    ammo = AmmoTypes.bulletGlaive;
+                }};
+                drillPower = 20;
+                mineSpeed = 20f;
+                speed = 5f;
+                drag = 0.06f;
+                mass = 1f;
+                armor = 30000000f;
+                itemCapacity = 200000;
+                trailColor = Color.valueOf("feb380");
+                cellTrnsY = 1f;
+            }
+
+            @Override
+            public void updateAlt(Player player){
+                if(player.health < player.maxHealth()){
+                    player.healBy(player.maxHealth() - player.health);
+                }
+            }
+        };
+        debugGround = new Mech("debug-mech", false){
+            {
+                weapon = new Weapon("debug-ground"){{
+                    shootY = 1.5f;
+                    reload = 0f;
+                    alternate = true;
+                    ejectEffect = ShootFx.shellEjectSmall;
+                    ammo = AmmoTypes.bulletGlaive;
+                }};
+                drillPower = 20;
+                mineSpeed = 20f;
+                speed = 5f;
+                drag = 0.06f;
+                mass = 1f;
+                armor = 30000000f;
+                itemCapacity = 200000;
+                trailColor = Color.valueOf("fe8390");
+                cellTrnsY = 1f;
+            }
+
+            @Override
+            public void updateAlt(Player player){
+                if(player.health < player.maxHealth()){
+                    player.healBy(player.maxHealth() - player.health);
+                }
             }
         };
 

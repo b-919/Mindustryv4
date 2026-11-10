@@ -5,7 +5,7 @@ import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.blocks.units.MechPad;
 
 public class UpgradeBlocks extends BlockList{
-    public static Block alphaPad, deltaPad, tauPad, omegaPad, dartPad, javelinPad, tridentPad, glaivePad;
+    public static Block alphaPad, deltaPad, tauPad, omegaPad, dartPad, javelinPad, tridentPad, glaivePad, debugGround, debugAir;
 
     @Override
     public void load(){
@@ -58,6 +58,20 @@ public class UpgradeBlocks extends BlockList{
             mech = Mechs.glaive;
             size = 3;
             powerCapacity = 120f;
+            shadow = "shadow-round-3";
+        }};
+
+        debugAir = new MechPad("debug-ship-pad"){{
+            mech = Mechs.debugAir;
+            size = 3;
+            powerCapacity = 1f;
+            shadow = "shadow-round-3";
+        }};
+
+        debugGround = new MechPad("debug-mech-pad"){{
+            mech = Mechs.debugGround;
+            size = 3;
+            powerCapacity = 1f;
             shadow = "shadow-round-3";
         }};
     }
