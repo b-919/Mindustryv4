@@ -151,13 +151,10 @@ public class ProductionBlocks extends BlockList implements ContentList{
             return new TextureRegion[]{Draw.region(name), Draw.region(name + "-top")};
         }
         @Override
-            public void draw(Tile tile){
-
-
+            public void drawDynamic(Tile tile){
             DrillEntity entity = tile.entity();
             float pulse = 1f + Mathf.absin(Timers.time(), drillTime / 60, 0.15f);
 
-            Draw.rect(region, tile.drawx(), tile.drawy());
             Draw.rect(topRegion, tile.drawx(), tile.drawy(), pulse * size * 8f, pulse * size * 8f);
             if(entity.dominantItem != null && drawMineItem){
                 Draw.color(entity.dominantItem.color);

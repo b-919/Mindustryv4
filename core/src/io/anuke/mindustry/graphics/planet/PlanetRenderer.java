@@ -1132,6 +1132,9 @@ public class PlanetRenderer implements Disposable{
                 for(int i = 0; i < model.orbits.length; i++){
                     Vector3 parentPos = model.orbitParents[i] == null ? null : model.system.positionOf(model.orbitParents[i]);
                     orbitTransform.setToTranslation(parentPos == null ? Vector3.Zero : parentPos);
+                    if(model.system.selfRotation != 0f){
+                        orbitTransform.rotate(Vector3.Y, -model.system.selfRotation);
+                    }
                     model.orbits[i].render(params, orbitTransform);
                 }
             }

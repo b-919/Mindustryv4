@@ -20,6 +20,8 @@ public class SolarSystem{
     public PlanetDefinition sun, moon;
     /** Body currently placed at the origin of the scene. */
     public PlanetDefinition displayed;
+    /** Self-rotation (degrees) used to place the sun/moon in the rotating surface frame. */
+    public float selfRotation;
 
     public void configure(PlanetDefinition planet){
         configure(planet, 0f);
@@ -56,6 +58,12 @@ public class SolarSystem{
         }
 
         light.set(PlanetOrbit.localSunDirection(planet, time, new Vector3()));
+
+        selfRotation = PlanetOrbit.rotationAngle(planet, time);
+        if(selfRotation != 0f){
+            sunPosition.rotate(Vector3.Y, -selfRotation);
+            moonPosition.rotate(Vector3.Y, -selfRotation);
+        }
 
         sunTransform.setToTranslation(sunPosition);
         moonTransform.setToTranslation(moonPosition);

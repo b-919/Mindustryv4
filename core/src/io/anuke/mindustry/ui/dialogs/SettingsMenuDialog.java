@@ -230,7 +230,7 @@ public class SettingsMenuDialog extends SettingsDialog{
         graphics.checkPref("showweather", "Show Weather", true);
         graphics.checkPref("minimap", !mobile); //minimap is disabled by default on mobile devices
 
-        graphics.sliderPref("renderer", "Render Scale", 100, 50, 100, i -> i + "%");
+        graphics.sliderPref("renderer", "Render Scale", 100, -150, 1000, i -> i + "%");
         graphics.checkPref("lod", true);
         graphics.checkPref("bloom", "Bloom", true);
         graphics.sliderPref("bloomintensity", "Bloom Intensity", 10, 5, 40, i -> (i / 10f) + "x");
