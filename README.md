@@ -67,7 +67,7 @@ a room and print the link, and `claj-stop` to close it.
 
 ### Extra Credits:
 [Twcash](https://github.com/Twcash) creator of the Mass Sprites/Textures.<br>
-[xpdustry](https://github.com/xpdustry) Original creator of CLaJ feature.
+[xpdustry](https://github.com/xpdustry) dev team, actual Maintainers of CLaJ feature.
 ### ORIGINAL Downloads
 
 
