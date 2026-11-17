@@ -188,6 +188,7 @@ public class Renderer extends RendererModule{
         Events.on(WorldLoadGraphicsEvent.class, event -> {
             snapToSpawn = true;
             loadSpaceCamera();
+            applyScale();
         });
         Effects.setEffectProvider((effect, color, x, y, rotation, data) -> {
             if(effect == Fx.none) return;
@@ -1415,12 +1416,19 @@ public class Renderer extends RendererModule{
         //renderScale() != lastSurfaceScale and rebuilds every surface again
         lastRenderScale = Settings.getInt("renderer", 100);
         lastSurfaceScale = scale;
+
+        //the surface size participates in the projection/blit; refresh it in the same frame
+        updateCameraViewport();
+        camera.update();
     }
 
     /** The scale factor used by the render surfaces. Larger = smaller surfaces.
-     *  A render scale below 100% renders at a lower resolution and upscales to the screen, cutting GPU fill rate. */
+     *  A render scale below 100% renders at a lower resolution and upscales to the screen, cutting GPU fill rate.
+     *  Above 200% the surfaces use native resolution, i.e. no pixelation. */
     private int renderScale(){
-        return Math.max(1, Math.round(camerascale * 100f / Math.max(Settings.getInt("renderer", 100), 1)));
+        int setting = Settings.getInt("renderer", 100);
+        if(setting > 200) return 1;
+        return Math.max(1, Math.round(camerascale * 100f / Math.max(setting, 1)));
     }
 
     /** Detects render scale changes and rebuilds the surfaces when it changes. */
