@@ -369,8 +369,7 @@ public class MassSquads{
     }
 
     public static void notifyUnitDamaged(Unit unit, Entity attacker){
-        if(!(unit instanceof BaseUnit) || unit instanceof Player || unit.isDead() || !unit.isAdded()) return;
-        BaseUnit damaged = (BaseUnit) unit;
+        if(!(unit instanceof BaseUnit damaged) || unit instanceof Player || unit.isDead() || !unit.isAdded()) return;
 
         int squadId = unitSquadAssignments.get(damaged, -1);
         MassSquad squad = squadId >= 0 && squadId < activeSquads.size ? activeSquads.get(squadId) : null;
