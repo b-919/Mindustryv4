@@ -1,5 +1,6 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.abilities;
 
+import io.anuke.mindustry.entities.units.*;
 import io.anuke.ucore.core.Timers;
 
 /** Regenerates a fixed amount of health per tick. */

@@ -1,18 +1,13 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.aiunit;
 
+import io.anuke.mindustry.entities.units.*;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.ucore.function.Predicate;
 import io.anuke.ucore.util.Timer;
 
-/**
- * Base controller shared by all AI units.
- * <p>
- * During the migration this class delegates to the unit's existing state machine. New behaviour
- * should be added here or in a subclass instead of a new {@code UnitState} object, so that the
- * legacy states can be deleted one archetype at a time.
- */
+/** Base controller shared by all AI units. */
 public abstract class AIController implements UnitController{
     protected static final int timerTarget = 0;
     protected static final int timerRetreat = 1;
@@ -21,7 +16,6 @@ public abstract class AIController implements UnitController{
     protected BaseUnit unit;
     protected TargetTrait target;
     protected final Timer timer = new Timer(6);
-    /**Reused healer-search predicate; a field so the update path never allocates a closure.*/
     protected final Predicate<Unit> healerPred = this::isHealerAlly;
 
     public AIController(BaseUnit unit){
@@ -40,7 +34,6 @@ public abstract class AIController implements UnitController{
 
     @Override
     public void updateUnit(){
-        unit.updateDefaultAI();
     }
 
     /** Returns true when the target should be re-selected this tick. */

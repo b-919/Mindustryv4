@@ -50,10 +50,24 @@ public class PlayerUnitTypes implements ContentList{
         type.buildPower = mech.buildPower;
         type.minePower = mech.mineSpeed;
         type.carryWeight = mech.carryWeight;
+        type.drillPower = mech.drillPower;
+        type.boostSpeed = mech.boostSpeed;
         type.spawnsInSiegeMode = false;
         type.unitCost = 0;
         type.playerControllable = true;
         type.rtsAIControllable = false;
+
+        //player bodies use the mech sprite set and mech-only draw data
+        type.mechBody = true;
+        type.iconRegionName = "mech-icon-" + mech.name;
+        type.cellTrnsY = mech.cellTrnsY;
+        type.shake = mech.shake;
+        type.turnCursor = mech.turnCursor;
+        type.trailColor.set(mech.trailColor);
+        type.trailColorTo.set(mech.trailColorTo);
+        type.healTurretOffsetX = mech.healTurretOffsetX;
+        type.healTurretOffsetY = mech.healTurretOffsetY;
+
         mech.unitType = type;
     }
 

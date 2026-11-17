@@ -1,5 +1,6 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.abilities;
 
+import io.anuke.mindustry.entities.units.*;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import io.anuke.mindustry.entities.Unit;
@@ -11,11 +12,7 @@ import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Log;
 import io.anuke.ucore.util.Mathf;
 
-/**
- * Heals one nearby damaged ally at a time and draws a repair beam towards it.
- * <p>
- * This is the ability form of the former {@code GroundHealUnit} update/draw code.
- */
+/** Heals one nearby damaged ally at a time and draws a repair beam towards it. */
 public class HealBeamAbility extends Ability{
     private static final Color beamColor = Color.valueOf("70f17f");
 

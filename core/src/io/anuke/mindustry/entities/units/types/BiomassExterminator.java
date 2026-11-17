@@ -1,13 +1,13 @@
 package io.anuke.mindustry.entities.units.types;
 
 import com.badlogic.gdx.graphics.Color;
-import io.anuke.mindustry.entities.units.BiomassGroundUnit;
+import io.anuke.mindustry.entities.units.GroundUnit;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Mathf;
 
-public class BiomassExterminator extends BiomassGroundUnit {
+public class BiomassExterminator extends GroundUnit {
     @Override
     public void draw(){
         Draw.alpha(hitTime / hitDuration);

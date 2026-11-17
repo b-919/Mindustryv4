@@ -1,25 +1,36 @@
 package io.anuke.mindustry.entities.units;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.Queue;
+import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.Predict;
+import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.Units;
+import io.anuke.mindustry.entities.units.aiunit.*;
+import io.anuke.mindustry.entities.traits.BuilderTrait;
 import io.anuke.mindustry.entities.traits.CarriableTrait;
 import io.anuke.mindustry.entities.traits.CarryTrait;
+import io.anuke.mindustry.entities.traits.MinerTrait;
 import io.anuke.mindustry.graphics.Trail;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.AmmoType;
-import io.anuke.mindustry.entities.Unit;
+import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.world.Tile;
-import io.anuke.mindustry.world.meta.BlockFlag;
 import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.util.*;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 import static io.anuke.mindustry.Vars.world;
 
-public class FlyingUnit extends BaseUnit implements CarryTrait{
+public class FlyingUnit extends BaseUnit implements CarryTrait, MinerTrait, BuilderTrait{
     @Override
     public boolean isRetreating(){
-        return controller instanceof FlyingAI ? ((FlyingAI)controller).isRetreating() : state.is(retreat);
+        return controller instanceof FlyingAI && ((FlyingAI)controller).isRetreating();
     }
     protected static Translator vec = new Translator();
     protected static float wobblyness = 0.6f;
@@ -27,161 +38,19 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
     public Trail trail = new Trail(8);
     public Trail trail2 = new Trail(8);
     protected CarriableTrait carrying;
-    protected final UnitState
-
-    idle = new UnitState(){
-        public void update(){
-            if(!isCommanded()){
-                retarget(() -> {
-                    targetClosest();
-                    targetClosestEnemyFlag(BlockFlag.target);
-
-                    if(target != null){
-                        setState(attack);
-                    }
-                });
-            }
-
-            target = getClosestCore();
-            if(target != null){
-                circle(50f);
-            }
-            velocity.scl(0.8f);
-        }
-    },
-
-    attack = new UnitState(){
-        public void entered(){
-            target = null;
-        }
-
-        public void update(){
-            if(health < maxHealth() * 0.5f && timer.get(timerRetreat, 30f)){
-                Tile repair = Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair));
-                Unit healer = Units.getClosest(team, x, y, getType().healRange, u -> u.isHealer() && u != FlyingUnit.this);
-                if(repair != null && distanceTo(repair) < getType().healRange){
-                    setState(retreat);
-                    return;
-                }else if(healer != null){
-                    setState(retreat);
-                    return;
-                }
-            }
-
-            if(Units.invalidateTarget(target, team, x, y)){
-                target = null;
-            }
-
-            if(getOrderType() == UnitOrderType.attackTarget && target != null){
-                //use the unit's own engagement distance so custom hit-and-run attacks stay intact
-                attack(type.attackLength);
-                return;
-            }
-
-            if(retarget()){
-                targetClosest();
-
-                if(target == null) targetClosestEnemyFlag(BlockFlag.producer);
-                if(target == null) targetClosestEnemyFlag(BlockFlag.turret);
-                if(target == null) targetClosestEnemyFlag(BlockFlag.target);
-
-                if(target == null && isCommanded() && getCommand() != UnitCommand.attack){
-                    onCommand(getCommand());
-                }
-            }else if(target != null){
-                attack(type.attackLength);
-            } else {
-                target = getClosestCore();
-                moveTo(Math.max(type.range, 120f));
-            }
-        }
-    },
-    patrol = new UnitState(){
-        public void update(){
-            if(retarget()){
-                targetClosestAllyFlag(BlockFlag.comandCenter);
-                targetClosest();
-
-                if(target != null && !Units.invalidateTarget(target, team, x, y)){
-                    setState(pursue);
-                    return;
-                }
-
-                if(target == null) target = getClosestCore();
-            }
-
-            if(target != null){
-                circle(60f + Mathf.absin(Timers.time() + id * 23525, 70f, 1200f));
-            }
-
-            //circle(60f + Mathf.absin(Timers.time() + id * 23525, 70f, 1200f));
-        }
-    },
-
-    pursue = new UnitState(){
-        public void update(){
-            if(Units.invalidateTarget(target, team, x, y) || distanceTo(target) > getType().pursueRange){
-                target = null;
-                onCommand(getCommand());
-            }else{
-                attack(type.attackLength);
-            }
-        }
-    },
-
-    retreat = new UnitState(){
-        public void entered(){
-            target = null;
-        }
-
-        public void update(){
-            if(health >= maxHealth()){
-                if(isCommanded()){
-                    onCommand(getCommand());
-                }else{
-                    setState(attack);
-                }
-            }
-
-            if(retarget()){
-                target = getClosestCore();
-                Unit healer = Units.getClosest(team, x, y, getType().healRange, u -> u.isHealer() && u != FlyingUnit.this);
-                Tile repair = Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair));
-                if(repair != null && (health < maxHealth())) FlyingUnit.this.target = repair.entity;
-                if(healer != null && repair == null && (health < maxHealth())) FlyingUnit.this.target = healer;
-                if(target == null) target = getClosestCore();
-            }
-
-            if(target == getClosestCore())circle(60f + Mathf.absin(Timers.time() + id * 23525, 70f, 1200f));
-            else circle(45f + Mathf.randomSeed(id) * 80);
-        }
-    },
-
-    hold = new UnitState(){
-        public void update(){
-            velocity.scl(0.9f);
-            if(retarget()){
-                targetClosest();
-            }
-        }
-    };
+    protected Tile mineTile;
+    protected final Queue<BuildRequest> placeQueue = new Queue<>();
 
     @Override
     public void onCommand(UnitCommand command){
         if(controller instanceof FlyingAI){
             ((FlyingAI)controller).command(command);
         }
-        state.set(command == UnitCommand.retreat ? retreat :
-                  command == UnitCommand.attack ? attack :
-                  command == UnitCommand.patrol ? patrol :
-                  null);
     }
 
     protected void holdState(){
         if(controller instanceof FlyingAI){
             ((FlyingAI)controller).setMode(FlyingAI.Mode.hold);
-        }else{
-            setState(hold);
         }
     }
 
@@ -201,8 +70,111 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
     }
 
     @Override
+    public Tile getMineTile(){
+        return mineTile;
+    }
+
+    @Override
+    public void setMineTile(Tile tile){
+        this.mineTile = tile;
+    }
+
+    @Override
+    public float getMinePower(){
+        return type == null ? 0.7f : type.minePower;
+    }
+
+    @Override
+    public boolean canMine(Item item){
+        return type == null || type.mineAnyOre || type.toMine.contains(item);
+    }
+
+    @Override
+    public Queue<BuildRequest> getPlaceQueue(){
+        return placeQueue;
+    }
+
+    @Override
+    public float getBuildPower(Tile tile){
+        return type == null ? 0.3f : type.buildPower;
+    }
+
+    @Override
+    public boolean canCreateBlocks(){
+        return true;
+    }
+
+    @Override
+    public boolean canShootWeapons(){
+        if(controller instanceof BuilderAI && ((BuilderAI)controller).isBusy()){
+            return false;
+        }
+        return super.canShootWeapons() && getMineTile() == null;
+    }
+
+    @Override
+    public void write(DataOutput data) throws IOException{
+        super.write(data);
+        if(type != null && type.syncMineTile){
+            data.writeLong(mineTile == null ? -1L : mineTile.packedPosition());
+        }
+        if(type != null && type.syncBuilding){
+            BuilderAI ai = controller instanceof BuilderAI ? (BuilderAI)controller : null;
+            data.writeLong(ai != null && ai.mode == BuilderAI.Mode.mine && mineTile != null ? mineTile.packedPosition() : -1L);
+            data.writeLong(ai != null && ai.mode == BuilderAI.Mode.repair && target instanceof TileEntity ? ((TileEntity)target).tile.packedPosition() : -1L);
+            writeBuilding(data);
+        }
+        if(type != null && type.leaderSync == 1){
+            Player leader = controller instanceof FollowAI ? ((FollowAI)controller).getPlayerLeader() : null;
+            data.writeInt(leader == null ? -1 : leader.id);
+        }else if(type != null && type.leaderSync == 2){
+            TileEntity leader = controller instanceof DefenderAI ? ((DefenderAI)controller).getLeader() : null;
+            data.writeLong(leader == null ? -1L : leader.tile.packedPosition());
+        }
+    }
+
+    @Override
+    public void read(DataInput data, long time) throws IOException{
+        super.read(data, time);
+        if(type != null && type.syncMineTile){
+            long mined = data.readLong();
+            mineTile = mined == -1L ? null : world.tile(mined);
+        }
+        if(type != null && type.syncBuilding){
+            long mined = data.readLong();
+            long repairing = data.readLong();
+            readBuilding(data);
+
+            if(mined != -1L){
+                mineTile = world.tile(mined);
+            }
+
+            if(controller instanceof BuilderAI){
+                BuilderAI ai = (BuilderAI)controller;
+                if(repairing != -1L){
+                    Tile tile = world.tile(repairing);
+                    target = tile == null ? null : tile.entity;
+                    ai.mode = BuilderAI.Mode.repair;
+                }else{
+                    ai.mode = BuilderAI.Mode.retreat;
+                }
+            }
+        }
+        if(type != null && type.leaderSync == 1){
+            Player leader = Vars.playerGroup.getByID(data.readInt());
+            if(controller instanceof FollowAI) ((FollowAI)controller).setLeader(leader);
+        }else if(type != null && type.leaderSync == 2){
+            long id = data.readLong();
+            Tile tile = id == -1L ? null : world.tile(id);
+            if(controller instanceof DefenderAI) ((DefenderAI)controller).setLeader(tile == null ? null : tile.entity);
+        }
+    }
+
+    @Override
     public void update(){
         super.update();
+
+        updateBuilding(this);
 
         if(!Net.client()){
             updateRotation();
@@ -229,7 +201,7 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
     }
 
     @Override
-    protected boolean updateOrder(){
+    public boolean updateOrder(){
         if(!hasOrder()){
             return false;
         }
@@ -246,8 +218,8 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
                 return false;
             }
 
-            vec.setLength(type.speed * Timers.delta());
-            velocity.add(vec);
+            vec.setLength(movementSpeed());
+            movePref(vec);
             return true;
         }
 
@@ -263,8 +235,8 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
                 return false;
             }
 
-            vec.setLength(type.speed * Timers.delta());
-            velocity.add(vec);
+            vec.setLength(movementSpeed());
+            movePref(vec);
             return true;
         }
 
@@ -299,11 +271,16 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
         float aimX = x + Angles.trnsx(rotation, 100f), aimY = y + Angles.trnsy(rotation, 100f);
         boolean shoot = false;
 
-        if(ammo != null && target != null && !Units.invalidateTarget(target, team, x, y, Math.max(range, type.range))){
-            Vector2 to = Predict.intercept(this, target, ammo.bullet.speed);
-            aimX = to.x;
-            aimY = to.y;
-            shoot = !Units.invalidateTarget(target, team, x, y, range);
+        if(ammo != null && target != null){
+            boolean healAlly = ammo.bullet.collidesTeam && target.getTeam() == team && target.isValid()
+                    && target.distanceTo(x, y) <= Math.max(range, type.range);
+
+            if(healAlly || !Units.invalidateTarget(target, team, x, y, Math.max(range, type.range))){
+                Vector2 to = Predict.intercept(this, target, ammo.bullet.speed);
+                aimX = to.x;
+                aimY = to.y;
+                shoot = healAlly || !Units.invalidateTarget(target, team, x, y, range);
+            }
         }
 
         aimWeaponMounts(aimX, aimY);
@@ -314,33 +291,27 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
     public void drawEngine(){
         if(type == null || !type.drawEngine) return;
 
-        trail.draw(type.trailColor, type.engineSize);
+        Color color = type.trailTeamColor ? getTeam().color : type.trailColor;
+        trail.draw(color, type.engineSize);
         if(type.engineMirror){
-            trail2.draw(type.trailColor, type.engineSize);
+            trail2.draw(color, type.engineSize);
         }
     }
 
     @Override
     public void drawOver(){
         drawEngine();
+        if(type != null && type.drawMiningLaser){
+            drawBuilding(this);
+        }
     }
 
     @Override
     public void behavior(){
-        if(health <= health * type.retreatPercent && !isCommanded() &&
-         Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair)) != null){
-            setState(retreat);
-        }
-
         if(squad != null){
             squad.direction.add(velocity.x / squad.units, velocity.y / squad.units);
             velocity.setAngle(Mathf.slerpDelta(velocity.angle(), squad.direction.angle(), 0.3f));
         }
-    }
-
-    @Override
-    public UnitState getStartState(){
-        return attack;
     }
 
     @Override
@@ -354,20 +325,30 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
         x += Mathf.sin(Timers.time() + id * 999, 25f, 0.08f)*Timers.delta();
         y += Mathf.cos(Timers.time() + id * 999, 25f, 0.08f)*Timers.delta();
 
-        if(velocity.len() <= 0.05f){
+        if(velocity.len() <= 0.05f && (type == null || !type.missileMovement)){
             rotation += Mathf.sin(Timers.time() + id * 99, 10f, 2.5f)*Timers.delta();
         }}
     }
 
     protected void updateRotation(){
-        rotation = velocity.angle();
+        if(type != null && type.missileMovement){
+            if(!Units.invalidateTarget(target, this)){
+                rotation = Mathf.slerpDelta(rotation, angleTo(target), type.rotatespeed);
+            }else{
+                rotation = Mathf.slerpDelta(rotation, velocity.angle(), type.baseRotateSpeed);
+            }
+        }else if(type != null && type.mineAimRotation && mineTile != null && target != null && mineTile.distanceTo(this) < type.range){
+            rotation = Mathf.slerpDelta(rotation, angleTo(target), 0.3f);
+        }else{
+            rotation = velocity.angle();
+        }
     }
 
-    protected void circle(float circleLength){
-        circle(circleLength, type.speed);
+    public void circle(float circleLength){
+        circle(circleLength, movementSpeed());
     }
 
-    protected void circle(float circleLength, float speed){
+    public void circle(float circleLength, float speed){
         if(target == null) return;
 
         vec.set(target.getX() - x, target.getY() - y);
@@ -376,25 +357,30 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
             vec.rotate((circleLength - vec.len()) / circleLength * 180f);
         }
 
-        vec.setLength(speed * Timers.delta());
+        vec.setLength(speed);
 
-        velocity.add(vec);
+        movePref(vec);
     }
 
-    protected void moveTo(float circleLength){
+    public void moveTo(float circleLength){
         if(target == null) return;
 
         vec.set(target.getX() - x, target.getY() - y);
 
         float length = circleLength <= 0.001f ? 1f : Mathf.clamp((distanceTo(target) - circleLength) / 100f, -1f, 1f);
 
-        vec.setLength(type.speed * Timers.delta() * length);
+        vec.setLength(movementSpeed() * length);
         if(length < 0) vec.rotate(180f);
 
-        velocity.add(vec);
+        movePref(vec);
     }
 
-    protected void attack(float circleLength){
+    public void attack(float circleLength){
+        if(type != null && type.missileMovement){
+            moveTo(circleLength);
+            return;
+        }
+
         vec.set(target.getX() - x, target.getY() - y);
 
         float ang = angleTo(target);
@@ -406,8 +392,8 @@ public class FlyingUnit extends BaseUnit implements CarryTrait{
             vec.setAngle(Mathf.slerpDelta(velocity.angle(), vec.angle(), 0.44f));
         }
 
-        vec.setLength(type.speed * Timers.delta());
+        vec.setLength(movementSpeed());
 
-        velocity.add(vec);
+        movePref(vec);
     }
 }

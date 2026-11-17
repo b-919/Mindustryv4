@@ -483,8 +483,8 @@ public class NetServer extends Module{
 
         long elapsed = TimeUtils.timeSinceMillis(connection.lastRecievedClientTime);
 
-        float maxSpeed = boosting && !player.mech.flying ? player.mech.boostSpeed : player.mech.speed;
-        float maxMove = elapsed / 1000f * 60f * Math.min(compound(maxSpeed, player.mech.drag) * 1.25f, player.mech.maxSpeed * 1.1f);
+        float maxSpeed = boosting && !player.getType().isFlying ? player.getType().boostSpeed : player.getType().speed;
+        float maxMove = elapsed / 1000f * 60f * Math.min(compound(maxSpeed, player.getType().drag) * 1.25f, player.getType().maxVelocity * 1.1f);
 
         player.pointerX = pointerX;
         player.pointerY = pointerY;
@@ -507,7 +507,7 @@ public class NetServer extends Module{
 
         float prevx = player.x, prevy = player.y;
         player.set(player.getInterpolator().target.x, player.getInterpolator().target.y);
-        if(!player.mech.flying && player.boostHeat < 0.01f){
+        if(!player.getType().isFlying && player.boostHeat < 0.01f){
             player.move(vector.x, vector.y);
         }else{
             player.x += vector.x;

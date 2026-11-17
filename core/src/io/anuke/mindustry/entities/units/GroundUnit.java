@@ -1,11 +1,11 @@
 package io.anuke.mindustry.entities.units;
 
 import com.badlogic.gdx.math.Vector2;
-import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.entities.Predict;
-import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.Units;
+import io.anuke.mindustry.entities.units.aiunit.*;
 import io.anuke.mindustry.game.Team;
+import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.AmmoType;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.type.Weapon;
@@ -20,143 +20,19 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import io.anuke.mindustry.entities.Unit;
-import io.anuke.mindustry.world.meta.BlockFlag;
-import io.anuke.ucore.util.Geometry;
 
 import static io.anuke.mindustry.Vars.*;
 
 public class GroundUnit extends BaseUnit{
     protected static Translator vec = new Translator();
     protected float walkTime;
-protected float baseRotation;
 protected Weapon weapon;
-
-    public final UnitState
-
-    attack = new UnitState(){
-        public void entered(){
-            target = null;
-        }
-
-        public void update(){
-            if(health < maxHealth() * 0.5f && timer.get(timerRetreat, 30f)){
-                Tile repair = Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair));
-                Unit healer = Units.getClosest(team, x, y, getType().healRange, u -> u.isHealer() && u != GroundUnit.this);
-                if(repair != null && distanceTo(repair) < getType().healRange){
-                    state.set(retreat);
-                    return;
-                }else if(healer != null){
-                    state.set(retreat);
-                    return;
-                }
-            }
-
-            TileEntity core = getClosestEnemyCore();
-
-            if(getOrderType() == UnitOrderType.attackTarget && target != null){
-                if(distanceTo(target) > engageRange()){
-                    path.moveWithPathfinding(GroundUnit.this, target.getX(), target.getY());
-                }else{
-                    velocity.scl(0.85f);
-                }
-                return;
-            }
-
-            if(target == null && core != null){
-                target = core;
-            }
-
-            if(target == null && timer.get(timerFallback, 20f)){
-                targetClosestEnemyFlag(BlockFlag.producer);
-                if(target == null) targetClosestEnemyFlag(BlockFlag.turret);
-                if(target == null) targetClosestEnemyFlag(BlockFlag.target);
-            }
-
-            if(core != null && distanceTo(core) > getWeapon().getAmmo().getRange() * 0.5f){
-                moveToEnemyCore();
-            }else if(core == null && target != null){
-                path.moveWithPathfinding(GroundUnit.this, target.getX(), target.getY());
-            }
-        }
-    },
-    patrol = new UnitState(){
-        public void update(){
-            TileEntity target = getClosestCore();
-            if(target != null){
-                if(distanceTo(target) > 400f){
-                    moveAwayFromCore();
-                }else{
-                    patrol();
-                }
-            }
-        }
-    },
-    retreat = new UnitState(){
-        public void entered(){
-            target = null;
-        }
-
-        public void update(){
-            if(health >= maxHealth()){
-                clearMovePath();
-                if(isCommanded()){
-                    onCommand(getCommand());
-                }else{
-                    state.set(attack);
-                }
-                return;
-            }
-
-            if(retarget() || target == null || (target instanceof TileEntity && (((TileEntity)target).getTile() == null || ((TileEntity)target).getTile().target().block().flags == null || !((TileEntity)target).getTile().target().block().flags.contains(BlockFlag.repair))) || (target instanceof Unit && !((Unit)target).isHealer())){
-                Unit healer = Units.getClosest(team, x, y, getType().healRange, u -> u.isHealer() && u != GroundUnit.this);
-                Tile repair = Geometry.findClosest(x, y, world.indexer.getAllied(team, BlockFlag.repair));
-                clearMovePath();
-                if(repair != null) target = repair.entity();
-                else if(healer != null) target = healer;
-                else target = getClosestCore();
-            }
-
-            if(target != null){
-                float dst = distanceTo(target);
-                if(dst > 7f){
-                    if(target instanceof TileEntity && ((TileEntity)target).getTile() != null && ((TileEntity)target).getTile().target().block().flags != null && ((TileEntity)target).getTile().target().block().flags.contains(BlockFlag.repair)){
-                        path.moveWithPathfinding(GroundUnit.this, target.getX(), target.getY());
-                    }else if(target instanceof Unit && ((Unit)target).isHealer()){
-                        if(dst > type.healRange){
-                            moveToHome();
-                        }else{
-                            path.moveWithPathfinding(GroundUnit.this, target.getX(), target.getY());
-                        }
-                    }else{
-                        moveToHome();
-                    }
-                }else{
-                    velocity.setZero();
-                }
-            }else{
-                moveToHome();
-            }
-        }
-    },
-
-    hold = new UnitState(){
-        public void update(){
-            velocity.scl(0.9f);
-            if(retarget()){
-                targetClosest();
-            }
-        }
-    };
 
     @Override
     public void onCommand(UnitCommand command){
         if(controller instanceof GroundAI){
             ((GroundAI)controller).command(command);
         }
-        state.set(command == UnitCommand.retreat ? retreat :
-                  command == UnitCommand.attack ? attack :
-                  command == UnitCommand.patrol ? patrol :
-                  null);
     }
 
     @Override
@@ -176,15 +52,10 @@ protected Weapon weapon;
 
     @Override
     public void move(float x, float y){
-        if(Mathf.dst(x, y) > 0.01f){
+        if(type.omniMovement && Mathf.dst(x, y) > 0.01f){
             baseRotation = Mathf.slerpDelta(baseRotation, Mathf.atan2(x, y), type.baseRotateSpeed);
         }
         super.move(x, y);
-    }
-
-    @Override
-    public UnitState getStartState(){
-        return attack;
     }
 
     @Override
@@ -197,12 +68,48 @@ protected Weapon weapon;
             clearMovePath();
         }
 
-        if(!velocity.isZero()){
+        if(!velocity.isZero() && type.omniMovement){
             baseRotation = Mathf.slerpDelta(baseRotation, velocity.angle(), 0.05f);
         }
 
+        updateTankMovement();
+
         if(stuckTime < 1f){
             walkTime += Timers.delta();
+        }
+    }
+
+    /** Tank movement type: tread slowdown near solids and optional crush damage. */
+    private void updateTankMovement(){
+        if(type == null || !type.isTank){
+            terrainSpeedMultiplier = 1f;
+            return;
+        }
+
+        int r = Math.max((int)(type.hitsize * 0.75f / tilesize), 0);
+        int solids = 0, total = (r * 2 + 1) * (r * 2 + 1);
+
+        for(int dx = -r; dx <= r; dx++){
+            for(int dy = -r; dy <= r; dy++){
+                Tile tile = world.tileWorld(x + dx * tilesize, y + dy * tilesize);
+                if(tile == null || tile.solid()){
+                    solids++;
+                }
+            }
+        }
+
+        terrainSpeedMultiplier = Mathf.lerp(1f, type.crawlSlowdown, Mathf.clamp((float)solids / total / type.crawlSlowdownFrac, 0f, 1f));
+
+        if(type.crushDamage > 0f && !Net.client() && !velocity.isZero()){
+            int crushRadius = Math.max(r - 1, 0);
+            for(int dx = -crushRadius; dx <= crushRadius; dx++){
+                for(int dy = -crushRadius; dy <= crushRadius; dy++){
+                    Tile tile = world.tileWorld(x + dx * tilesize, y + dy * tilesize);
+                    if(tile != null && tile.entity != null && tile.entity.getTeam() != team){
+                        tile.entity.damage(type.crushDamage * Timers.delta());
+                    }
+                }
+            }
         }
     }
 
@@ -222,7 +129,7 @@ protected Weapon weapon;
     }
 
     @Override
-    protected boolean updateOrder(){
+    public boolean updateOrder(){
         if(!hasOrder()){
             clearOrderPath();
             return false;
@@ -236,11 +143,7 @@ protected Weapon weapon;
                 clearOrder();
                 clearOrderPath();
                 velocity.scl(0.5f);
-                if(controller instanceof GroundAI){
-                    ((GroundAI)controller).setMode(GroundAI.Mode.hold);
-                }else{
-                    state.set(hold);
-                }
+                ((GroundAI)controller).setMode(GroundAI.Mode.hold);
                 return false;
             }
 
@@ -257,11 +160,7 @@ protected Weapon weapon;
             if(dst <= arrivalDst){
                 clearOrder();
                 clearOrderPath();
-                if(controller instanceof GroundAI){
-                    ((GroundAI)controller).setMode(GroundAI.Mode.hold);
-                }else{
-                    state.set(hold);
-                }
+                ((GroundAI)controller).setMode(GroundAI.Mode.hold);
                 return false;
             }
 
@@ -273,11 +172,7 @@ protected Weapon weapon;
             if(target == null || target.isDead() || target.getTeam() == team){
                 clearOrder();
                 clearOrderPath();
-                if(controller instanceof GroundAI){
-                    ((GroundAI)controller).setMode(GroundAI.Mode.hold);
-                }else{
-                    state.set(hold);
-                }
+                ((GroundAI)controller).setMode(GroundAI.Mode.hold);
                 return false;
             }
 
@@ -315,10 +210,6 @@ protected Weapon weapon;
 
     @Override
     public void behavior(){
-        if(health <= health * type.retreatPercent && !isCommanded()){
-            setState(retreat);
-        }
-
         if(!Units.invalidateTarget(target, this)){
             if(isAiming()){
                 rotate(angleTo(target));
@@ -356,7 +247,7 @@ protected Weapon weapon;
 
     @Override
     public boolean isRetreating(){
-        return controller instanceof GroundAI ? ((GroundAI)controller).isRetreating() : state.is(retreat);
+        return controller instanceof GroundAI && ((GroundAI)controller).isRetreating();
     }
 
     @Override
@@ -396,9 +287,9 @@ protected Weapon weapon;
         super.readSave(stream);
     }
 
-    protected void moveTo(float x, float y){
+    public void moveTo(float x, float y){
         float angle = avoidAngle(angleTo(x, y));
-        velocity.add(vec.trns(angle, type.speed * Timers.delta()));
+        movePref(vec.trns(angle, movementSpeed()));
         if(!isAiming()) rotation = Mathf.slerpDelta(rotation, angle, type.rotatespeed);
     }
 

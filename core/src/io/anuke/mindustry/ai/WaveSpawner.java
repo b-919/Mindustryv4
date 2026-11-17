@@ -4,7 +4,7 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.content.blocks.Blocks;
 import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.Squad;
+import io.anuke.mindustry.entities.units.aiunit.Squad;
 import io.anuke.mindustry.entities.units.UnitType;
 import io.anuke.mindustry.maps.missions.WaveExtraMission;
 import io.anuke.mindustry.game.EventType.WorldLoadEvent;

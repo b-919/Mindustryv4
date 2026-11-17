@@ -14,13 +14,6 @@ public abstract class MainTrain extends GroundUnit{
     protected MainTrain nextWagon;
     protected MainTrain previousWagon;
 
-    protected final UnitState railMove = new UnitState(){
-        @Override
-        public void update(){
-            moveOnRails();
-        }
-    };
-
     protected boolean isOnRail(){
         Tile tile = world.tileWorld(x, y);
         if(tile == null) return false;
@@ -37,11 +30,6 @@ public abstract class MainTrain extends GroundUnit{
     }
 
     @Override
-    public UnitState getStartState(){
-        return railMove;
-    }
-
-    @Override
     public void updateTargeting(){
     }
 
@@ -49,7 +37,7 @@ public abstract class MainTrain extends GroundUnit{
     public void behavior(){
     }
 
-    protected void moveOnRails(){
+    public void moveOnRails(){
         Tile tile = world.tileWorld(x, y);
         if(tile == null) return;
         tile = tile.target();

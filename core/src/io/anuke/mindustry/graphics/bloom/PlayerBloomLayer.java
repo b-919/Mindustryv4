@@ -31,14 +31,16 @@ public class PlayerBloomLayer implements BloomLayer{
             }
 
             // trail bloom
-            if(player.mech.flying || player.boostHeat > 0.001f){
+            if(player.getType().isFlying || player.boostHeat > 0.001f){
                 player.trail.draw(
-                    Hue.mix(player.mech.trailColor, player.mech.trailColorTo, player.mech.flying ? 0f : player.boostHeat, Tmp.c1),
+                    Hue.mix(player.getType().trailColor, player.getType().trailColorTo, player.getType().isFlying ? 0f : player.boostHeat, Tmp.c1),
                     5f * (player.isFlying() ? 1f : player.boostHeat));
             }
 
             // mech bloom
-            player.mech.drawBloom(player);
+            for(int i = 0; i < player.mechAbilities.size; i++){
+                player.mechAbilities.get(i).drawBloom(player);
+            }
         }
     }
 }

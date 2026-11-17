@@ -13,7 +13,7 @@ import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.graphics.Draw;
 
 /** Shoot-heat based armor: slows the mech, adds armor and draws the heated armor plate. */
-public class OmegaHeatAbility implements MechAbility{
+public class OmegaHeatAbility extends MechAbility{
     public float armorPerHeat = 30f;
     public float spreadPerHeat = 2f;
 

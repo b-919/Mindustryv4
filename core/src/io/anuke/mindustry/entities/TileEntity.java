@@ -13,7 +13,8 @@ import io.anuke.mindustry.content.fx.Fx;
 import io.anuke.mindustry.entities.bullet.Bullet;
 import io.anuke.mindustry.entities.effect.ScorchDecal;
 import io.anuke.mindustry.entities.traits.TargetTrait;
-import io.anuke.mindustry.entities.units.types.BlockDefenseDrone;
+import io.anuke.mindustry.entities.units.BaseUnit;
+import io.anuke.mindustry.entities.units.aiunit.DefenderAI;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.Teams.BlockPlan;
 import io.anuke.mindustry.gen.Call;
@@ -210,8 +211,10 @@ public class TileEntity extends BaseEntity implements TargetTrait, HealthTrait{
 
             if(tile.block().defenseDrones && !Net.client()){
                 for(int i = defenseDronesCount; i < tile.block().maxDefenseDrones; i++){
-                    BlockDefenseDrone drone = (BlockDefenseDrone) tile.block().defenseDroneType.create(tile.getTeam());
-                    drone.leader = this;
+                    BaseUnit drone = tile.block().defenseDroneType.create(tile.getTeam());
+                    if(drone.getController() instanceof DefenderAI){
+                        ((DefenderAI)drone.getController()).setLeader(this);
+                    }
                     drone.set(tile.worldx() + Mathf.range(4f), tile.worldy() + Mathf.range(4f));
                     drone.add();
                     defenseDronesCount++;

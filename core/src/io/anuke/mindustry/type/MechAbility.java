@@ -1,45 +1,47 @@
 package io.anuke.mindustry.type;
 
 import io.anuke.mindustry.entities.Player;
+import io.anuke.mindustry.entities.units.abilities.Ability;
 
 /**
  * A reusable behaviour attached to a {@link Mech}.
  * <p>
- * This is the player-side counterpart of {@link io.anuke.mindustry.entities.units.Ability}. It keeps
- * the player save format unchanged while removing hard-coded behaviour from {@code Mechs.java}.
+ * Extends the shared {@link Ability} base so mech and unit abilities share one class hierarchy.
+ * The mech-specific hooks take a {@link Player}; the base {@link Ability} hooks remain available
+ * for the common lifecycle.
  */
-public interface MechAbility{
-    default void load(Mech mech){
+public abstract class MechAbility extends Ability{
+    public void load(Mech mech){
     }
 
-    default void update(Player player){
+    public void update(Player player){
     }
 
-    default void onLand(Player player){
+    public void onLand(Player player){
     }
 
-    default void draw(Player player){
+    public void draw(Player player){
     }
 
-    default void drawOver(Player player){
+    public void drawOver(Player player){
     }
 
-    default void drawBloom(Player player){
+    public void drawBloom(Player player){
     }
 
-    default float getExtraArmor(Player player){
+    public float getExtraArmor(Player player){
         return 0f;
     }
 
-    default float spreadX(Player player){
+    public float spreadX(Player player){
         return 0f;
     }
 
-    default float getRotationAlpha(Player player){
+    public float getRotationAlpha(Player player){
         return 1f;
     }
 
-    default boolean canShoot(Player player){
+    public boolean canShoot(Player player){
         return true;
     }
 }

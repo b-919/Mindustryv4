@@ -93,7 +93,7 @@ public class PlayerListFragment extends Fragment{
                 }
             };
             table.margin(8);
-            table.add(new Image(player.mech.iconRegion)).grow();
+            table.add(new Image(player.getIconRegion())).grow();
 
             button.add(table).size(h);
             button.labelWrap("[#" + player.color.toString().toUpperCase() + "]" + player.name).width(170f).pad(10);

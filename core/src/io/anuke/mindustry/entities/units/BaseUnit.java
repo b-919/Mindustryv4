@@ -11,6 +11,7 @@ import io.anuke.annotations.Annotations.Loc;
 import io.anuke.annotations.Annotations.Remote;
 import io.anuke.mindustry.Vars;
 import io.anuke.mindustry.content.fx.ExplosionFx;
+import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.Damage;
 import io.anuke.mindustry.entities.Predict;
 import io.anuke.mindustry.entities.TileEntity;
@@ -20,6 +21,8 @@ import io.anuke.mindustry.entities.effect.ScorchDecal;
 import io.anuke.mindustry.entities.traits.ShooterTrait;
 import io.anuke.mindustry.entities.traits.SpawnerTrait;
 import io.anuke.mindustry.entities.traits.TargetTrait;
+import io.anuke.mindustry.entities.units.aiunit.*;
+import io.anuke.mindustry.entities.units.abilities.*;
 import io.anuke.mindustry.entities.weapon.WeaponMount;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.gen.Call;
@@ -49,7 +52,7 @@ import static io.anuke.mindustry.sounds.Sounds.unitExplode;
 /**Base class for AI units.*/
 public abstract class BaseUnit extends Unit implements ShooterTrait{
 
-    protected static int timerIndex = 0;
+    public static int timerIndex = 0;
 
     protected static final int timerTarget = timerIndex++;
     protected static final int timerShootLeft = timerIndex++;
@@ -59,8 +62,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
     public UnitType type;
     protected Timer timer = new Timer(10);
-    protected StateMachine state = new StateMachine();
-    protected TargetTrait target;
+    public TargetTrait target;
     protected UnitController controller;
     protected UnitOrderType orderType = UnitOrderType.none;
     protected float orderX, orderY;
@@ -76,11 +78,15 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     /** Per-unit copies of {@link UnitType#abilities}. */
     public final Array<Ability> abilities = new Array<>();
     /** Ticks this unit has been unable to move; owned here so the shared path can read it. */
-    protected float stuckTime;
+    public float stuckTime;
     /** Body-facing rotation used by ground units and turrets. */
     protected float baseRotation;
+    /** Accumulated time used to phase unit parts (propellers). */
+    public float partTime;
     /** Scratch vector for shared ground movement helpers. */
     protected final Translator pathVec = new Translator();
+    /** Scratch vector for the modern movement primitives. */
+    protected final Vector2 movementVec = new Vector2();
 
     /**internal constructor used for deserialization, DO NOT USE*/
     public BaseUnit(){
@@ -123,6 +129,20 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         threads.runDelay(unit::remove);
     }
 
+    @Remote(called = Loc.server)
+    public static void onAlphaDroneFade(BaseUnit drone){
+        if(drone == null) return;
+        drone.remove();
+        Effects.effect(UnitFx.pickup, drone);
+    }
+
+    @Remote(called = Loc.server)
+    public static void onDefenseDroneFade(BaseUnit drone){
+        if(drone == null) return;
+        drone.remove();
+        Effects.effect(UnitFx.pickup, drone);
+    }
+
     @Override
     public float getDrag(){
         return type.drag;
@@ -155,9 +175,9 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
                 controller = type.controller.get(this);
             }
             Class<?> typeClass = getClass();
-            if(controller == null && (typeClass == GroundUnit.class || typeClass == LegsUnit.class || typeClass == TankUnit.class)){
+            if(controller == null && GroundUnit.class.isAssignableFrom(typeClass)){
                 controller = new GroundAI(this);
-            }else if(controller == null && typeClass == FlyingUnit.class){
+            }else if(controller == null && FlyingUnit.class.isAssignableFrom(typeClass)){
                 controller = new FlyingAI(this);
             }else if(controller == null){
                 controller = new CommandAI(this);
@@ -193,7 +213,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
     @Override
     public boolean canShootWeapons(){
-        return !hasStance(UnitStance.holdFire);
+        return (type == null || type.canShootWeapons) && !hasStance(UnitStance.holdFire);
     }
 
     public void setStance(UnitStance stance, boolean enabled){
@@ -366,10 +386,6 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         }
     }
 
-    public void setState(UnitState state){
-        this.state.set(state);
-    }
-
     public void retarget(Runnable run){
         if(timer.get(timerTarget, 20)){
             run.run();
@@ -379,17 +395,71 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         return orderType != UnitOrderType.attackTarget && timer.get(timerTarget, 20);
     }
 
+    @Override
+    public boolean usesLegStep(){
+        return type != null && type.allowLegStep;
+    }
+
+    @Override
+    public boolean ignoresSolids(){
+        return type != null && type.ignoreSolids;
+    }
+
+    @Override
+    public float getFloorMultiplier(){
+        return type == null ? 1f : type.floorMultiplier;
+    }
+
+    /** Preferred travel speed, derived from the legacy acceleration/drag balance. */
+    public float movementSpeed(){
+        float speed = type.drag > 0.0001f ? type.speed / type.drag : type.maxVelocity;
+        return Math.min(speed, type.maxVelocity);
+    }
+
+    /** Modern-style movement dispatch: omni units strafe, other units turn and move forward. */
+    public void movePref(Vector2 vector){
+        if(vector.isZero(0.0001f)) return;
+
+        if(type.omniMovement){
+            moveAt(vector);
+        }else{
+            rotateMove(vector);
+        }
+    }
+
+    /** Accelerates toward {@code vector} at the unit's configured acceleration. */
+    public void moveAt(Vector2 vector){
+        moveAt(vector, type.accel);
+    }
+
+    public void moveAt(Vector2 vector, float acceleration){
+        float targetLen = vector.len();
+        if(targetLen < 0.0001f) return;
+
+        //legacy `speed` is the per-tick acceleration; cap the steering impulse at it so existing balance is preserved
+        float maxImpulse = type.speed * Timers.delta();
+        movementVec.set(vector).sub(velocity).limit(Math.min(acceleration * targetLen * Timers.delta(), maxImpulse));
+        velocity.add(movementVec);
+    }
+
+    /** Non-omni movement: turn the movement heading, then accelerate along it. */
+    protected void rotateMove(Vector2 vector){
+        baseRotation = Mathf.slerpDelta(baseRotation, vector.angle(), type.baseRotateSpeed);
+        movementVec.set(vector).setAngle(baseRotation);
+        moveAt(movementVec);
+    }
+
     /**Default mover used by the shared path when an archetype does not override it.*/
-    protected void moveTo(float x, float y){
+    public void moveTo(float x, float y){
         float angle = avoidAngle(angleTo(x, y));
-        velocity.add(Angles.trnsx(angle, type.speed * Timers.delta()), Angles.trnsy(angle, type.speed * Timers.delta()));
+        movePref(pathVec.trns(angle, movementSpeed()));
         if(!isAiming()){
             rotation = Mathf.slerpDelta(rotation, angle, type.rotatespeed);
         }
     }
 
     /** Aims every mount at a target and requests fire when it is inside weapon range. */
-    protected void shootAt(TargetTrait target){
+    public void shootAt(TargetTrait target){
         if(target == null) return;
 
         ensureWeaponMounts();
@@ -419,7 +489,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     }
 
     /**True when a valid enemy target is inside weapon range; movement code must not fight body rotation while this is set.*/
-    protected boolean isAiming(){
+    public boolean isAiming(){
         return target != null && getWeaponMountAmmo() != null
                 && !Units.invalidateTarget(target, team, x, y, getWeaponMountRange());
     }
@@ -432,6 +502,16 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     @Override
     public float getShootCone(){
         return type == null ? super.getShootCone() : type.shootCone;
+    }
+
+    @Override
+    public float getEquipDrawWidth(){
+        return type == null ? -1f : type.equipDrawWidth;
+    }
+
+    @Override
+    public float getEquipDrawHeight(){
+        return type == null ? -1f : type.equipDrawHeight;
     }
 
     @Override
@@ -494,7 +574,6 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     protected transient int chunkSpliceFail = 0;
     protected transient int chunkStuckRetries = 0;
     protected transient boolean chunkPathFine = false;
-    private final transient Translator chunkVec = new Translator();
     private static final float[] avoidOffsets = {40f, -40f, 80f, -80f, 120f, -120f, 160f, -160f};
     protected float bodyHalf(){
         return Math.max(type.hitsize * 0.5f - 1f, 2f);
@@ -502,6 +581,8 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
     /** Returns true when a ground unit moving along this angle would hit solid terrain or deeper drowning liquid. */
     protected boolean blockedAtAngle(float angle){
+        if(ignoresSolids()) return false;
+
         float look = Math.max(type.hitsize * 0.75f + 8f, 16f);
         float half = Math.max(type.hitsize * 0.5f - 1f, 3f);
         float step = Math.max(3f, look * 0.3f);
@@ -570,7 +651,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             }
         }
 
-        chunkPath = world.pathfinder.findUnitPath(team, x, y, gx, gy);
+        chunkPath = world.pathfinder.findUnitPath(team, x, y, gx, gy, ignoresSolids());
         if(chunkPath != null && chunkPath.size > 0){
             chunkPathGoalX = gx;
             chunkPathGoalY = gy;
@@ -608,7 +689,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             long wp = coarse.items[i];
             float wx = (int)(wp >> 32) * tilesize;
             float wy = (int)wp * tilesize;
-            LongArray leg = world.pathfinder.findUnitPath(team, curX, curY, wx, wy);
+            LongArray leg = world.pathfinder.findUnitPath(team, curX, curY, wx, wy, ignoresSolids());
             if(leg == null || leg.size == 0){
                 return out.size > 1 ? out : null;
             }
@@ -622,7 +703,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             curX = (int)(last >> 32) * tilesize;
             curY = (int)last * tilesize;
         }
-        LongArray tail = world.pathfinder.findUnitPath(team, curX, curY, gx, gy);
+        LongArray tail = world.pathfinder.findUnitPath(team, curX, curY, gx, gy, ignoresSolids());
         if(tail == null || tail.size == 0) return out.size > 1 ? out : null;
         for(int j = 0; j < tail.size; j++){
             out.add(tail.items[j]);
@@ -648,9 +729,15 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         chunkSpliceFail = 0;
     }
 
-    protected boolean steerAlongChunkPath(float gx, float gy){
+    public boolean steerAlongChunkPath(float gx, float gy){
         steerGoalX = gx;
         steerGoalY = gy;
+
+        if(ignoresSolids()){
+            movePref(pathVec.trns(angleTo(gx, gy), movementSpeed()));
+            return true;
+        }
+
         if(chunkPathCooldown > 0) chunkPathCooldown--;
 
         //target moved far from the current route's goal: never keep marching toward the old goal
@@ -791,7 +878,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             //second attempt on a still-blocked hop (the fine grid may have been unavailable earlier)
             if(hopBlocked && chunkSpliceFail <= 1){
                 chunkSpliceFail = 2;
-                LongArray detour = world.pathfinder.findUnitPath(team, x, y, wx, wy);
+                LongArray detour = world.pathfinder.findUnitPath(team, x, y, wx, wy, ignoresSolids());
                 if(detour != null && detour.size > 0){
                     LongArray merged = new LongArray();
                     merged.addAll(detour.items, 0, detour.size);
@@ -816,7 +903,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             //at the last waypoint the coarse corridor cannot finish the goal; a fine-grid leg straight
             //to the target works whenever the goal still lies inside the loaded window (else the coarse
             //re-query below re-adopts whatever corridor is cached)
-            LongArray direct = world.pathfinder.findUnitPath(team, x, y, gx, gy);
+            LongArray direct = world.pathfinder.findUnitPath(team, x, y, gx, gy, ignoresSolids());
             if(direct != null && direct.size > 0){
                 chunkPath = direct;
                 chunkPathIndex = 0;
@@ -845,7 +932,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         }
 
         float angle = avoidAngle(angleTo(wx, wy));
-        velocity.add(chunkVec.trns(angle, type.speed * Timers.delta()));
+        movePref(pathVec.trns(angle, movementSpeed()));
         if(!isAiming()) rotation = Mathf.slerpDelta(rotation, angle, type.rotatespeed);
         return true;
     }
@@ -885,7 +972,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     }
 
     /**True when the straight hop to a waypoint is clear for the unit's whole body.*/
-    protected boolean hopClear(Tile waypoint){
+    public boolean hopClear(Tile waypoint){
         return waypoint == null || hopClear(waypoint.worldx(), waypoint.worldy());
     }
 
@@ -893,7 +980,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
      * True when the immediate part of a straight line is clear for the whole body. Only the next
      * few tiles are sampled, so using this against a far goal stays cheap.
      */
-    protected boolean hopClear(float wx, float wy){
+    public boolean hopClear(float wx, float wy){
         float dx = wx - x, dy = wy - y;
         float len = Mathf.dst(dx, dy);
         if(len <= 0.001f) return true;
@@ -908,7 +995,8 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
      * sampled across the unit's body width. Keeps the rubber-band corner-cutting from skipping
      * chunk doors that hide a slope just around the corner.
      */
-    protected boolean inlineClear(float ax, float ay, float bx, float by){
+    public boolean inlineClear(float ax, float ay, float bx, float by){
+        if(ignoresSolids()) return true;
         if(Mathf.dst(ax - bx, ay - by) <= tilesize) return true;
         int steps = Math.max(2, (int)(Mathf.dst(ax - bx, ay - by) / (tilesize * 0.5f)));
         float ang = Mathf.atan2(by - ay, bx - ax);
@@ -958,23 +1046,19 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         return chunkPathGoalY;
     }
 
-    public UnitState getStartState(){
-        return null;
-    }
-
-    protected void patrol(){
-        pathVec.trns(baseRotation, type.speed * Timers.delta());
-        velocity.add(pathVec.x, pathVec.y);
+    public void patrol(){
+        if(type.holdPosition && !Units.invalidateTarget(target, this)) return;
+        movePref(pathVec.trns(baseRotation, movementSpeed()));
         pathVec.trns(baseRotation, type.hitsizeTile);
         Tile tile = world.tileWorld(x + pathVec.x, y + pathVec.y);
-        if((tile == null || tile.solid() || tile.floor().drownTime > 0) || stuckTime > 10f){
+        if(!ignoresSolids() && ((tile == null || tile.solid() || tile.floor().drownTime > 0) || stuckTime > 10f)){
             baseRotation += Mathf.sign(id % 2 - 0.5f) * Timers.delta() * 3f;
         }
 
         if(!isAiming()) rotation = Mathf.slerpDelta(rotation, velocity.angle(), type.rotatespeed);
     }
 
-    protected void circle(float circleLength){
+    public void circle(float circleLength){
         if(target == null) return;
 
         pathVec.set(target.getX() - x, target.getY() - y);
@@ -984,18 +1068,23 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         }
 
         float moveAngle = avoidAngle(pathVec.angle());
-        float len = type.speed * Timers.delta();
-        pathVec.set(Angles.trnsx(moveAngle, len), Angles.trnsy(moveAngle, len));
+        pathVec.set(Angles.trnsx(moveAngle, movementSpeed()), Angles.trnsy(moveAngle, movementSpeed()));
 
-        velocity.add(pathVec);
+        movePref(pathVec);
     }
 
-    protected void moveToEnemyCore(){
+    public void moveToEnemyCore(){
+        if(type.holdPosition && !Units.invalidateTarget(target, this)) return;
         Tile tile = world.tileWorld(x, y);
         if(tile == null) return;
 
         TileEntity core = getClosestEnemyCore();
         if(core == null) return;
+
+        if(ignoresSolids()){
+            movePref(pathVec.trns(angleTo(core), movementSpeed()));
+            return;
+        }
 
         Tile targetTile = world.pathfinder.getTargetTile(team, tile);
 
@@ -1014,15 +1103,23 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             }
 
             float angle = avoidAngle(angleTo(core));
-            velocity.add(pathVec.trns(angle, type.speed * Timers.delta()));
+            movePref(pathVec.trns(angle, movementSpeed()));
             return;
         }
 
         float gangle = avoidAngle(angleTo(targetTile));
-        velocity.add(pathVec.trns(gangle, type.speed*Timers.delta()));
+        movePref(pathVec.trns(gangle, movementSpeed()));
     }
 
-    protected void moveToHome(){
+    public void moveToHome(){
+        if(ignoresSolids()){
+            TileEntity core = getClosestCore();
+            if(core != null){
+                movePref(pathVec.trns(angleTo(core), movementSpeed()));
+            }
+            return;
+        }
+
         Team enemy = null;
         for(Team other : Vars.state.teams.enemiesOf(team)){
             if(Vars.state.teams.isActive(other)){
@@ -1041,15 +1138,15 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
         float angle = angleTo(targetTile);
 
-        velocity.add(pathVec.trns(angleTo(targetTile), type.speed*Timers.delta()));
+        movePref(pathVec.trns(angle, movementSpeed()));
         rotation = Mathf.slerpDelta(rotation, angle, type.rotatespeed);
     }
 
-    protected void moveAwayFromCore(){
+    public void moveAwayFromCore(){
         moveToHome();
     }
 
-    protected boolean updateOrder(){
+    public boolean updateOrder(){
         if(!hasOrder()) return false;
 
         if(getOrderType() == UnitOrderType.attackMove){
@@ -1081,9 +1178,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             orderY = target.getY() + dy / len * engage;
 
             float angle = angleTo(getOrderX(), getOrderY());
-            float rad = angle * 0.01745329252f;
-            velocity.add(type.speed * Timers.delta() * (float)Math.cos(rad),
-                         type.speed * Timers.delta() * (float)Math.sin(rad));
+            movePref(pathVec.trns(angle, movementSpeed()));
             if(!isAiming()) rotation = Mathf.slerpDelta(rotation, angle, type.rotatespeed);
             return true;
         }
@@ -1097,17 +1192,9 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         }
 
         float angle = angleTo(getOrderX(), getOrderY());
-        float rad = angle * 0.01745329252f;
-        velocity.add(type.speed * Timers.delta() * (float)Math.cos(rad),
-                     type.speed * Timers.delta() * (float)Math.sin(rad));
+        movePref(pathVec.trns(angle, movementSpeed()));
         rotate(angle);
         return true;
-    }
-
-    public void updateDefaultAI(){
-        if(!updateOrder()){
-            state.update();
-        }
     }
 
     protected void drawItems(){
@@ -1150,6 +1237,25 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     @Override
     public TextureRegion getIconRegion(){
         return type.iconRegion;
+    }
+
+    @Override
+    public TextureRegion getPowerCellRegion(){
+        if(type == null) return super.getPowerCellRegion();
+        if(type.cellRegion != null) return type.cellRegion;
+        //biomass hearts are picked by body size
+        if(type.cellPulse) return Draw.region(type.hitsize > 10f ? "biomass-heart" : "small-biomass-heart");
+        return super.getPowerCellRegion();
+    }
+
+    @Override
+    public float getCellScale(){
+        if(type == null || !type.cellPulse) return 1f;
+
+        float hf = healthf();
+        float frequency = 1f + (1f - hf) * 3f;
+        float amplitude = 0.1f + (1f - hf) * 0.15f;
+        return 1f + Mathf.sin(Timers.time() * frequency, 2f, amplitude);
     }
 
     @Override
@@ -1199,6 +1305,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     @Override
     public void update(){
         hitTime -= Timers.delta();
+        partTime += Timers.delta();
 
         ensureWeaponMounts();
 
@@ -1231,8 +1338,6 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
         if(controller != null){
             controller.updateUnit();
-        }else{
-            updateDefaultAI();
         }
         updateVelocityStatus();
 
@@ -1275,6 +1380,9 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     @Override
     public void removed(){
         super.removed();
+        if(controller != null){
+            controller.removed(this);
+        }
         Tile tile = world.tile(spawner);
         if(tile != null && !Net.client()){
             tile.block().unitRemoved(tile, this);
@@ -1294,8 +1402,6 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
     @Override
     public void added(){
-        state.set(getStartState());
-
         health(maxHealth());
 
         if(isCommanded()){

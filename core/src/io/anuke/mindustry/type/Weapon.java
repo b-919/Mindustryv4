@@ -253,7 +253,12 @@ public class Weapon extends Content{
     /**Draws this weapon's equip region at its mount position.*/
     public void draw(WeaponMounts owner, WeaponMount mount){
         if(equipRegion == null) return;
-        drawRegion(owner, mount, equipRegion);
+        float w = owner.getEquipDrawWidth(), h = owner.getEquipDrawHeight();
+        if(w > 0f || h > 0f){
+            drawRegion(owner, mount, equipRegion, w > 0f ? w : equipRegion.getRegionWidth(), h > 0f ? h : equipRegion.getRegionHeight());
+        }else{
+            drawRegion(owner, mount, equipRegion);
+        }
     }
 
     /**Draws this weapon's barrel region at its mount position, after the body.*/
@@ -263,6 +268,10 @@ public class Weapon extends Content{
     }
 
     private void drawRegion(WeaponMounts owner, WeaponMount mount, TextureRegion reg){
+        drawRegion(owner, mount, reg, reg.getRegionWidth(), reg.getRegionHeight());
+    }
+
+    private void drawRegion(WeaponMounts owner, WeaponMount mount, TextureRegion reg, float width, float height){
         float bodyRotation = owner.getRotation();
         float frame = bodyRotation - 90f;
         float weaponRotation = bodyRotation + mount.rotation;
@@ -275,8 +284,8 @@ public class Weapon extends Content{
                 + Angles.trnsy(frame, lateral(owner, mount), mount.mountY() + owner.getMountOffsetY(mount))
                 + Angles.trnsy(weaponRotation - 90f, 0f, offset);
 
-        float w = reg.getRegionWidth() * (mount.flip ? -1f : 1f);
-        float h = reg.getRegionHeight();
+        float w = width * (mount.flip ? -1f : 1f);
+        float h = height;
 
         Draw.rect(reg, x, y, w, h, weaponRotation - 90f);
     }

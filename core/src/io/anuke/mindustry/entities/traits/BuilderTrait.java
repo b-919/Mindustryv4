@@ -1,32 +1,23 @@
 package io.anuke.mindustry.entities.traits;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.Queue;
 import io.anuke.mindustry.Vars;
-import io.anuke.mindustry.content.blocks.Blocks;
-import io.anuke.mindustry.content.fx.BlockFx;
-import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.game.EventType.BuildSelectEvent;
-import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.net.Net;
-import io.anuke.mindustry.type.Item;
 import io.anuke.mindustry.type.Recipe;
 import io.anuke.mindustry.world.Build;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.BuildBlock;
 import io.anuke.mindustry.world.blocks.BuildBlock.BuildEntity;
-import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Events;
 import io.anuke.ucore.core.Timers;
-import io.anuke.ucore.entities.trait.Entity;
 import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;
 import io.anuke.ucore.graphics.Lines;
-import io.anuke.ucore.graphics.Shapes;
 import io.anuke.ucore.util.*;
 
 import java.io.DataInput;
@@ -39,29 +30,16 @@ import static io.anuke.mindustry.Vars.*;
 /**
  * Interface for units that build, break or mine things.
  */
-public interface BuilderTrait extends Entity{
+public interface BuilderTrait extends MinerTrait{
     //these are not instance variables!
     /** Maximum distance at which a plan can actually be constructed. */
     float buildRange = 220f;
-    float mineDistance = 70f;
 
     /**Returns the queue for storing build requests.*/
     Queue<BuildRequest> getPlaceQueue();
 
-    /**Returns the tile this builder is currently mining.*/
-    Tile getMineTile();
-
-    /**Sets the tile this builder is currently mining.*/
-    void setMineTile(Tile tile);
-
-    /**Returns the minining speed of this miner. 1 = standard, 0.5 = half speed, 2 = double speed, etc.*/
-    float getMinePower();
-
     /**Build power, can be any float. 1 = builds recipes in normal time, 0 = doesn't build at all.*/
     float getBuildPower(Tile tile);
-
-    /**Returns whether or not this builder can mine a specific item type.*/
-    boolean canMine(Item item);
 
     /**Whether this type of builder can begin creating new blocks.*/
     default boolean canCreateBlocks(){
@@ -231,7 +209,7 @@ public interface BuilderTrait extends Entity{
         //update mining here
         if(current == null){
             if(getMineTile() != null){
-                updateMining(unit);
+                updateMining();
             }
             return;
         }else{
@@ -347,40 +325,6 @@ public interface BuilderTrait extends Entity{
         }
     }
 
-    /**Do not call directly.*/
-    default void updateMining(Unit unit){
-        Tile tile = getMineTile();
-        TileEntity core = unit.getClosestCore();
-
-        if(core == null || tile.block() != Blocks.air || unit.distanceTo(tile.worldx(), tile.worldy()) > mineDistance
-                || tile.floor().drops == null || !unit.inventory.canAcceptItem(tile.floor().drops.item) || !canMine(tile.floor().drops.item)){
-            setMineTile(null);
-        }else{
-            Item item = tile.floor().drops.item;
-            unit.rotation = Mathf.slerpDelta(unit.rotation, unit.angleTo(tile.worldx(), tile.worldy()), 0.4f);
-
-            if(Mathf.chance(Timers.delta() * (0.06 - item.hardness * 0.01) * getMinePower())){
-
-                if(unit.distanceTo(core) < mineTransferRange && core.tile.block().acceptStack(item, 1, core.tile, unit) == 1){
-                    Call.transferItemTo(item, 1,
-                        tile.worldx() + Mathf.range(tilesize / 2f),
-                        tile.worldy() + Mathf.range(tilesize / 2f), core.tile);
-                }else if(unit.inventory.canAcceptItem(item)){
-                    Call.transferItemToUnit(item,
-                        tile.worldx() + Mathf.range(tilesize / 2f),
-                        tile.worldy() + Mathf.range(tilesize / 2f),
-                        unit);
-                }
-            }
-
-            if(Mathf.chance(0.06 * Timers.delta())){
-                Effects.effect(BlockFx.pulverizeSmall,
-                        tile.worldx() + Mathf.range(tilesize / 2f),
-                        tile.worldy() + Mathf.range(tilesize / 2f), 0f, item.color);
-            }
-        }
-    }
-
     /**Draw placement effects for an entity. This includes mining*/
     default void drawBuilding(Unit unit){
         BuildRequest request;
@@ -424,33 +368,6 @@ public interface BuilderTrait extends Entity{
         Lines.line(px, py, x3, y3);
 
         Fill.circle(px, py, 1.6f + Mathf.absin(Timers.time(), 0.8f, 1.5f));
-
-        Draw.color();
-    }
-
-    /**Internal use only.*/
-    default void drawMining(Unit unit){
-        Tile tile = getMineTile();
-
-        if(tile == null) return;
-
-        float focusLen = 4f + Mathf.absin(Timers.time(), 1.1f, 0.5f);
-        float swingScl = 12f, swingMag = tilesize / 8f;
-        float flashScl = 0.3f;
-
-        float px = unit.x + Angles.trnsx(unit.rotation, focusLen);
-        float py = unit.y + Angles.trnsy(unit.rotation, focusLen);
-
-        float ex = tile.worldx() + Mathf.sin(Timers.time() + 48, swingScl, swingMag);
-        float ey = tile.worldy() + Mathf.sin(Timers.time() + 48, swingScl + 2f, swingMag);
-
-        Draw.color(Color.LIGHT_GRAY, Color.WHITE, 1f - flashScl + Mathf.absin(Timers.time(), 0.5f, flashScl));
-        Shapes.laser("minelaser", "minelaser-end", px, py, ex, ey);
-
-        if(unit instanceof Player && ((Player) unit).isLocal){
-            Draw.color(Palette.accent);
-            Lines.poly(tile.worldx(), tile.worldy(), 4, tilesize / 2f * Mathf.sqrt2, Timers.time());
-        }
 
         Draw.color();
     }

@@ -5,8 +5,9 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.content.Weapons;
-import io.anuke.mindustry.entities.units.types.Drone;
 import io.anuke.mindustry.entities.traits.TypeTrait;
+import io.anuke.mindustry.entities.units.aiunit.*;
+import io.anuke.mindustry.entities.units.abilities.*;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.game.UnlockableContent;
 import io.anuke.mindustry.type.ContentType;
@@ -24,8 +25,6 @@ import io.anuke.ucore.util.Strings;
 
 public class UnitType extends UnlockableContent{
     protected final Supplier<? extends BaseUnit> constructor;
-    /** Movement/entity family; derived from the constructor class. */
-    public UnitArchetype archetype = UnitArchetype.ground;
     /** Controller factory; null selects the archetype default. */
     public Function<BaseUnit, ? extends UnitController> controller;
     /** Commands exposed to the player when units of this type are selected. */
@@ -49,14 +48,48 @@ public class UnitType extends UnlockableContent{
     public boolean isHealer;
     public boolean isBoss = false;
     public boolean rotateWeapon = false;
+    /** Whether this unit's current mine tile is synced to clients. */
+    public boolean syncMineTile = false;
+    /** Whether this unit's builder state (mine tile, repair target, build queue) is synced. */
+    public boolean syncBuilding = false;
+    /** Missile-style flight: attack by flying at the target, face it, no idle rotation wobble. */
+    public boolean missileMovement = false;
+    /** Leader sync for follower/defender drones: 0 = none, 1 = player id, 2 = tile position. */
+    public int leaderSync = 0;
+    /** Drill/mech mining hardness; -1 means cannot mine. */
+    public int drillPower = -1;
+    /** Boost (dash) speed; used by the player when dashing. */
+    public float boostSpeed = 0.75f;
+    /** Whether this unit can mine any ore, ignoring {@link #toMine}. */
+    public boolean mineAnyOre = false;
+    /** Whether this unit aims its body at its mine target while mining. */
+    public boolean mineAimRotation = false;
     public boolean playerControllable = true;
     public boolean rtsAIControllable = true;
     public boolean targetAir = true;
     public boolean spawnsInSiegeMode = true;
+    /** Whether this unit holds its position while it has a valid target (artillery behaviour). */
+    public boolean holdPosition = false;
     /** Cost for the ExtraSurvival Mode*/
     public int unitCost = 10;
     public float drag = 0.1f;
     public float maxVelocity = 5f;
+    /** Acceleration as a fraction of the preferred speed, modern-style. */
+    public float accel = 0.5f;
+    /** How strongly floor speed modifiers affect this unit. */
+    public float floorMultiplier = 1f;
+    /** Whether the unit can move in any direction regardless of its facing. */
+    public boolean omniMovement = true;
+    /** Legged units step over constructed/destructible blocks instead of colliding with them. */
+    public boolean allowLegStep = false;
+    /** Movement and pathfinding ignore solid blocks, walls and cliffs. Used by special leg units. */
+    public boolean ignoreSolids = false;
+    /** Speed multiplier while a tank is surrounded by solids. */
+    public float crawlSlowdown = 0.5f;
+    /** Fraction of surrounding solids at which {@link #crawlSlowdown} is reached. */
+    public float crawlSlowdownFrac = 0.55f;
+    /** Damage dealt to enemy blocks under a moving tank each tick. */
+    public float crushDamage = 0f;
     public float retreatPercent = 0.2f;
     public float armor = 0f;
     public float carryWeight = 1f;
@@ -69,6 +102,8 @@ public class UnitType extends UnlockableContent{
     private Weapon[] cachedAllWeapons;
     public float healTurretOffsetX, healTurretOffsetY;
     public Color trailColor = Color.valueOf("ffa665");
+    /** Whether the engine trail uses the team color instead of {@link #trailColor}. */
+    public boolean trailTeamColor = false;
     public float engineOffsetX = 0f;
     public float engineOffsetY = -6f;
     public boolean engineMirror = false;
@@ -82,6 +117,19 @@ public class UnitType extends UnlockableContent{
     public ObjectSet<StatusEffect> immunities = new ObjectSet<>();
     /** Passive behaviours; each unit receives a copy at spawn. */
     public final Array<Ability> abilities = new Array<>();
+    /** Data-driven extra visuals drawn by {@link UnitRenderer}. */
+    public final Array<UnitPart> parts = new Array<>();
+    /** Region name for the health/power cell; null uses the default cell region. */
+    public String cellRegionName;
+    public TextureRegion cellRegion;
+    /** Whether the power cell pulses with health (biomass hearts). */
+    public boolean cellPulse = false;
+    /** Whether the shared renderer draws this unit's mining laser. */
+    public boolean drawMiningLaser = true;
+    /** Whether the shared renderer draws this unit's weapon mounts. */
+    public boolean drawWeaponMounts = true;
+    /** Whether this unit is allowed to fire at all, regardless of stance. */
+    public boolean canShootWeapons = true;
 
     //leg unit fields
     /**number of legs this unit has*/
@@ -124,6 +172,29 @@ public class UnitType extends UnlockableContent{
     public boolean legContinuousMove = false;
     public boolean flipBackLegs = true, flipLegSide = false;
 
+    /** Width the shared ground renderer uses for a leg sprite. */
+    public float legDrawWidth = 12f;
+    /** Height the shared ground renderer uses for a leg sprite. */
+    public float legDrawHeight = 12f;
+    /** Pixels the leg sprite height shrinks by as it swings out. */
+    public float legDrawHeightFalloff = 2f;
+    /** Fixed equip-region draw width; <= 0 uses the region's native width. */
+    public float equipDrawWidth = -1f;
+    /** Fixed equip-region draw height; <= 0 uses the region's native height. */
+    public float equipDrawHeight = -1f;
+    /** True for player mech bodies, which only have body, leg and base regions. */
+    public boolean mechBody;
+    /** Icon region name override; defaults to {@code unit-icon-<name>}. */
+    public String iconRegionName;
+    /** Vertical power-cell offset, used by mech sprites. */
+    public float cellTrnsY;
+    /** Camera shake when this type lands, in world units. */
+    public float shake;
+    /** Whether the body follows the cursor while shooting. */
+    public boolean turnCursor = true;
+    /** Engine trail colour at maximum boost; only used by the player mech trails. */
+    public Color trailColorTo = new Color();
+
     public TextureRegion iconRegion, legRegion, treadRegion, baseRegion, region, jointRegion, footRegion, legBaseRegion, baseJointRegion;
 
 public <T extends BaseUnit> UnitType(String name, Class<T> type, Supplier<T> mainConstructor){
@@ -133,27 +204,15 @@ public <T extends BaseUnit> UnitType(String name, Class<T> type, Supplier<T> mai
 
         TypeTrait.registerType(type, mainConstructor);
 
-        if(TankUnit.class.isAssignableFrom(type)){
-            archetype = UnitArchetype.tank;
+        if(MainTrain.class.isAssignableFrom(type)){
+            controller = TrainAI::new;
         }else if(LegsUnit.class.isAssignableFrom(type)){
-            archetype = UnitArchetype.legs;
-        }else if(MainTrain.class.isAssignableFrom(type)){
-            archetype = UnitArchetype.train;
-        }else if(FlyingUnit.class.isAssignableFrom(type)){
-            archetype = UnitArchetype.flying;
-        }
-
-        if(BiomassGroundUnit.class.isAssignableFrom(type)){
-            controller = CommandAI::new;
+            allowLegStep = true;
         }
 
         commands.add(UnitCommand.move);
         commands.add(UnitCommand.attack);
         stances.add(UnitStance.holdFire);
-
-        if(Drone.class.isAssignableFrom(type)){
-            stances.add(UnitStance.follow);
-        }
 
         if(!Bundles.has("unit." + this.name + ".name")){
             Log.err("Warning: unit '" + name + "' is missing a localized name. Add the follow to bundle.properties:");
@@ -230,17 +289,27 @@ public <T extends BaseUnit> UnitType(String name, Class<T> type, Supplier<T> mai
             ability.init(this);
         }
 
-        iconRegion = Draw.region("unit-icon-" + name);
+        for(UnitPart part : parts){
+            part.region = Draw.region(part.regionName);
+        }
+
+        if(cellRegionName != null){
+            cellRegion = Draw.region(cellRegionName);
+        }
+
+        iconRegion = Draw.region(iconRegionName == null ? "unit-icon-" + name : iconRegionName);
         region = Draw.region(name);
 
         if(!isFlying){
             if(!isTank)legRegion = Draw.region(name + "-leg");
             baseRegion = Draw.region(name + "-base");
-            if(isTank)treadRegion = Draw.region(name + "-tread");
-            jointRegion = Draw.region(name + "-joint");
-            baseJointRegion = Draw.region(name + "-joint-base");
-            footRegion = Draw.region(name + "-foot");
-            legBaseRegion = Draw.region(name + "-leg-base", legRegion);
+            if(!mechBody){
+                if(isTank)treadRegion = Draw.region(name + "-tread");
+                jointRegion = Draw.region(name + "-joint");
+                baseJointRegion = Draw.region(name + "-joint-base");
+                footRegion = Draw.region(name + "-foot");
+                legBaseRegion = Draw.region(name + "-leg-base", legRegion);
+            }
         }
     }
 

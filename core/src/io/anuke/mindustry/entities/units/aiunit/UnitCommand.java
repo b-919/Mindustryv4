@@ -1,5 +1,6 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.aiunit;
 
+import io.anuke.mindustry.entities.units.*;
 import io.anuke.ucore.function.Function;
 import io.anuke.ucore.util.Bundles;
 

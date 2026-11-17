@@ -4,7 +4,7 @@ import io.anuke.mindustry.content.UnitTypes;
 import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.types.AlphaDrone;
+import io.anuke.mindustry.entities.units.aiunit.FollowAI;
 import io.anuke.mindustry.maps.TutorialSector;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.MechAbility;
@@ -13,7 +13,7 @@ import io.anuke.ucore.core.Effects;
 import static io.anuke.mindustry.Vars.unitGroups;
 
 /** Spawns player-owned alpha drones while the player is shooting. */
-public class AlphaDroneAbility implements MechAbility{
+public class AlphaDroneAbility extends MechAbility{
     public int maxDrones = 3;
     public float buildTime = 20f;
 
@@ -24,8 +24,10 @@ public class AlphaDroneAbility implements MechAbility{
 
             if(player.timer.getTime(Player.timerAbility) > buildTime / 2f){
                 if(!Net.client()){
-                    AlphaDrone drone = (AlphaDrone)UnitTypes.alphaDrone.create(player.getTeam());
-                    drone.leader = player;
+                    BaseUnit drone = UnitTypes.alphaDrone.create(player.getTeam());
+                    if(drone.getController() instanceof FollowAI){
+                        ((FollowAI)drone.getController()).setLeader(player);
+                    }
                     drone.set(player.x, player.y);
                     drone.add();
 
@@ -38,7 +40,7 @@ public class AlphaDroneAbility implements MechAbility{
     private int getDrones(Player player){
         int sum = 0;
         for(BaseUnit unit : unitGroups[player.getTeam().ordinal()].all()){
-            if(unit instanceof AlphaDrone && ((AlphaDrone)unit).leader == player) sum++;
+            if(unit.getController() instanceof FollowAI && ((FollowAI)unit.getController()).getPlayerLeader() == player) sum++;
         }
         return sum;
     }

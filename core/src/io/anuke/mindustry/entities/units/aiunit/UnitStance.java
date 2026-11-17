@@ -1,4 +1,4 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.aiunit;
 
 import io.anuke.ucore.util.Bundles;
 

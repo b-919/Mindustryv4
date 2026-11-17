@@ -1,5 +1,6 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.aiunit;
 
+import io.anuke.mindustry.entities.units.*;
 import com.badlogic.gdx.math.Vector2;
 import io.anuke.ucore.util.Translator;
 
@@ -15,7 +16,7 @@ public class Squad{
 
     private long lastUpdated;
 
-    protected void update(){
+    public void update(){
         if(threads.getFrameID() != lastUpdated){
             direction.setZero();
             lastUpdated = threads.getFrameID();

@@ -1,15 +1,12 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.abilities;
 
+import io.anuke.mindustry.entities.units.*;
 import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.ucore.core.Effects;
 import io.anuke.ucore.core.Timers;
 
-/**
- * Periodically heals nearby damaged allies.
- * <p>
- * This replaces the hard-coded healing loop in {@code GroundHealUnit} and the tau mech hook.
- */
+/** Periodically heals nearby damaged allies. */
 public class RepairFieldAbility extends Ability{
     public float amount = 1f;
     public float reload = 60f;

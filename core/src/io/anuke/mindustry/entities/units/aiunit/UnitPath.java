@@ -1,8 +1,8 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.aiunit;
 
+import io.anuke.mindustry.entities.units.*;
 import com.badlogic.gdx.utils.LongArray;
 import io.anuke.mindustry.world.Tile;
-import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Mathf;
 import io.anuke.ucore.util.Translator;
@@ -15,7 +15,7 @@ import static io.anuke.mindustry.Vars.world;
 /**
  * Shared path state and A* implementation for ground-based units.
  * <p>
- * One instance lives on every {@link BaseUnit}; ground, tank and leg units use it for
+ * One instance lives on every {@link BaseUnit}; ground units use it for
  * order paths and combat paths. The chunk/HPA fallback remains in {@link BaseUnit} because
  * it is also used by flying units and by combat steering.
  */
@@ -204,9 +204,9 @@ public class UnitPath{
         if(unit.stuckTime > 8f){
             clearMove();
             float jitterAngle = Mathf.atan2(targetX - unit.x, targetY - unit.y) + Mathf.range(120f);
-            unit.getVelocity().add(moveVec.trns(jitterAngle, unit.type.speed * 0.7f * Timers.delta()));
+            unit.movePref(moveVec.trns(jitterAngle, unit.movementSpeed() * 0.7f));
             if(!unit.isAiming()){
-                unit.rotation = Mathf.slerpDelta(unit.rotation, unit.getVelocity().angle(), unit.type.rotatespeed);
+                unit.rotation = Mathf.slerpDelta(unit.rotation, unit.getVelocity().angleDeg(), unit.type.rotatespeed);
             }
             return;
         }
@@ -263,6 +263,7 @@ public class UnitPath{
     }
 
     private boolean orderPassable(BaseUnit unit, Tile tile){
+        if(unit.ignoresSolids()) return tile.floor().drownTime <= 0f;
         if(tile.solid() && !(tile.breakable() && tile.target().getTeam() != unit.getTeam())) return false;
         return tile.floor().drownTime <= 0f;
     }
@@ -342,7 +343,7 @@ public class UnitPath{
                 int nx = currentTile.x + sx, ny = currentTile.y + sy;
                 Tile next = world.tile(nx, ny);
                 if(next == null || !orderPassable(unit, next)) continue;
-                if(sx != 0 && sy != 0 && (world.solid(currentTile.x + sx, currentTile.y) || world.solid(currentTile.x, currentTile.y + sy))){
+                if(sx != 0 && sy != 0 && !unit.ignoresSolids() && (world.solid(currentTile.x + sx, currentTile.y) || world.solid(currentTile.x, currentTile.y + sy))){
                     continue;
                 }
 
@@ -394,7 +395,7 @@ public class UnitPath{
 
     private int hash(long key){
         long h = key * 0x9E3779B97F4A7C15L;
-        return (int)(h ^ (h >>> 32)) & mapMask;
+        return Long.hashCode(h) & mapMask;
     }
 
     private void putMap(long key, int value){

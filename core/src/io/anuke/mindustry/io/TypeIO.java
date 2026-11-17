@@ -12,7 +12,7 @@ import io.anuke.mindustry.entities.traits.CarriableTrait;
 import io.anuke.mindustry.entities.traits.CarryTrait;
 import io.anuke.mindustry.entities.traits.ShooterTrait;
 import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.UnitCommand;
+import io.anuke.mindustry.entities.units.aiunit.UnitCommand;
 import io.anuke.mindustry.game.Team;
 import io.anuke.mindustry.net.Packets.AdminAction;
 import io.anuke.mindustry.net.Packets.KickReason;

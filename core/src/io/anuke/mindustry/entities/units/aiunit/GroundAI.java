@@ -1,5 +1,6 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.aiunit;
 
+import io.anuke.mindustry.entities.units.*;
 import io.anuke.mindustry.entities.TileEntity;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.Units;
@@ -9,16 +10,10 @@ import io.anuke.ucore.util.Geometry;
 
 import static io.anuke.mindustry.Vars.world;
 
-/**
- * Controller for the shared ground, legs and tank archetypes.
- * <p>
- * This is a direct port of the former {@code GroundUnit.attack/patrol/retreat/hold} states.
- * Custom ground subclasses keep the legacy state machine via {@link CommandAI} until their
- * behaviour has been ported.
- */
+/** Controller for the shared ground, legs and tank archetypes.*/
 public class GroundAI extends CommandAI{
     public enum Mode{
-        attack, patrol, retreat, hold
+        attack, patrol, pursue, retreat, hold
     }
 
     protected Mode mode = Mode.attack;

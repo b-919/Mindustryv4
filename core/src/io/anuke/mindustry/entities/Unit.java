@@ -16,6 +16,7 @@ import io.anuke.mindustry.net.Interpolator;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.StatusEffect;
 import io.anuke.mindustry.type.Weapon;
+import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.ucore.core.Effects;
@@ -30,11 +31,11 @@ import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.graphics.Fill;
 import io.anuke.ucore.util.Geometry;
 import io.anuke.ucore.util.Mathf;
+import io.anuke.ucore.util.Physics;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Arrays;
 
 import static io.anuke.mindustry.Vars.*;
 
@@ -50,6 +51,12 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
     private static final Vector2 moveVector = new Vector2();
     /** Reused separation callback; allocating this lambda once per unit per frame is avoidable. */
     private final Consumer<Unit> avoidConsumer = this::avoidOther;
+
+    //leg-step collision scratch; the logic thread is single-threaded like the other shared scratch above
+    private static final Rectangle legRect = new Rectangle(), legRect2 = new Rectangle(), legTmp = new Rectangle();
+
+    /** Multiplier applied to ground displacement by movement-type logic (tank terrain slowdown). */
+    public float terrainSpeedMultiplier = 1f;
 
     public final UnitInventory inventory = new UnitInventory(this);
     public Boolean emitLight = null;
@@ -117,7 +124,8 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
 
     public void ensureWeaponMounts(){
         Weapon[] definitions = getWeaponDefinitions();
-        if(!Arrays.equals(definitions, weaponMountDefinitions)){
+        //getWeaponDefinitions() returns a cached array for every owner, so a reference compare avoids a per-tick Arrays.equals
+        if(definitions != weaponMountDefinitions){
             weaponMountDefinitions = definitions;
             buildWeaponMounts(definitions);
         }
@@ -191,10 +199,107 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
     @Override
     public void move(float x, float y){
         if(!isFlying()){
-            super.move(x, y);
+            if(ignoresSolids()){
+                moveBy(x, y);
+            }else if(usesLegStep()){
+                moveLegs(x, y);
+            }else{
+                super.move(x, y);
+            }
         }else{
             moveBy(x, y);
         }
+    }
+
+    /** True when this unit moves and pathfinds through solid blocks, walls and cliffs. */
+    public boolean ignoresSolids(){
+        return false;
+    }
+
+    /** True when this unit can step over constructed blocks instead of colliding with them. */
+    public boolean usesLegStep(){
+        return false;
+    }
+
+    /** How strongly this unit is affected by floor speed modifiers. */
+    public float getFloorMultiplier(){
+        return 1f;
+    }
+
+    /** Tile collision for legged units: constructed/destructible blocks are stepped over. */
+    private void moveLegs(float deltax, float deltay){
+        if((Math.abs(deltax) < 0.0001f && Math.abs(deltay) < 0.0001f) || deltax != deltax || deltay != deltay){
+            return;
+        }
+
+        deltax = Mathf.clamp(deltax, -1000f, 1000f);
+        deltay = Mathf.clamp(deltay, -1000f, 1000f);
+
+        boolean movedx = false;
+        while(Math.abs(deltax) > 0 || !movedx){
+            movedx = true;
+            moveLegInternal(Math.min(Math.abs(deltax), 1f) * Mathf.sign(deltax), 0f, true);
+
+            if(Math.abs(deltax) >= 1f){
+                deltax -= Mathf.sign(deltax);
+            }else{
+                deltax = 0f;
+            }
+        }
+
+        boolean movedy = false;
+        while(Math.abs(deltay) > 0 || !movedy){
+            movedy = true;
+            moveLegInternal(0f, Math.min(Math.abs(deltay), 1f) * Mathf.sign(deltay), false);
+
+            if(Math.abs(deltay) >= 1f){
+                deltay -= Mathf.sign(deltay);
+            }else{
+                deltay = 0f;
+            }
+        }
+    }
+
+    private void moveLegInternal(float deltax, float deltay, boolean xAxis){
+        getHitboxTile(legRect);
+        getHitboxTile(legRect2);
+        legRect.x += deltax;
+        legRect.y += deltay;
+
+        int r = Math.max((int)Math.ceil(Math.max(legRect.width, legRect.height) / tilesize), 1);
+        int tilex = Mathf.scl2(legRect.x + legRect.width / 2f, tilesize);
+        int tiley = Mathf.scl2(legRect.y + legRect.height / 2f, tilesize);
+
+        for(int dx = -r; dx <= r; dx++){
+            for(int dy = -r; dy <= r; dy++){
+                int wx = dx + tilex, wy = dy + tiley;
+                Tile tile = world.tile(wx, wy);
+                if(legSolid(tile)){
+                    legTmp.setSize(tilesize).setCenter(wx * tilesize, wy * tilesize);
+
+                    if(legTmp.overlaps(legRect)){
+                        Vector2 v = Physics.overlap(legRect, legTmp, xAxis);
+                        legRect.x += v.x;
+                        legRect.y += v.y;
+                    }
+                }
+            }
+        }
+
+        x += legRect.x - legRect2.x;
+        y += legRect.y - legRect2.y;
+    }
+
+    private static boolean legSolid(Tile tile){
+        if(tile == null) return true;
+
+        Block block = tile.block();
+        if(block == null || block == Blocks.air){
+            return tile.floor().solid;
+        }
+
+        //static terrain blocks legs; constructed/destructible blocks can be stepped over
+        return block.solid && !block.destructible && !block.breakable && !block.update;
     }
 
     @Override
@@ -360,7 +465,9 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
             }
 
             float px = x, py = y;
-            move(velocity.x * floor.speedMultiplier * Timers.delta(), velocity.y * floor.speedMultiplier * Timers.delta());
+            float floorSpeed = getFloorMultiplier() == 1f ? floor.speedMultiplier : (float)Math.pow(floor.speedMultiplier, getFloorMultiplier());
+            floorSpeed *= terrainSpeedMultiplier;
+            move(velocity.x * floorSpeed * Timers.delta(), velocity.y * floorSpeed * Timers.delta());
             if(Math.abs(px - x) <= 0.0001f) velocity.x = 0f;
             if(Math.abs(py - y) <= 0.0001f) velocity.y = 0f;
         }
@@ -394,10 +501,18 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
     }
 
     public void drawStats(){
+        float scale = getCellScale();
+        TextureRegion cell = getPowerCellRegion();
+
         Draw.color(Color.BLACK, team.color, healthf() + Mathf.absin(Timers.time(), healthf()*5f, 1f - healthf()));
         Draw.alpha(hitTime);
-        Draw.rect(getPowerCellRegion(), x, y, rotation - 90);
+        Draw.rect(cell, x, y, cell.getRegionWidth() * scale, cell.getRegionHeight() * scale, rotation - 90);
         Draw.color();
+    }
+
+    /** Scale applied to the power cell; overridden by units with pulsing biomass cells. */
+    public float getCellScale(){
+        return 1f;
     }
 
     public void drawLight(){

@@ -16,7 +16,7 @@ import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Mathf;
 
 /** Speed-based lightning shield, used by the javelin ship. */
-public class JavelinShieldAbility implements MechAbility{
+public class JavelinShieldAbility extends MechAbility{
     public float minVelocity = 3.6f;
     public float maxVelocity = 6f;
 

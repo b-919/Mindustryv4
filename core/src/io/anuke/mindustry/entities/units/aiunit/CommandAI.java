@@ -1,15 +1,11 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.aiunit;
 
+import io.anuke.mindustry.entities.units.*;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.entities.traits.TargetTrait;
 
-/**
- * Controller used by RTS-controlled units.
- * <p>
- * It owns the command queue, the current command and the stance mask, and forwards the resulting
- * order to the legacy {@link BaseUnit} order fields until the archetype AIs are fully migrated.
- */
+/** Controller used by RTS-controlled units. */
 public class CommandAI extends AIController{
     public final Vector2 targetPos = new Vector2();
     public final Array<Vector2> positionQueue = new Array<>(4);
@@ -22,11 +18,6 @@ public class CommandAI extends AIController{
 
     public CommandAI(BaseUnit unit){
         super(unit);
-    }
-
-    @Override
-    public void updateUnit(){
-        unit.updateDefaultAI();
     }
 
     public UnitCommand currentCommand(){
@@ -71,7 +62,6 @@ public class CommandAI extends AIController{
         if(target != null){
             targetPos.set(target.getX(), target.getY());
             hasTargetPos = true;
-            //leave hold/retreat states so the unit actually engages the ordered target
             unit.onCommand(UnitCommand.attack);
         }
         unit.setDirectTarget(target);
@@ -90,14 +80,14 @@ public class CommandAI extends AIController{
     }
 
     /** Called by {@link BaseUnit#orderMove(float, float)} without re-entering the unit. */
-    protected void orderMove(float x, float y){
+    public void orderMove(float x, float y){
         targetPos.set(x, y);
         hasTargetPos = true;
         attackTarget = null;
     }
 
     /** Called by {@link BaseUnit#setDirectTarget(TargetTrait)} without re-entering the unit. */
-    protected void orderTarget(TargetTrait target){
+    public void orderTarget(TargetTrait target){
         attackTarget = target;
         if(target != null){
             targetPos.set(target.getX(), target.getY());
@@ -106,7 +96,7 @@ public class CommandAI extends AIController{
     }
 
     /** Called by {@link BaseUnit#clearOrder()} without re-entering the unit. */
-    protected void orderCleared(){
+    public void orderCleared(){
         hasTargetPos = false;
         attackTarget = null;
     }

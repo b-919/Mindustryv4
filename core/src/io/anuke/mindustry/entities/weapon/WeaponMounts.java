@@ -81,6 +81,16 @@ public interface WeaponMounts extends TargetTrait{
         return 0f;
     }
 
+    /**Fixed equip-region draw width, or a value <= 0 to use the region's native width.*/
+    default float getEquipDrawWidth(){
+        return -1f;
+    }
+
+    /**Fixed equip-region draw height, or a value <= 0 to use the region's native height.*/
+    default float getEquipDrawHeight(){
+        return -1f;
+    }
+
     /**
      * Expands {@link #getWeaponDefinitions()} into runtime mounts, duplicating mirrored weapons and linking both sides together.
      */

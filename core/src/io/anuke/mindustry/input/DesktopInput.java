@@ -18,9 +18,9 @@ import io.anuke.mindustry.entities.traits.BuilderTrait.BuildRequest;
 import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.mindustry.entities.units.BaseUnit;
 import io.anuke.mindustry.entities.units.GroundUnit;
-import io.anuke.mindustry.entities.units.UnitCommand;
-import io.anuke.mindustry.entities.units.UnitStance;
-import io.anuke.mindustry.entities.units.types.Drone;
+import io.anuke.mindustry.entities.units.aiunit.UnitCommand;
+import io.anuke.mindustry.entities.units.aiunit.UnitStance;
+import io.anuke.mindustry.entities.units.aiunit.BuilderAI;
 import io.anuke.mindustry.game.EventType.UnitCommandChangeEvent;
 import io.anuke.mindustry.game.Schematic;
 import io.anuke.mindustry.game.Team;
@@ -736,7 +736,7 @@ public class DesktopInput extends InputHandler{
         IntSet.IntSetIterator it = selectedUnits.iterator();
         while(it.hasNext){
             BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(it.next());
-            if(unit instanceof Drone && !unit.isDead() && unit.isAdded()) return true;
+            if(unit.getController() instanceof BuilderAI && !unit.isDead() && unit.isAdded()) return true;
         }
         return false;
     }

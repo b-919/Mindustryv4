@@ -12,10 +12,10 @@ import io.anuke.mindustry.content.fx.EnvironmentFx;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.CommandAI;
-import io.anuke.mindustry.entities.units.UnitCommand;
-import io.anuke.mindustry.entities.units.UnitStance;
-import io.anuke.mindustry.entities.units.types.Drone;
+import io.anuke.mindustry.entities.units.aiunit.CommandAI;
+import io.anuke.mindustry.entities.units.aiunit.UnitCommand;
+import io.anuke.mindustry.entities.units.aiunit.UnitStance;
+import io.anuke.mindustry.entities.units.aiunit.BuilderAI;
 import io.anuke.mindustry.entities.traits.TargetTrait;
 import io.anuke.mindustry.entities.effect.ItemTransfer;
 import io.anuke.mindustry.entities.traits.BuilderTrait.BuildRequest;
@@ -228,8 +228,8 @@ public abstract class InputHandler extends InputAdapter{
 
         unit.setStance(stance, enabled);
 
-        if(stance == UnitStance.follow && unit instanceof Drone){
-            ((Drone)unit).setFollowPlayer(enabled, player.id);
+        if(stance == UnitStance.follow && unit.getController() instanceof BuilderAI){
+            ((BuilderAI)unit.getController()).setFollowPlayer(enabled, player.id);
         }
     }
 
@@ -237,8 +237,8 @@ public abstract class InputHandler extends InputAdapter{
     public static void setDroneFollowMode(Player player, int unitID, boolean follow){
         if(player == null) return;
         BaseUnit unit = unitGroups[player.getTeam().ordinal()].getByID(unitID);
-        if(unit instanceof Drone){
-            ((Drone)unit).setFollowPlayer(follow, player.id);
+        if(unit.getController() instanceof BuilderAI){
+            ((BuilderAI)unit.getController()).setFollowPlayer(follow, player.id);
         }
     }
 
@@ -374,7 +374,7 @@ public abstract class InputHandler extends InputAdapter{
 
     boolean canMine(Tile tile){
         return !ui.hasMouse()
-                && tile.floor().drops != null && tile.floor().drops.item.hardness <= player.mech.drillPower
+                && tile.floor().drops != null && tile.floor().drops.item.hardness <= player.getType().drillPower
                 && !tile.floor().playerUnmineable
                 && player.inventory.canAcceptItem(tile.floor().drops.item)
                 && tile.block() == Blocks.air && player.distanceTo(tile.worldx(), tile.worldy()) <= Player.mineDistance;

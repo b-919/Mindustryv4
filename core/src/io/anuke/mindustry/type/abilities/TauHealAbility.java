@@ -17,7 +17,7 @@ import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Mathf;
 
 /** Heals nearby allies and draws the repair beam/turret. */
-public class TauHealAbility implements MechAbility{
+public class TauHealAbility extends MechAbility{
     public float healRange = 90f;
     public float healAmount = 0.3f;
     public float healReload = 160f;
@@ -77,9 +77,8 @@ public class TauHealAbility implements MechAbility{
 
     @Override
     public void drawOver(Player player){
-        Mech mech = player.mech;
-        float tx = player.snappedX() + Angles.trnsx(player.rotation - 90, mech.healTurretOffsetX, mech.healTurretOffsetY);
-        float ty = player.snappedY() + Angles.trnsy(player.rotation - 90, mech.healTurretOffsetX, mech.healTurretOffsetY);
+        float tx = player.snappedX() + Angles.trnsx(player.rotation - 90, player.getType().healTurretOffsetX, player.getType().healTurretOffsetY);
+        float ty = player.snappedY() + Angles.trnsy(player.rotation - 90, player.getType().healTurretOffsetX, player.getType().healTurretOffsetY);
 
         Draw.rect(turretRegion, tx, ty, player.healRotation - 90);
 

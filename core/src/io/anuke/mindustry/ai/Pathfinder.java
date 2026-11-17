@@ -459,6 +459,11 @@ public class Pathfinder{
      * start), or null when no route exists within the expansion budget.
      */
     public LongArray findUnitPath(Team team, float fromWorldX, float fromWorldY, float toWorldX, float toWorldY){
+        return findUnitPath(team, fromWorldX, fromWorldY, toWorldX, toWorldY, false);
+    }
+
+    /** When {@code ignoreSolids} is true, walls and cliffs are treated as passable by the A* search. */
+    public LongArray findUnitPath(Team team, float fromWorldX, float fromWorldY, float toWorldX, float toWorldY, boolean ignoreSolids){
         if(paths == null) return null;
         PathData path = paths[team.ordinal()];
         if(path == null || path.tileData == null || !path.hasComplete) return null;
@@ -547,9 +552,9 @@ public class Pathfinder{
                 int npos = nx + ny * size;
                 int cell = path.tileData[npos];
                 boolean isGoal = npos == goal;
-                if(!isGoal && !passable(cell, teamOrdinal)) continue;
+                if(!isGoal && !ignoreSolids && !passable(cell, teamOrdinal)) continue;
 
-                float step = costOf(cell);
+                float step = ignoreSolids && isSolid(cell) ? 1f : costOf(cell);
                 float ng = pathGScore.get(current, Float.MAX_VALUE) + step;
                 //diagonals not used keeps paths wall-safe without corner checks
                 if(ng < pathGScore.get(npos, Float.MAX_VALUE)){

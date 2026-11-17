@@ -10,7 +10,7 @@ import io.anuke.ucore.core.Timers;
 import io.anuke.ucore.util.Mathf;
 
 /** Creates a lightning ring when the mech lands after boosting. */
-public class LandShockAbility implements MechAbility{
+public class LandShockAbility extends MechAbility{
     public float cooldown = 120f;
     public float lightningDamage = 17f;
     public int lightningLength = 14;

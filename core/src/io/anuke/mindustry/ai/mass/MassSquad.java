@@ -3,7 +3,7 @@ package io.anuke.mindustry.ai.mass;
 import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.units.BaseUnit;
-import io.anuke.mindustry.entities.units.UnitOrderType;
+import io.anuke.mindustry.entities.units.aiunit.UnitOrderType;
 import io.anuke.mindustry.world.Tile;
 
 /**One persistent squad: preset composition plus the current order and per-squad state.*/

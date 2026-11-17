@@ -11,13 +11,7 @@ import io.anuke.ucore.graphics.Lines;
 import io.anuke.ucore.util.Angles;
 import io.anuke.ucore.util.Mathf;
 
-/**
- * Shared body rendering for all unit archetypes.
- * <p>
- * Content-specific extras (legs configured through {@link io.anuke.mindustry.entities.units.UnitType},
- * props, wings, biomass cells) are still drawn by their owning class until they are described as
- * {@code UnitPart} data.
- */
+/** Shared body rendering for all unit archetypes. */
 public final class UnitRenderer{
     private UnitRenderer(){
     }
@@ -33,11 +27,24 @@ public final class UnitRenderer{
             Draw.tint(Color.WHITE, floor.liquidColor, 0.5f);
         }
 
-        for(int i : Mathf.signs){
-            Draw.rect(unit.type.legRegion,
-                    unit.x + Angles.trnsx(unit.baseRotation, ft * i),
-                    unit.y + Angles.trnsy(unit.baseRotation, ft * i),
-                    12f * i, 12f - Mathf.clamp(ft * i, 0, 2), unit.baseRotation - 90);
+        if(unit.type.isTank){
+            float speedFrac = Mathf.clamp(unit.getVelocity().len() / Math.max(unit.type.maxVelocity, 0.0001f));
+            float trackVibrate = Mathf.sin(unit.walkTime * unit.type.speed * 12f, 2f, 0.5f) * speedFrac;
+            float trackJitter = Mathf.sin(unit.walkTime * unit.type.speed * 18f + 1.7f, 1.5f, 0.15f) * speedFrac;
+
+            for(int i : Mathf.signs){
+                Draw.rect(unit.type.treadRegion,
+                        unit.x + Angles.trnsx(unit.baseRotation, trackJitter * i, trackVibrate),
+                        unit.y + Angles.trnsy(unit.baseRotation, trackJitter * i, trackVibrate),
+                        16 * i, 24f, unit.baseRotation - 90);
+            }
+        }else{
+            for(int i : Mathf.signs){
+                Draw.rect(unit.type.legRegion,
+                        unit.x + Angles.trnsx(unit.baseRotation, ft * i),
+                        unit.y + Angles.trnsy(unit.baseRotation, ft * i),
+                        unit.type.legDrawWidth * i, unit.type.legDrawHeight - Mathf.clamp(ft * i, 0, unit.type.legDrawHeightFalloff), unit.baseRotation - 90);
+            }
         }
 
         if(floor.isLiquid){
@@ -48,7 +55,7 @@ public final class UnitRenderer{
 
         Draw.rect(unit.type.baseRegion, unit.x, unit.y, unit.baseRotation - 90);
 
-        Draw.rect(unit.type.region, unit.x, unit.y, unit.rotation - 90);
+        Draw.rect(unit.type.region, unit.x, unit.y, ((unit.type.isTank || !unit.type.omniMovement) ? unit.baseRotation : unit.rotation) - 90);
 
         unit.drawWeaponMounts();
 
@@ -64,10 +71,11 @@ public final class UnitRenderer{
     public static void drawFlying(FlyingUnit unit){
         Draw.alpha(unit.hitTime / Unit.hitDuration);
 
+        drawParts(unit, true);
+
         Draw.rect(unit.type.name, unit.x, unit.y, unit.rotation - 90);
 
-        Draw.alpha(unit.hitTime / Unit.hitDuration);
-        unit.drawWeaponMounts();
+        if(unit.type.drawWeaponMounts) unit.drawWeaponMounts();
 
         unit.drawItems();
 
@@ -76,6 +84,32 @@ public final class UnitRenderer{
         }
 
         Draw.alpha(1f);
+
+        drawParts(unit, false);
+    }
+
+    /** Draws the data-driven parts of a unit for one pass (behind or in front of the body). */
+    public static void drawParts(BaseUnit unit, boolean behind){
+        if(unit.type == null || unit.type.parts.size == 0) return;
+
+        for(int i = 0; i < unit.type.parts.size; i++){
+            UnitPart part = unit.type.parts.get(i);
+            if(part.region == null || part.behind != behind) continue;
+
+            drawPart(unit, part, false);
+            if(part.mirror) drawPart(unit, part, true);
+        }
+    }
+
+    private static void drawPart(BaseUnit unit, UnitPart part, boolean mirrored){
+        float localX = mirrored ? -part.x : part.x;
+        float wx = unit.x + Angles.trnsx(unit.rotation, localX, part.y);
+        float wy = unit.y + Angles.trnsy(unit.rotation, localX, part.y);
+        float spin = part.spin * unit.partTime;
+        if(mirrored && part.alternateSpin) spin = -spin;
+        float base = part.rotateWithBody ? unit.rotation : 0f;
+        float wobble = part.wobbleAmplitude == 0f ? 0f : Mathf.sin(unit.partTime, part.wobbleScl, part.wobbleAmplitude);
+        Draw.rect(part.region, wx, wy, base + part.rotation + spin + wobble);
     }
 
     public static void drawLegs(LegsUnit unit){
@@ -140,64 +174,5 @@ public final class UnitRenderer{
         }
 
         Draw.reset();
-    }
-
-    public static void drawTank(TankUnit unit){
-        Draw.alpha(unit.hitTime / Unit.hitDuration);
-
-        float speed = unit.getVelocity().len();
-        float speedFrac = Mathf.clamp(speed / unit.type.maxVelocity);
-
-        float trackVibrate = Mathf.sin(unit.walkTime * unit.type.speed * 12f, 2f, 0.5f) * speedFrac;
-        float trackJitter = Mathf.sin(unit.walkTime * unit.type.speed * 18f + 1.7f, 1.5f, 0.15f) * speedFrac;
-
-        Floor floor = unit.getFloorOn();
-
-        // Soft shadow
-        if(!io.anuke.mindustry.core.Renderer.captureReflections){
-            Draw.color(0f, 0f, 0f, 0.35f);
-            Draw.rect(unit.type.iconRegion, unit.x, unit.y - 1.5f);
-            Draw.color(Color.WHITE);
-        }
-
-        // Treads
-        if(floor.isLiquid){
-            Draw.tint(Color.WHITE, floor.liquidColor, 0.5f);
-        }
-
-        for(int i : Mathf.signs){
-            Draw.rect(unit.type.treadRegion,
-                    unit.x + Angles.trnsx(unit.baseRotation, trackJitter * i, trackVibrate),
-                    unit.y + Angles.trnsy(unit.baseRotation, trackJitter * i, trackVibrate),
-                    16 * i, 24f, unit.baseRotation - 90);
-        }
-
-        if(floor.isLiquid){
-            Draw.tint(Color.WHITE, floor.liquidColor, unit.getDrownTime() * 0.4f);
-        }else{
-            Draw.tint(Color.WHITE);
-        }
-
-        // Hull base plate
-        Draw.rect(unit.type.baseRegion, unit.x, unit.y, unit.baseRotation - 90);
-
-        // Body at baseRotation (tank hull faces track direction)
-        Draw.rect(unit.type.region, unit.x, unit.y, unit.baseRotation - 90);
-
-        // Turret
-        float trY = -unit.weapon.getRecoil(unit, true);
-        Draw.rect(unit.weapon.equipRegion,
-                unit.x + Angles.trnsx(unit.rotation - 90, unit.weapon.x, trY),
-                unit.y + Angles.trnsy(unit.rotation - 90, unit.weapon.x, trY),
-                unit.weaponRotation - 90);
-
-        // Items
-        unit.drawItems();
-
-        for(int i = 0; i < unit.abilities.size; i++){
-            unit.abilities.get(i).draw(unit);
-        }
-
-        Draw.alpha(1f);
     }
 }

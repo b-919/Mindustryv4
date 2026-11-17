@@ -1,4 +1,6 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.abilities;
+
+import io.anuke.mindustry.entities.units.*;
 
 /**
  * A reusable passive behaviour attached to a unit type.

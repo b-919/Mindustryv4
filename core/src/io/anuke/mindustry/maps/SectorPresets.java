@@ -9,7 +9,7 @@ import io.anuke.mindustry.content.blocks.CraftingBlocks;
 import io.anuke.mindustry.content.blocks.ProductionBlocks;
 import io.anuke.mindustry.content.blocks.UnitBlocks;
 import io.anuke.mindustry.content.blocks.UpgradeBlocks;
-import io.anuke.mindustry.entities.units.UnitCommand;
+import io.anuke.mindustry.entities.units.aiunit.UnitCommand;
 import io.anuke.mindustry.maps.missions.*;
 import io.anuke.mindustry.type.Item;
 import io.anuke.ucore.util.GridMap;

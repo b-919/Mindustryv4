@@ -3,6 +3,8 @@ package io.anuke.mindustry.content;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.ObjectSet;
 import io.anuke.mindustry.entities.units.*;
+import io.anuke.mindustry.entities.units.aiunit.*;
+import io.anuke.mindustry.entities.units.abilities.*;
 import io.anuke.mindustry.entities.units.types.*;
 import io.anuke.mindustry.entities.traits.TypeTrait;
 import io.anuke.mindustry.game.ContentList;
@@ -28,9 +30,12 @@ public class UnitTypes implements ContentList{
     public void load(){
         registerLegacyTypes();
 
-        alphaDrone = new UnitType("alpha-drone", AlphaDrone.class, AlphaDrone::new){
+        alphaDrone = new UnitType("alpha-drone", FlyingUnit.class, FlyingUnit::new){
             {
                 isFlying = true;
+                leaderSync = 1;
+                controller = FollowAI::new;
+                drawWeaponMounts = false;
                 drag = 0.005f;
                 speed = 0.6f;
                 maxVelocity = 1.7f;
@@ -51,9 +56,12 @@ public class UnitTypes implements ContentList{
             }
         };
 
-        defenseDrone = new UnitType("defense-drone", BlockDefenseDrone.class, BlockDefenseDrone::new){
+        defenseDrone = new UnitType("defense-drone", FlyingUnit.class, FlyingUnit::new){
             {
                 isFlying = true;
+                leaderSync = 2;
+                controller = DefenderAI::new;
+                drawWeaponMounts = false;
                 drag = 0.005f;
                 speed = 0.7f;
                 maxVelocity = 2.0f;
@@ -74,9 +82,15 @@ public class UnitTypes implements ContentList{
             }
         };
 
-        scavenger = new UnitType("scavenger", DroneMiner.class, DroneMiner::new){{
+        scavenger = new UnitType("scavenger", FlyingUnit.class, FlyingUnit::new){{
             weapon = Weapons.mineBlaster;
             isFlying = true;
+            drawWeaponMounts = false;
+            syncMineTile = true;
+            mineAimRotation = true;
+            engineSize = 3f;
+            controller = CoreMinerAI::new;
+            trailColor.set(Palette.lightFlame);
             drag = 0.01f;
             speed = 0.18f;
             maxVelocity = 0.6f;
@@ -90,9 +104,15 @@ public class UnitTypes implements ContentList{
             rtsAIControllable = false;
         }};
 
-        draug = new UnitType("draug", DroneMiner.class, DroneMiner::new){{
+        draug = new UnitType("draug", FlyingUnit.class, FlyingUnit::new){{
             weapon = Weapons.mineBlaster;
             isFlying = true;
+            drawWeaponMounts = false;
+            syncMineTile = true;
+            mineAimRotation = true;
+            engineSize = 3f;
+            controller = CoreMinerAI::new;
+            trailColor.set(Palette.lightFlame);
             drag = 0.01f;
             speed = 0.3f;
             maxVelocity = 1.2f;
@@ -105,9 +125,15 @@ public class UnitTypes implements ContentList{
             rtsAIControllable = false;
         }};
 
-        spirit = new UnitType("spirit", Drone.class, Drone::new){{
+        spirit = new UnitType("spirit", FlyingUnit.class, FlyingUnit::new){{
             weapon = Weapons.healBlasterDrone;
             isFlying = true;
+            drawWeaponMounts = false;
+            syncBuilding = true;
+            engineSize = 3f;
+            trailColor.set(Palette.lightTrail);
+            controller = BuilderAI::new;
+            stances.add(UnitStance.follow);
             drag = 0.01f;
             speed = 0.42f;
             maxVelocity = 1.6f;
@@ -119,9 +145,15 @@ public class UnitTypes implements ContentList{
             rtsAIControllable = false;
         }};
 
-        ghost = new UnitType("ghost", Drone.class, Drone::new){{
+        ghost = new UnitType("ghost", FlyingUnit.class, FlyingUnit::new){{
             weapon = Weapons.healBlasterDrone2;
             isFlying = true;
+            drawWeaponMounts = false;
+            syncBuilding = true;
+            engineSize = 3f;
+            trailColor.set(Palette.lightTrail);
+            controller = BuilderAI::new;
+            stances.add(UnitStance.follow);
             drag = 0.01f;
             mass = 1.5f;
             speed = 0.2f;
@@ -137,9 +169,15 @@ public class UnitTypes implements ContentList{
             rtsAIControllable = false;
         }};
 
-        phantom = new UnitType("phantom", Drone.class, Drone::new){{
+        phantom = new UnitType("phantom", FlyingUnit.class, FlyingUnit::new){{
             weapon = Weapons.healBlasterDrone2;
             isFlying = true;
+            drawWeaponMounts = false;
+            syncBuilding = true;
+            engineSize = 3f;
+            trailColor.set(Palette.lightTrail);
+            controller = BuilderAI::new;
+            stances.add(UnitStance.follow);
             drag = 0.01f;
             mass = 2f;
             speed = 0.45f;
@@ -176,9 +214,10 @@ public class UnitTypes implements ContentList{
             unitCost = 30;
         }};
 
-        bombDrone = new UnitType("bomb_drone", BombDrone.class, BombDrone::new){{
+        bombDrone = new UnitType("bomb_drone", FlyingUnit.class, FlyingUnit::new){{
             isFlying = true;
             drawEngine = false;
+            drawWeaponMounts = false;
             weapon = Weapons.kamikazeDrone;
             maxVelocity = 1.25f;
             speed = 0.308f;
@@ -187,6 +226,10 @@ public class UnitTypes implements ContentList{
             mass = 1.25f;
             health = 50;
             unitCost = 30;
+            parts.add(new UnitPart("bomb_drone-propeller",
+                    -3.5f, 3.45f){{ spin = 25f; mirror = true; }});
+            parts.add(new UnitPart("bomb_drone-propeller",
+                    -3.5f, -3.45f){{ spin = 25f; mirror = true; }});
         }};
 
 
@@ -229,7 +272,8 @@ public class UnitTypes implements ContentList{
             immunities.add(StatusEffects.burning);
         }};
 
-        fortress = new UnitType("fortress", Fortress.class, Fortress::new){{
+        fortress = new UnitType("fortress", GroundUnit.class, GroundUnit::new){{
+            holdPosition = true;
             maxVelocity = 0.78f;
             speed = 0.15f;
             drag = 0.4f;
@@ -243,6 +287,7 @@ public class UnitTypes implements ContentList{
         }};
 
         atrax = new UnitType("atrax", LegsUnit.class, LegsUnit::new){{
+            ignoreSolids = true;
             speed = 0.6f;
             drag = 0.4f;
             maxVelocity = 1.3f;
@@ -295,7 +340,9 @@ public class UnitTypes implements ContentList{
             unitCost = 75;
         }};
 
-        revenant = new UnitType("revenant", MissileFlyer.class, MissileFlyer::new){{
+        revenant = new UnitType("revenant", FlyingUnit.class, FlyingUnit::new){{
+            missileMovement = true;
+            controller = FlyingAI::new;
             health = 1000;
             mass = 5f;
             hitsize = 20f;
@@ -314,7 +361,9 @@ public class UnitTypes implements ContentList{
             engineOffsetY = -10f;
         }};
 
-        lich = new UnitType("lich", MissileFlyer.class, MissileFlyer::new){{
+        lich = new UnitType("lich", FlyingUnit.class, FlyingUnit::new){{
+            missileMovement = true;
+            controller = FlyingAI::new;
             health = 6000;
             mass = 20f;
             hitsize = 40f;
@@ -336,7 +385,9 @@ public class UnitTypes implements ContentList{
             isBoss = true;
         }};
 
-        reaper = new UnitType("reaper", MissileFlyer.class, MissileFlyer::new){{
+        reaper = new UnitType("reaper", FlyingUnit.class, FlyingUnit::new){{
+            missileMovement = true;
+            controller = FlyingAI::new;
             health = 11000;
             mass = 30f;
             hitsize = 56f;
@@ -371,7 +422,12 @@ public class UnitTypes implements ContentList{
             isBoss = true;
         }};
 
-        chaosarray = new UnitType("chaos-array", ChaosArray.class, ChaosArray::new){{
+        chaosarray = new UnitType("chaos-array", GroundUnit.class, GroundUnit::new){{
+            legDrawWidth = 32f;
+            legDrawHeight = 32f;
+            legDrawHeightFalloff = 4f;
+            equipDrawWidth = 12f;
+            equipDrawHeight = 32f;
             health = 3000;
             mass = 5f;
             hitsize = 20;
@@ -384,7 +440,12 @@ public class UnitTypes implements ContentList{
             isBoss = true;
         }};
 
-        eradicator = new UnitType("eradicator", Eradicator.class, Eradicator::new){{
+        eradicator = new UnitType("eradicator", GroundUnit.class, GroundUnit::new){{
+            legDrawWidth = 38f;
+            legDrawHeight = 31f;
+            legDrawHeightFalloff = 4f;
+            equipDrawWidth = 22f;
+            equipDrawHeight = 48f;
             health = 9000;
             maxVelocity = 0.68f;
             speed = 0.12f;
@@ -397,15 +458,17 @@ public class UnitTypes implements ContentList{
             isBoss = true;
         }};
 
-        debugtank = new UnitType("debugtank", TankUnit.class, TankUnit::new){{
+        debugtank = new UnitType("debugtank", GroundUnit.class, GroundUnit::new){{
             isTank = true;
+            omniMovement = false;
+            rotateWeapon = true;
             mass = 1f;
             hitsize = 2f;
             speed = 0.2f;
             maxVelocity = 2f;
             drag = 0.4f;
-            rotatespeed = 0.06f;
-            baseRotateSpeed = 0.04f;
+            rotatespeed = 0.04f;
+            baseRotateSpeed = 0.015f;
             range = 80f;
             weapon = Weapons.debugtankturret;
             weapon.mirror = false;
@@ -432,14 +495,20 @@ public class UnitTypes implements ContentList{
                 return true;
             }};
 
-        minerDroneT1 = new UnitType("miner-drone-t1", MiningPostDrone.class, MiningPostDrone::new){{
+        minerDroneT1 = new UnitType("miner-drone-t1", FlyingUnit.class, FlyingUnit::new){{
             weapon = Weapons.mineBlaster;
             isFlying = true;
+            drawWeaponMounts = false;
+            canShootWeapons = false;
+            trailTeamColor = true;
+            engineSize = 3f;
+            controller = MinerAI::new;
             drag = 0.01f;
             speed = 0.25f;
             maxVelocity = 0.90f;
             range = 55f;
             health = 40;
+            drillPower = 3;
             toMine = ObjectSet.with(Items.lead, Items.copper);
             commands.add(UnitCommand.mine);
             spawnsInSiegeMode = false;
@@ -447,9 +516,14 @@ public class UnitTypes implements ContentList{
             rtsAIControllable = false;
         }};
 
-        minerDroneT2 = new UnitType("miner-drone-t2", MiningPostDrone.class, MiningPostDrone::new){{
+        minerDroneT2 = new UnitType("miner-drone-t2", FlyingUnit.class, FlyingUnit::new){{
             weapon = Weapons.healBlasterDrone2;
             isFlying = true;
+            drawWeaponMounts = false;
+            canShootWeapons = false;
+            trailTeamColor = true;
+            engineSize = 3f;
+            controller = MinerAI::new;
             drag = 0.01f;
             mass = 2f;
             speed = 0.30f;
@@ -458,6 +532,7 @@ public class UnitTypes implements ContentList{
             itemCapacity = 70;
             health = 220;
             minePower = 1.2f;
+            drillPower = 6;
             toMine = ObjectSet.with(Items.lead, Items.copper);
             commands.add(UnitCommand.mine);
             spawnsInSiegeMode = false;
@@ -465,9 +540,12 @@ public class UnitTypes implements ContentList{
             rtsAIControllable = false;
         }};
 
-        logisticsDrone = new UnitType("logistics-drone", LogisticsDrone.class, LogisticsDrone::new){{
+        logisticsDrone = new UnitType("logistics-drone", FlyingUnit.class, FlyingUnit::new){{
             isFlying = true;
             drawEngine = false;
+            drawWeaponMounts = false;
+            canShootWeapons = false;
+            controller = LogisticsAI::new;
             drag = 0.01f;
             speed = 0.5f;
             maxVelocity = 1.5f;
@@ -476,10 +554,16 @@ public class UnitTypes implements ContentList{
             spawnsInSiegeMode = false;
             playerControllable = false;
             rtsAIControllable = false;
+            parts.add(new UnitPart("logistics-drone-propeller", -5.3f, 5.3f)
+            {{ spin = 25f; mirror = true; }});
+            parts.add(new UnitPart("logistics-drone-propeller", -5.3f, -5.3f)
+            {{ spin = 25f; mirror = true; }});
         }};
         // The Mass Units
 
-        evilDagger = new UnitType("evil-dagger", BiomassGroundUnit.class, BiomassGroundUnit::new){{
+        evilDagger = new UnitType("evil-dagger", GroundUnit.class, GroundUnit::new){{
+            cellPulse = true;
+            controller = PursueAI::new;
             maxVelocity = 1.1f;
             speed = 0.2f;
             drag = 0.4f;
@@ -495,8 +579,11 @@ public class UnitTypes implements ContentList{
                 return true;
             }};
 
-        FlyingExplosiveBiomass = new UnitType("flying-explosive-biomass", BiomassAirUnit.class, BiomassAirUnit::new){{
+        FlyingExplosiveBiomass = new UnitType("flying-explosive-biomass", FlyingUnit.class, FlyingUnit::new){{
+            cellPulse = true;
+            drawWeaponMounts = false;
             isFlying = true;
+            controller = FlyingAI::new;
             weapon = Weapons.kamikaze;
             trailColor = Color.valueOf("871e1e");
             maxVelocity = 1.50f;
@@ -513,7 +600,9 @@ public class UnitTypes implements ContentList{
                 return true;
             }};
 
-        explosiveBiomass = new UnitType("explosive-biomass", BiomassGroundUnit.class, BiomassGroundUnit::new){{
+        explosiveBiomass = new UnitType("explosive-biomass", GroundUnit.class, GroundUnit::new){{
+            cellPulse = true;
+            controller = PursueAI::new;
             weapon = Weapons.kamikaze;
             maxVelocity = 1.25f;
             speed = 0.36f;
@@ -530,7 +619,9 @@ public class UnitTypes implements ContentList{
                 return true;
             }};
 
-        evilTanky = new UnitType("evil-tanky", BiomassGroundUnit.class, BiomassGroundUnit::new){{
+        evilTanky = new UnitType("evil-tanky", GroundUnit.class, GroundUnit::new){{
+            cellPulse = true;
+            controller = PursueAI::new;
             maxVelocity = 0.8f;
             speed = 0.18f;
             drag = 0.4f;
@@ -548,9 +639,16 @@ public class UnitTypes implements ContentList{
                 return true;
             }};
 
-        evilDraug = new UnitType("evil-draug", BiomassMiner.class, BiomassMiner::new){{
+        evilDraug = new UnitType("evil-draug", FlyingUnit.class, FlyingUnit::new){{
             weapon = Weapons.mineBlaster;
             isFlying = true;
+            drawWeaponMounts = false;
+            drawMiningLaser = false;
+            syncMineTile = true;
+            mineAimRotation = true;
+            cellRegionName = "small-biomass-heart";
+            cellPulse = true;
+            controller = CoreMinerAI::new;
             drag = 0.01f;
             speed = 0.19f;
             maxVelocity = 0.61f;
@@ -568,7 +666,10 @@ public class UnitTypes implements ContentList{
                 return true;
             }};
 
-        evilWraith = new UnitType("evil-wraith", BiomassAirUnit.class, BiomassAirUnit::new){{
+        evilWraith = new UnitType("evil-wraith", FlyingUnit.class, FlyingUnit::new){{
+            cellPulse = true;
+            drawWeaponMounts = false;
+            controller = FlyingAI::new;
             speed = 0.3f;
             maxVelocity = 1.9f;
             drag = 0.01f;
@@ -587,6 +688,8 @@ public class UnitTypes implements ContentList{
             }};
 
         exterminatorBiomass  = new UnitType("exterminator-biomass", BiomassExterminator.class, BiomassExterminator::new){{
+            cellPulse = true;
+            controller = PursueAI::new;
             health = 3000;
             mass = 5f;
             hitsize = 20;
@@ -604,9 +707,12 @@ public class UnitTypes implements ContentList{
                 return true;
             }
         };
-        evilSwarmDrone = new UnitType("evil-swarm-drone", BiomassSwarm.class, BiomassSwarm::new){
+        evilSwarmDrone = new UnitType("evil-swarm-drone", FlyingUnit.class, FlyingUnit::new){
             {
+                cellPulse = true;
                 isFlying = true;
+                leaderSync = 2;
+                controller = DefenderAI::new;
                 drawEngine = false;
                 drag = 0.005f;
                 speed = 0.6f;
@@ -626,7 +732,10 @@ public class UnitTypes implements ContentList{
                 return true;
             }
         };
-        artilleryBiomass = new UnitType("artillery-biomass", BiomassArtillery.class, BiomassArtillery::new){{
+        artilleryBiomass = new UnitType("artillery-biomass", GroundUnit.class, GroundUnit::new){{
+            cellPulse = true;
+            controller = PursueAI::new;
+            holdPosition = true;
             maxVelocity = 0.8f;
             speed = 0.15f;
             drag = 0.4f;
@@ -641,9 +750,16 @@ public class UnitTypes implements ContentList{
             living = true;
         }};
 
-        acidMosquito = new UnitType("acid-mosquito", BiomassMosquito.class, BiomassMosquito::new){{
+        acidMosquito = new UnitType("acid-mosquito", FlyingUnit.class, FlyingUnit::new){{
+            cellPulse = true;
             isFlying = true;
             drawEngine = false;
+            missileMovement = true;
+            controller = FlyingAI::new;
+            parts.add(new UnitPart("acid-mosquito-wing1", 0f, 0f)
+            {{rotateWithBody = true; behind = true; rotation = -90f; wobbleAmplitude = 25f; wobbleScl = 1.5f;}});
+            parts.add(new UnitPart("acid-mosquito-wing2", 0f, 0f)
+            {{rotateWithBody = true; behind = true; rotation = -90f; wobbleAmplitude = -25f; wobbleScl = 1.5f;}});
             health = 100;
             hitsize = 4f;
             mass = 0.1f;
@@ -669,36 +785,36 @@ public class UnitTypes implements ContentList{
      * old saves loadable even after content starts using the shared archetype classes.
      */
     public static void registerLegacyTypes(){
-        TypeTrait.registerType(AlphaDrone.class, AlphaDrone::new);
-        TypeTrait.registerType(BlockDefenseDrone.class, BlockDefenseDrone::new);
-        TypeTrait.registerType(DroneMiner.class, DroneMiner::new);
-        TypeTrait.registerType(Drone.class, Drone::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
         TypeTrait.registerLegacy(GroundUnit::new);
         TypeTrait.registerLegacy(GroundUnit::new);
-        TypeTrait.registerType(BombDrone.class, BombDrone::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
         TypeTrait.registerType(GroundHealUnit.class, GroundHealUnit::new);
         TypeTrait.registerLegacy(GroundUnit::new);
         TypeTrait.registerLegacy(GroundUnit::new);
-        TypeTrait.registerType(Fortress.class, Fortress::new);
+        TypeTrait.registerLegacy(GroundUnit::new);
         TypeTrait.registerLegacy(LegsUnit::new);
         TypeTrait.registerLegacy(FlyingUnit::new);
         TypeTrait.registerLegacy(FlyingUnit::new);
         TypeTrait.registerLegacy(FlyingUnit::new);
         TypeTrait.registerLegacy(MissileFlyer::new);
         TypeTrait.registerLegacy(MissileFlyer::new);
-        TypeTrait.registerType(ChaosArray.class, ChaosArray::new);
-        TypeTrait.registerType(Eradicator.class, Eradicator::new);
-        TypeTrait.registerType(TankUnit.class, TankUnit::new);
+        TypeTrait.registerLegacy(GroundUnit::new);
+        TypeTrait.registerLegacy(GroundUnit::new);
+        TypeTrait.registerLegacy(GroundUnit::new);
         TypeTrait.registerType(TrainEngine.class, TrainEngine::new);
-        TypeTrait.registerType(MiningPostDrone.class, MiningPostDrone::new);
-        TypeTrait.registerType(LogisticsDrone.class, LogisticsDrone::new);
-        TypeTrait.registerType(BiomassGroundUnit.class, BiomassGroundUnit::new);
-        TypeTrait.registerType(BiomassAirUnit.class, BiomassAirUnit::new);
-        TypeTrait.registerType(BiomassMiner.class, BiomassMiner::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
+        TypeTrait.registerLegacy(GroundUnit::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
         TypeTrait.registerType(BiomassExterminator.class, BiomassExterminator::new);
-        TypeTrait.registerType(BiomassSwarm.class, BiomassSwarm::new);
-        TypeTrait.registerType(BiomassArtillery.class, BiomassArtillery::new);
-        TypeTrait.registerType(BiomassMosquito.class, BiomassMosquito::new);
+        TypeTrait.registerLegacy(FlyingUnit::new);
+        TypeTrait.registerLegacy(GroundUnit::new);
+        TypeTrait.registerLegacy(BiomassMosquito::new);
     }
 
     @Override

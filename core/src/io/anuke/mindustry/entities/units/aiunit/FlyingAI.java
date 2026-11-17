@@ -1,5 +1,6 @@
-package io.anuke.mindustry.entities.units;
+package io.anuke.mindustry.entities.units.aiunit;
 
+import io.anuke.mindustry.entities.units.*;
 import io.anuke.mindustry.entities.Unit;
 import io.anuke.mindustry.entities.Units;
 import io.anuke.mindustry.world.Tile;
@@ -10,12 +11,7 @@ import io.anuke.ucore.util.Mathf;
 
 import static io.anuke.mindustry.Vars.world;
 
-/**
- * Controller for the shared flying archetype.
- * <p>
- * Ported from the former {@code FlyingUnit.attack/patrol/pursue/retreat/hold} states. Custom
- * flying subclasses keep {@link CommandAI} so their own states continue to run unchanged.
- */
+/** Controller for the shared flying archetype. */
 public class FlyingAI extends CommandAI{
     public enum Mode{
         attack, patrol, pursue, retreat, hold

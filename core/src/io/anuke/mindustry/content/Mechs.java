@@ -2,7 +2,6 @@ package io.anuke.mindustry.content;
 
 import com.badlogic.gdx.graphics.Color;
 import io.anuke.mindustry.content.fx.ShootFx;
-import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.game.ContentList;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.type.ContentType;
@@ -151,13 +150,7 @@ public class Mechs implements ContentList{
                 itemCapacity = 200000;
                 trailColor = Color.valueOf("feb380");
                 cellTrnsY = 1f;
-            }
-
-            @Override
-            public void updateAlt(Player player){
-                if(player.health < player.maxHealth()){
-                    player.healBy(player.maxHealth() - player.health);
-                }
+                abilities.add(new DebugRegenAbility());
             }
         };
         debugGround = new Mech("debug-mech", false){
@@ -178,13 +171,7 @@ public class Mechs implements ContentList{
                 itemCapacity = 200000;
                 trailColor = Color.valueOf("fe8390");
                 cellTrnsY = 1f;
-            }
-
-            @Override
-            public void updateAlt(Player player){
-                if(player.health < player.maxHealth()){
-                    player.healBy(player.maxHealth() - player.health);
-                }
+                abilities.add(new DebugRegenAbility());
             }
         };
 

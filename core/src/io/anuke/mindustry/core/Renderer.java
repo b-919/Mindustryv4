@@ -1099,7 +1099,7 @@ public class Renderer extends RendererModule{
                 if(player.isDead()) continue;
                 try{
                     float gap;
-                    if(player.isFlying() && (player.mech == null || player.mech.flying)){
+                    if(player.isFlying() && (player.getType() == null || player.getType().isFlying)){
                         gap = reflectionFlyerGap;
                     }else{
                         gap = reflectionGroundGap +
@@ -1132,7 +1132,7 @@ public class Renderer extends RendererModule{
                 if(player.isDead()) continue;
                 try{
                     float gap;
-                    if(player.isFlying() && (player.mech == null || player.mech.flying)){
+                    if(player.isFlying() && (player.getType() == null || player.getType().isFlying)){
                         gap = reflectionFlyerGap;
                     }else{
                         gap = reflectionGroundGap +

@@ -4,7 +4,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
 import io.anuke.mindustry.content.Weapons;
-import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.entities.units.UnitType;
 import io.anuke.mindustry.game.UnlockableContent;
 import io.anuke.mindustry.graphics.Palette;
@@ -106,67 +105,6 @@ public class Mech extends UnlockableContent{
 
     public String localizedName(){
         return Bundles.get("mech." + name + ".name");
-    }
-
-    public void updateAlt(Player player){
-        for(int i = 0; i < abilities.size; i++){
-            abilities.get(i).update(player);
-        }
-    }
-
-    public void draw(Player player){
-        for(int i = 0; i < abilities.size; i++){
-            abilities.get(i).draw(player);
-        }
-    }
-
-    public void drawOver(Player player){
-        for(int i = 0; i < abilities.size; i++){
-            abilities.get(i).drawOver(player);
-        }
-    }
-
-    public void drawBloom(Player player){
-        for(int i = 0; i < abilities.size; i++){
-            abilities.get(i).drawBloom(player);
-        }
-    }
-
-    public float getExtraArmor(Player player){
-        float armor = 0f;
-        for(int i = 0; i < abilities.size; i++){
-            armor += abilities.get(i).getExtraArmor(player);
-        }
-        return armor;
-    }
-
-    public float spreadX(Player player){
-        float spread = 0f;
-        for(int i = 0; i < abilities.size; i++){
-            spread += abilities.get(i).spreadX(player);
-        }
-        return spread;
-    }
-
-    public float getRotationAlpha(Player player){
-        float alpha = 1f;
-        for(int i = 0; i < abilities.size; i++){
-            alpha *= abilities.get(i).getRotationAlpha(player);
-        }
-        return alpha;
-    }
-
-    public boolean canShoot(Player player){
-        for(int i = 0; i < abilities.size; i++){
-            if(!abilities.get(i).canShoot(player)) return false;
-        }
-        return true;
-    }
-
-    public void onLand(Player player){
-        for(int i = 0; i < abilities.size; i++){
-            abilities.get(i).onLand(player);
-        }
     }
 
     @Override
