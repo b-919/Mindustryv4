@@ -163,11 +163,15 @@ public class Pathfinder{
      * Returns null when unavailable or unreachable; callers should fall back to direct steering.
      */
     public LongArray findChunkPath(float fromWorldX, float fromWorldY, float toWorldX, float toWorldY){
+        return findChunkPath(fromWorldX, fromWorldY, toWorldX, toWorldY, PathMode.ground);
+    }
+
+    public LongArray findChunkPath(float fromWorldX, float fromWorldY, float toWorldX, float toWorldY, PathMode mode){
         if(!world.isOpenWorld()) return null;
         if(graph == null){
             graph = new ChunkWaypointGraph();
         }
-        return graph.findPath(fromWorldX / tilesize, fromWorldY / tilesize, toWorldX / tilesize, toWorldY / tilesize);
+        return graph.findPath(fromWorldX / tilesize, fromWorldY / tilesize, toWorldX / tilesize, toWorldY / tilesize, mode);
     }
 
     public void recenter(int playerTX, int playerTY){
@@ -209,6 +213,10 @@ public class Pathfinder{
     }
 
     public Tile getTargetTile(Team team, Tile tile){
+        return getTargetTile(team, tile, PathMode.ground);
+    }
+
+    public Tile getTargetTile(Team team, Tile tile, PathMode mode){
         PathData path = paths[team.ordinal()];
         if(path == null || tile == null) return tile;
 
@@ -251,14 +259,14 @@ public class Pathfinder{
             if(v >= value || Float.MAX_VALUE - v < 1f) continue;
             if(target != null && v >= tl) continue;
 
-            if(dx != 0 && dy != 0){
+            if(dx != 0 && dy != 0 && mode == PathMode.ground){
                 int c1 = cellAt(path, tile.x + dx, tile.y);
                 int c2 = cellAt(path, tile.x, tile.y + dy);
                 if(isSolid(c1) || isSolid(c2)) continue;
             }
 
             Tile other = peekWorldTile(nx, ny);
-            if(other == null || other.solid()) continue;
+            if(!mode.passable(other)) continue;
 
             target = other;
             tl = v;
@@ -284,8 +292,10 @@ public class Pathfinder{
         return (cellData & B_SOLID) != 0;
     }
 
-    private boolean passable(int cellData, int teamOrdinal){
+    private boolean passable(int cellData, int teamOrdinal, PathMode mode){
+        if(mode == PathMode.ignoreSolids) return true;
         if((cellData & B_SOLID) == 0) return true;
+        if(mode == PathMode.legs) return (cellData & B_BREAKABLE) != 0;
         return (cellData & B_BREAKABLE) != 0 && ((cellData >> TEAM_SHIFT) & 0x1F) != teamOrdinal;
     }
 
@@ -459,11 +469,16 @@ public class Pathfinder{
      * start), or null when no route exists within the expansion budget.
      */
     public LongArray findUnitPath(Team team, float fromWorldX, float fromWorldY, float toWorldX, float toWorldY){
-        return findUnitPath(team, fromWorldX, fromWorldY, toWorldX, toWorldY, false);
+        return findUnitPath(team, fromWorldX, fromWorldY, toWorldX, toWorldY, PathMode.ground);
     }
 
     /** When {@code ignoreSolids} is true, walls and cliffs are treated as passable by the A* search. */
     public LongArray findUnitPath(Team team, float fromWorldX, float fromWorldY, float toWorldX, float toWorldY, boolean ignoreSolids){
+        return findUnitPath(team, fromWorldX, fromWorldY, toWorldX, toWorldY,
+                ignoreSolids ? PathMode.ignoreSolids : PathMode.ground);
+    }
+
+    public LongArray findUnitPath(Team team, float fromWorldX, float fromWorldY, float toWorldX, float toWorldY, PathMode mode){
         if(paths == null) return null;
         PathData path = paths[team.ordinal()];
         if(path == null || path.tileData == null || !path.hasComplete) return null;
@@ -552,9 +567,9 @@ public class Pathfinder{
                 int npos = nx + ny * size;
                 int cell = path.tileData[npos];
                 boolean isGoal = npos == goal;
-                if(!isGoal && !ignoreSolids && !passable(cell, teamOrdinal)) continue;
+                if(!isGoal && !passable(cell, teamOrdinal, mode)) continue;
 
-                float step = ignoreSolids && isSolid(cell) ? 1f : costOf(cell);
+                float step = mode == PathMode.ignoreSolids && isSolid(cell) ? 1f : costOf(cell);
                 float ng = pathGScore.get(current, Float.MAX_VALUE) + step;
                 //diagonals not used keeps paths wall-safe without corner checks
                 if(ng < pathGScore.get(npos, Float.MAX_VALUE)){
@@ -645,6 +660,10 @@ public class Pathfinder{
      * the unit is already at the closest reachable spot or no path data is available.
      */
     public LongArray findFallbackWaypoint(Team team, float fromWorldX, float fromWorldY, float toWorldX, float toWorldY){
+        return findFallbackWaypoint(team, fromWorldX, fromWorldY, toWorldX, toWorldY, PathMode.ground);
+    }
+
+    public LongArray findFallbackWaypoint(Team team, float fromWorldX, float fromWorldY, float toWorldX, float toWorldY, PathMode mode){
         if(paths == null) return null;
         PathData path = paths[team.ordinal()];
         if(path == null || path.tileData == null || !path.hasComplete) return null;
@@ -700,7 +719,7 @@ public class Pathfinder{
                 if((fallbackVisited[npos >>> 6] & (1L << (npos & 63))) != 0) continue;
 
                 //walk through breakable blocks the waypoint may sit against an enemy wall
-                if(!passable(path.tileData[npos], teamOrdinal)) continue;
+                if(!passable(path.tileData[npos], teamOrdinal, mode)) continue;
 
                 fallbackVisited[npos >>> 6] |= 1L << (npos & 63);
                 fallbackParent.put(npos, current);
@@ -765,7 +784,7 @@ public class Pathfinder{
 
                     int npos = nx + ny * size;
                     int cell = path.tileData[npos];
-                    if(!passable(cell, teamOrdinal)) continue;
+                    if(!passable(cell, teamOrdinal, PathMode.ground)) continue;
 
                     float nw = cost + costOf(cell);
                     if(nw < path.weights[npos]){

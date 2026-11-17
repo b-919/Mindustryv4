@@ -16,7 +16,6 @@ import io.anuke.mindustry.net.Interpolator;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.type.StatusEffect;
 import io.anuke.mindustry.type.Weapon;
-import io.anuke.mindustry.world.Block;
 import io.anuke.mindustry.world.Tile;
 import io.anuke.mindustry.world.blocks.Floor;
 import io.anuke.ucore.core.Effects;
@@ -291,15 +290,7 @@ public abstract class Unit extends DestructibleEntity implements SaveTrait, Targ
     }
 
     private static boolean legSolid(Tile tile){
-        if(tile == null) return true;
-
-        Block block = tile.block();
-        if(block == null || block == Blocks.air){
-            return tile.floor().solid;
-        }
-
-        //static terrain blocks legs; constructed/destructible blocks can be stepped over
-        return block.solid && !block.destructible && !block.breakable && !block.update;
+        return tile == null || tile.legSolid();
     }
 
     @Override

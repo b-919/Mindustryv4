@@ -10,6 +10,7 @@ import com.badlogic.gdx.utils.LongArray;
 import io.anuke.annotations.Annotations.Loc;
 import io.anuke.annotations.Annotations.Remote;
 import io.anuke.mindustry.Vars;
+import io.anuke.mindustry.ai.PathMode;
 import io.anuke.mindustry.content.fx.ExplosionFx;
 import io.anuke.mindustry.content.fx.UnitFx;
 import io.anuke.mindustry.entities.Damage;
@@ -405,6 +406,13 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         return type != null && type.ignoreSolids;
     }
 
+    /** Movement profile used by HPA and fine-grained pathfinding. */
+    public PathMode pathMode(){
+        if(ignoresSolids()) return PathMode.ignoreSolids;
+        if(usesLegStep()) return PathMode.legs;
+        return PathMode.ground;
+    }
+
     @Override
     public float getFloorMultiplier(){
         return type == null ? 1f : type.floorMultiplier;
@@ -444,8 +452,8 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
     /** Non-omni movement: turn the movement heading, then accelerate along it. */
     protected void rotateMove(Vector2 vector){
-        baseRotation = Mathf.slerpDelta(baseRotation, vector.angle(), type.baseRotateSpeed);
-        movementVec.set(vector).setAngle(baseRotation);
+        baseRotation = Mathf.slerpDelta(baseRotation, vector.angleDeg(), type.baseRotateSpeed);
+        movementVec.set(vector).setAngleDeg(baseRotation);
         moveAt(movementVec);
     }
 
@@ -604,7 +612,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             Tile here = world.tileWorld(x, y);
             float curDrown = here == null ? 0f : here.floor().drownTime;
             Tile probe = world.tileWorld(x + Angles.trnsx(angle, look), y + Angles.trnsy(angle, look));
-            if(probe != null && probe.floor().drownTime > curDrown + 0.01f) return true;
+            return probe != null && probe.floor().drownTime > curDrown + 0.01f;
         }
         return false;
     }
@@ -636,7 +644,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         resetChunkSteer();
 
         if(world.isOpenWorld()){
-            chunkPath = world.pathfinder.findChunkPath(x, y, gx, gy);
+            chunkPath = world.pathfinder.findChunkPath(x, y, gx, gy, pathMode());
             if(chunkPath != null && chunkPath.size > 0){
                 LongArray refined = refineChunkCorridor(chunkPath, gx, gy);
                 if(refined != null && refined.size > 1){
@@ -651,7 +659,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             }
         }
 
-        chunkPath = world.pathfinder.findUnitPath(team, x, y, gx, gy, ignoresSolids());
+        chunkPath = world.pathfinder.findUnitPath(team, x, y, gx, gy, pathMode());
         if(chunkPath != null && chunkPath.size > 0){
             chunkPathGoalX = gx;
             chunkPathGoalY = gy;
@@ -660,7 +668,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             return true;
         }
 
-        chunkPath = world.pathfinder.findFallbackWaypoint(team, x, y, gx, gy);
+        chunkPath = world.pathfinder.findFallbackWaypoint(team, x, y, gx, gy, pathMode());
         if(chunkPath != null && chunkPath.size > 0){
             chunkPathGoalX = gx;
             chunkPathGoalY = gy;
@@ -689,7 +697,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             long wp = coarse.items[i];
             float wx = (int)(wp >> 32) * tilesize;
             float wy = (int)wp * tilesize;
-            LongArray leg = world.pathfinder.findUnitPath(team, curX, curY, wx, wy, ignoresSolids());
+            LongArray leg = world.pathfinder.findUnitPath(team, curX, curY, wx, wy, pathMode());
             if(leg == null || leg.size == 0){
                 return out.size > 1 ? out : null;
             }
@@ -703,7 +711,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             curX = (int)(last >> 32) * tilesize;
             curY = (int)last * tilesize;
         }
-        LongArray tail = world.pathfinder.findUnitPath(team, curX, curY, gx, gy, ignoresSolids());
+        LongArray tail = world.pathfinder.findUnitPath(team, curX, curY, gx, gy, pathMode());
         if(tail == null || tail.size == 0) return out.size > 1 ? out : null;
         for(int j = 0; j < tail.size; j++){
             out.add(tail.items[j]);
@@ -732,11 +740,6 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     public boolean steerAlongChunkPath(float gx, float gy){
         steerGoalX = gx;
         steerGoalY = gy;
-
-        if(ignoresSolids()){
-            movePref(pathVec.trns(angleTo(gx, gy), movementSpeed()));
-            return true;
-        }
 
         if(chunkPathCooldown > 0) chunkPathCooldown--;
 
@@ -878,7 +881,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             //second attempt on a still-blocked hop (the fine grid may have been unavailable earlier)
             if(hopBlocked && chunkSpliceFail <= 1){
                 chunkSpliceFail = 2;
-                LongArray detour = world.pathfinder.findUnitPath(team, x, y, wx, wy, ignoresSolids());
+                LongArray detour = world.pathfinder.findUnitPath(team, x, y, wx, wy, pathMode());
                 if(detour != null && detour.size > 0){
                     LongArray merged = new LongArray();
                     merged.addAll(detour.items, 0, detour.size);
@@ -903,7 +906,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
             //at the last waypoint the coarse corridor cannot finish the goal; a fine-grid leg straight
             //to the target works whenever the goal still lies inside the loaded window (else the coarse
             //re-query below re-adopts whatever corridor is cached)
-            LongArray direct = world.pathfinder.findUnitPath(team, x, y, gx, gy, ignoresSolids());
+            LongArray direct = world.pathfinder.findUnitPath(team, x, y, gx, gy, pathMode());
             if(direct != null && direct.size > 0){
                 chunkPath = direct;
                 chunkPathIndex = 0;
@@ -1064,7 +1067,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         pathVec.set(target.getX() - x, target.getY() - y);
 
         if(pathVec.len() < circleLength){
-            pathVec.rotate((circleLength - pathVec.len()) / circleLength * 180f);
+            pathVec.rotateDeg((circleLength - pathVec.len()) / circleLength * 180f);
         }
 
         float moveAngle = avoidAngle(pathVec.angle());
@@ -1081,12 +1084,18 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
         TileEntity core = getClosestEnemyCore();
         if(core == null) return;
 
-        if(ignoresSolids()){
-            movePref(pathVec.trns(angleTo(core), movementSpeed()));
+        if(pathMode() != PathMode.ground && steerAlongChunkPath(core.getX(), core.getY())){
             return;
         }
 
-        Tile targetTile = world.pathfinder.getTargetTile(team, tile);
+        if(ignoresSolids()){
+            if(!steerAlongChunkPath(core.getX(), core.getY())){
+                movePref(pathVec.trns(angleTo(core), movementSpeed()));
+            }
+            return;
+        }
+
+        Tile targetTile = world.pathfinder.getTargetTile(team, tile, pathMode());
 
         if(tile == targetTile){
             //gradient exhausted either arrived, or (open world) the field has no coverage here
@@ -1112,9 +1121,14 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
     }
 
     public void moveToHome(){
+        if(pathMode() != PathMode.ground){
+            TileEntity core = getClosestCore();
+            if(core != null && steerAlongChunkPath(core.getX(), core.getY())) return;
+        }
+
         if(ignoresSolids()){
             TileEntity core = getClosestCore();
-            if(core != null){
+            if(core != null && !steerAlongChunkPath(core.getX(), core.getY())){
                 movePref(pathVec.trns(angleTo(core), movementSpeed()));
             }
             return;
@@ -1132,7 +1146,7 @@ public abstract class BaseUnit extends Unit implements ShooterTrait{
 
         Tile tile = world.tileWorld(x, y);
         if(tile == null) return;
-        Tile targetTile = world.pathfinder.getTargetTile(enemy, tile);
+        Tile targetTile = world.pathfinder.getTargetTile(enemy, tile, pathMode());
 
         if(tile == targetTile) return;
 

@@ -264,6 +264,7 @@ public class UnitPath{
 
     private boolean orderPassable(BaseUnit unit, Tile tile){
         if(unit.ignoresSolids()) return tile.floor().drownTime <= 0f;
+        if(unit.usesLegStep()) return !tile.legSolid() && tile.floor().drownTime <= 0f;
         if(tile.solid() && !(tile.breakable() && tile.target().getTeam() != unit.getTeam())) return false;
         return tile.floor().drownTime <= 0f;
     }
@@ -343,7 +344,7 @@ public class UnitPath{
                 int nx = currentTile.x + sx, ny = currentTile.y + sy;
                 Tile next = world.tile(nx, ny);
                 if(next == null || !orderPassable(unit, next)) continue;
-                if(sx != 0 && sy != 0 && !unit.ignoresSolids() && (world.solid(currentTile.x + sx, currentTile.y) || world.solid(currentTile.x, currentTile.y + sy))){
+                if(sx != 0 && sy != 0 && !unit.ignoresSolids() && !unit.usesLegStep() && (world.solid(currentTile.x + sx, currentTile.y) || world.solid(currentTile.x, currentTile.y + sy))){
                     continue;
                 }
 

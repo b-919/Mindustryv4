@@ -35,7 +35,7 @@ public class ChunkWaypointGraph{
 
     private static int nextUid = 1;
 
-    private final LongMap<ChunkNodes> cache = new LongMap<>();
+    private final LongMap<ChunkNodes[]> cache = new LongMap<>();
 
     public void reset(){
         cache.clear();
@@ -50,6 +50,10 @@ public class ChunkWaypointGraph{
      * extending it as more chunks load.
      */
     public LongArray findPath(float fromX, float fromY, float toX, float toY){
+        return findPath(fromX, fromY, toX, toY, PathMode.ground);
+    }
+
+    public LongArray findPath(float fromX, float fromY, float toX, float toY, PathMode mode){
         ChunkManager cm = world.isOpenWorld() ? world.chunks() : null;
         if(cm == null) return null;
 
@@ -63,7 +67,7 @@ public class ChunkWaypointGraph{
         WorldChunk startChunk = cm.peekChunk(scx, scy);
         if(startChunk == null || startChunk.tiles == null) return null;
 
-        ChunkNodes start = getNodes(cm, scx, scy);
+        ChunkNodes start = getNodes(cm, scx, scy, mode);
         if(start == null) return null;
 
         int slx = clampLocal(sfx - scx * CSIZE), sly = clampLocal(sfy - scy * CSIZE);
@@ -82,7 +86,7 @@ public class ChunkWaypointGraph{
         if(startNode < 0) return null;
 
         WorldChunk goalChunk = cm.peekChunk(tcx, tcy);
-        ChunkNodes goal = goalChunk != null && goalChunk.tiles != null ? getNodes(cm, tcx, tcy) : null;
+        ChunkNodes goal = goalChunk != null && goalChunk.tiles != null ? getNodes(cm, tcx, tcy, mode) : null;
         int goalNode = -1;
         if(goal != null){
             if(goal.comp[glx + gly * CSIZE] == 0){
@@ -104,11 +108,11 @@ public class ChunkWaypointGraph{
             return out;
         }
 
-        return search(cm, start, startNode, goal, goalNode, tcx, tcy, glx, gly);
+        return search(cm, start, startNode, goal, goalNode, tcx, tcy, glx, gly, mode);
     }
 
     private LongArray search(ChunkManager cm, ChunkNodes startNodes, int startNode, ChunkNodes goalNodes, int goalNode,
-                             int tcx, int tcy, int glx, int gly){
+                             int tcx, int tcy, int glx, int gly, PathMode mode){
         Ctx ctx = new Ctx();
 
         float gxw = tcx * CSIZE + glx + 0.5f, gyw = tcy * CSIZE + gly + 0.5f;
@@ -142,7 +146,7 @@ public class ChunkWaypointGraph{
             }
             if(++expansions > MAX_EXPANSIONS) break;
 
-            expand(ctx, cm, cur, gxw, gyw);
+            expand(ctx, cm, cur, gxw, gyw, mode);
         }
 
         int target = goalSlot >= 0 ? goalSlot : bestSlot;
@@ -166,9 +170,9 @@ public class ChunkWaypointGraph{
     }
 
     /** Expands implicit edges of the node stored at {@code slot}: same-component entrances + overlapping foreign border runs. */
-    private void expand(Ctx ctx, ChunkManager cm, int slot, float gxw, float gyw){
+    private void expand(Ctx ctx, ChunkManager cm, int slot, float gxw, float gyw, PathMode mode){
         long key = ctx.keys.items[slot];
-        ChunkNodes n = getNodes(cm, keyCx(key), keyCy(key));
+        ChunkNodes n = getNodes(cm, keyCx(key), keyCy(key), mode);
         if(n == null) return;
 
         int node = ctx.nodes.items[slot];
@@ -189,7 +193,7 @@ public class ChunkWaypointGraph{
         int acx = cx + (side == SIDE_LEFT ? -1 : side == SIDE_RIGHT ? 1 : 0);
         int acy = cy + (side == SIDE_BOTTOM ? -1 : side == SIDE_TOP ? 1 : 0);
 
-        ChunkNodes adj = getNodes(cm, acx, acy);
+        ChunkNodes adj = getNodes(cm, acx, acy, mode);
         if(adj == null) return;
 
         int adjSide = side == SIDE_LEFT ? SIDE_RIGHT : side == SIDE_RIGHT ? SIDE_LEFT :
@@ -259,27 +263,35 @@ public class ChunkWaypointGraph{
     }
 
     /** Builds or returns the cached abstraction for a chunk; null when the chunk is not resident. */
-    private ChunkNodes getNodes(ChunkManager cm, int cx, int cy){
+    private ChunkNodes getNodes(ChunkManager cm, int cx, int cy, PathMode mode){
         WorldChunk chunk = cm.peekChunk(cx, cy);
+        long key = packKey(cx, cy);
+
         if(chunk == null || chunk.tiles == null){
-            cache.remove(packKey(cx, cy));
+            cache.remove(key);
             return null;
         }
 
-        ChunkNodes nodes = cache.get(packKey(cx, cy));
+        ChunkNodes[] modes = cache.get(key);
+        ChunkNodes nodes = modes == null ? null : modes[mode.ordinal()];
         if(nodes != null && nodes.stamp == chunk.pathStamp){
             return nodes;
         }
 
-        nodes = build(cx, cy, chunk);
+        nodes = build(cx, cy, chunk, mode);
         if(cache.size >= MAX_CACHE){
             cache.clear();
+            modes = null;
         }
-        cache.put(packKey(cx, cy), nodes);
+        if(modes == null){
+            modes = new ChunkNodes[PathMode.values().length];
+            cache.put(key, modes);
+        }
+        modes[mode.ordinal()] = nodes;
         return nodes;
     }
 
-    private ChunkNodes build(int cx, int cy, WorldChunk chunk){
+    private ChunkNodes build(int cx, int cy, WorldChunk chunk, PathMode mode){
         ChunkNodes n = new ChunkNodes(cx, cy);
 
         //label connected components of passable tiles with BFS
@@ -288,7 +300,7 @@ public class ChunkWaypointGraph{
         short compCount = 0;
 
         for(int i = 0; i < comp.length; i++){
-            if(comp[i] != 0 || !passable(chunk.tiles[i])) continue;
+            if(comp[i] != 0 || !passable(chunk.tiles[i], mode)) continue;
 
             compCount++;
             int head = 0, tail = 0;
@@ -305,7 +317,7 @@ public class ChunkWaypointGraph{
                     if(nx < 0 || ny < 0 || nx >= CSIZE || ny >= CSIZE) continue;
 
                     int ni = nx + ny * CSIZE;
-                    if(comp[ni] != 0 || !passable(chunk.tiles[ni])) continue;
+                    if(comp[ni] != 0 || !passable(chunk.tiles[ni], mode)) continue;
                     comp[ni] = compCount;
                     stack[tail++] = (short)ni;
                 }
@@ -314,16 +326,16 @@ public class ChunkWaypointGraph{
         n.compCount = compCount;
 
         //entrance extraction: midpoints of maximal passable runs on each border
-        scanSide(n, chunk, SIDE_LEFT, true);
-        scanSide(n, chunk, SIDE_RIGHT, true);
-        scanSide(n, chunk, SIDE_BOTTOM, false);
-        scanSide(n, chunk, SIDE_TOP, false);
+        scanSide(n, chunk, SIDE_LEFT, true, mode);
+        scanSide(n, chunk, SIDE_RIGHT, true, mode);
+        scanSide(n, chunk, SIDE_BOTTOM, false, mode);
+        scanSide(n, chunk, SIDE_TOP, false, mode);
 
         n.stamp = chunk.pathStamp;
         return n;
     }
 
-    private void scanSide(ChunkNodes n, WorldChunk chunk, int side, boolean vertical){
+    private void scanSide(ChunkNodes n, WorldChunk chunk, int side, boolean vertical, PathMode mode){
         for(int o = 0; o < CSIZE; ){
             int fx, fy; //fixed coordinate of the border line
             if(vertical){
@@ -334,7 +346,7 @@ public class ChunkWaypointGraph{
                 fy = side == SIDE_BOTTOM ? 0 : CSIZE - 1;
             }
 
-            if(!passable(chunk.tiles[fx + fy * CSIZE])){
+            if(!passable(chunk.tiles[fx + fy * CSIZE], mode)){
                 o++;
                 continue;
             }
@@ -342,7 +354,7 @@ public class ChunkWaypointGraph{
             int start = o;
             while(o < CSIZE){
                 int px = vertical ? fx : o, py = vertical ? o : fy;
-                if(!passable(chunk.tiles[px + py * CSIZE])) break;
+                if(!passable(chunk.tiles[px + py * CSIZE], mode)) break;
                 o++;
             }
             int end = o - 1;
@@ -359,14 +371,8 @@ public class ChunkWaypointGraph{
         }
     }
 
-    /**
-     * Neutral coarse passability: natural walls/cliffs block, liquid floors are avoided
-     * (most coarse traffic is ground units), everything else counts as traversable.
-     * Breakable structures count as open terrain here - enemies chew through them anyway -
-     * and the fine flow field still governs movement inside the window.
-     */
-    private boolean passable(Tile tile){
-        return !tile.solid() && !tile.floor().isLiquid;
+    private boolean passable(Tile tile, PathMode mode){
+        return mode.passable(tile);
     }
 
     private static long packKey(int cx, int cy){

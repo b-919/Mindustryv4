@@ -264,6 +264,11 @@ public class Tile implements PosTrait, TargetTrait{
         || (isLinked() && getLinked().block().isSolidFor(getLinked()));
     }
 
+    /** @return whether this tile blocks legged units; constructed/destructible blocks can be stepped over. */
+    public boolean legSolid(){
+        return !passable() || hasCliffs();
+    }
+
     public boolean breakable(){
         Block block = block();
         if(link == 0){
