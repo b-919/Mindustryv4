@@ -8,6 +8,7 @@ import io.anuke.mindustry.net.Packets;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CountDownLatch;
@@ -37,6 +38,7 @@ public class ClajLiveJoinTest{
         CountDownLatch hostConnect = new CountDownLatch(1);
         CountDownLatch clientConnect = new CountDownLatch(1);
         CountDownLatch clientPayload = new CountDownLatch(1);
+        CountDownLatch clientStream = new CountDownLatch(1);
 
         Net.handleServer(Packets.Connect.class, (id, packet) -> {
             hostId.set(id);
@@ -44,6 +46,7 @@ public class ClajLiveJoinTest{
         });
         Net.handleClient(Packets.Connect.class, packet -> clientConnect.countDown());
         Net.handleClient(Packets.ConnectPacket.class, packet -> clientPayload.countDown());
+        Net.handleClient(Packets.ChunkStream.class, packet -> clientStream.countDown());
 
         CountDownLatch created = new CountDownLatch(1);
         AtomicReference<ClajLink> linkRef = new AtomicReference<>();
@@ -114,6 +117,12 @@ public class ClajLiveJoinTest{
         ClajSupport.sendTo(hostId.get(), packet, true);
 
         assertTrue(clientPayload.await(10, TimeUnit.SECONDS), "payload did not arrive");
+
+        Packets.ChunkStream stream = new Packets.ChunkStream();
+        stream.stream = new ByteArrayInputStream(new byte[]{1, 2, 3});
+        ClajSupport.sendStream(hostId.get(), stream);
+
+        assertTrue(clientStream.await(10, TimeUnit.SECONDS), "stream did not arrive");
 
         join.close();
         pinger.close();

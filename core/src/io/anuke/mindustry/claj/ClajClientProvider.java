@@ -13,7 +13,7 @@ public class ClajClientProvider implements Net.ClientProvider{
     private static volatile PendingJoin pending;
 
     private final Net.ClientProvider delegate;
-    private volatile ClajJoinConnection current;
+    private volatile OfficialRelayJoin current;
 
     public ClajClientProvider(Net.ClientProvider delegate){
         this.delegate = delegate;
@@ -40,12 +40,12 @@ public class ClajClientProvider implements Net.ClientProvider{
     public void connect(String ip, int port, Runnable success) throws IOException{
         PendingJoin join = takePendingJoin();
         if(join != null){
-            ClajJoinConnection connection = new OfficialRelayJoin(ip, port, join.packet,
+            OfficialRelayJoin connection = new OfficialRelayJoin(ip, port, join.packet,
                 join.success == null ? success : join.success, null);
             current = connection;
             connection.start();
         }else{
-            ClajJoinConnection connection = current;
+            OfficialRelayJoin connection = current;
             current = null;
             if(connection != null) connection.close();
             delegate.connect(ip, port, success);
@@ -54,7 +54,7 @@ public class ClajClientProvider implements Net.ClientProvider{
 
     @Override
     public void send(Object object, Net.SendMode mode){
-        ClajJoinConnection join = current;
+        OfficialRelayJoin join = current;
         if(join != null){
             if(join.isJoined() && object instanceof Packet){
                 join.send((Packet)object);
@@ -67,21 +67,21 @@ public class ClajClientProvider implements Net.ClientProvider{
 
     @Override
     public void updatePing(){
-        ClajJoinConnection join = current;
+        OfficialRelayJoin join = current;
         if(join != null) return;
         delegate.updatePing();
     }
 
     @Override
     public int getPing(){
-        ClajJoinConnection join = current;
+        OfficialRelayJoin join = current;
         if(join != null) return Math.max(0, join.getPing());
         return delegate.getPing();
     }
 
     @Override
     public void disconnect(){
-        ClajJoinConnection join = current;
+        OfficialRelayJoin join = current;
         current = null;
         if(join != null) join.close();
 
@@ -105,7 +105,7 @@ public class ClajClientProvider implements Net.ClientProvider{
 
     @Override
     public void dispose(){
-        ClajJoinConnection join = current;
+        OfficialRelayJoin join = current;
         current = null;
         if(join != null) join.close();
 

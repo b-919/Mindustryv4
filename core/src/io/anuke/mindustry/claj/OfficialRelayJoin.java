@@ -23,14 +23,13 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /** Join side of a room hosted on an official CLaJ relay (Arc Net transport). */
-public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
+public class OfficialRelayJoin implements NetListener{
     private static final int HANDSHAKE_TIMEOUT = 5000;
 
     private final String host;
     private final int port;
     private final ByteBuffer joinPacket;
     private final Runnable success;
-    private final Consumer<Throwable> failed;
 
     private volatile Client client;
     private volatile boolean joined;
@@ -42,7 +41,6 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
         this.port = port;
         this.joinPacket = joinPacket;
         this.success = success;
-        this.failed = failed;
     }
 
     public void start(){
@@ -119,13 +117,12 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
                 else fail(new IOException("Room closed by the relay"));
             }else if(object instanceof RoomJoinDeniedPacket){
                 fail(new IOException("Relay denied the room"));
-            }else if(object instanceof Packet){
+            }else if(object instanceof Packet packet){
                 if(!joined){
                     Pooling.free(object);
                     return;
                 }
 
-                Packet packet = (Packet)object;
                 post(() -> {
                     if(joined && !closed){
                         Net.handleClientReceived(packet);
@@ -162,12 +159,10 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
     public void idle(arc.net.Connection connection){
     }
 
-    @Override
     public boolean isJoined(){
         return joined && !closed;
     }
 
-    @Override
     public void send(Packet packet){
         Client connection = client;
         if(joined && connection != null && connection.isConnected()){
@@ -180,14 +175,12 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
         }
     }
 
-    @Override
     public void close(){
         closed = true;
         joined = false;
         closeClient();
     }
 
-    @Override
     public int getPing(){
         Client connection = client;
         return connection == null ? -1 : connection.getReturnTripTime();

@@ -91,8 +91,7 @@ class V4ClajProvider implements ClajProvider{
 
         @Override
         public void received(Connection connection, Object object){
-            if(object instanceof Packet){
-                Packet packet = (Packet)object;
+            if(object instanceof Packet packet){
                 int id = connection.getID();
 
                 ClajSupport.post(() -> {
