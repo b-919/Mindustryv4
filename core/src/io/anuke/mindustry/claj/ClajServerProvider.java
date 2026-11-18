@@ -40,13 +40,13 @@ public class ClajServerProvider implements Net.ServerProvider{
     public void send(Object object, Net.SendMode mode){
         delegate.send(object, mode);
 
-        if(object instanceof Packet) ClajSupport.broadcast(object, mode == Net.SendMode.tcp);
+        if(object instanceof Packet) ClajSupport.broadcast(object);
     }
 
     @Override
     public void sendTo(int id, Object object, Net.SendMode mode){
         if(ClajSupport.hasConnection(id)){
-            ClajSupport.sendTo(id, object, mode == Net.SendMode.tcp);
+            ClajSupport.sendTo(id, object);
         }else{
             delegate.sendTo(id, object, mode);
         }
@@ -56,7 +56,7 @@ public class ClajServerProvider implements Net.ServerProvider{
     public void sendExcept(int id, Object object, Net.SendMode mode){
         delegate.sendExcept(id, object, mode);
 
-        if(object instanceof Packet) ClajSupport.sendExcept(id, object, mode == Net.SendMode.tcp);
+        if(object instanceof Packet) ClajSupport.sendExcept(id, object);
     }
 
     @Override

@@ -132,31 +132,31 @@ public final class ClajSupport{
         return address == null ? "claj-" + connection.getID() : address;
     }
 
-    static void sendTo(int id, Object object, boolean tcp){
+    static void sendTo(int id, Object object){
         if(object == null || object instanceof Streamable) return;
 
         V4NetConnection connection = getConnection(id);
         ClajProxy proxy = proxy();
         if(connection == null || proxy == null) return;
 
-        proxy.send(connection.connection, object, tcp);
+        proxy.send(connection.connection, object, true);
     }
 
-    static void broadcast(Object object, boolean tcp){
+    static void broadcast(Object object){
         if(object == null || object instanceof Streamable) return;
 
         ClajProxy proxy = proxy();
-        if(proxy != null && proxy.roomCreated()) proxy.broadcast(object, tcp);
+        if(proxy != null && proxy.roomCreated()) proxy.broadcast(object, true);
     }
 
-    static void sendExcept(int exceptId, Object object, boolean tcp){
+    static void sendExcept(int exceptId, Object object){
         if(object == null || object instanceof Streamable) return;
 
         ClajProxy proxy = proxy();
         if(proxy == null || !proxy.roomCreated()) return;
 
         for(VirtualConnection connection : proxy.getConnections()){
-            if(connection.getID() != exceptId) proxy.send(connection, object, tcp);
+            if(connection.getID() != exceptId) proxy.send(connection, object, true);
         }
     }
 
@@ -177,7 +177,7 @@ public final class ClajSupport{
                     Packets.StreamBegin begin = new Packets.StreamBegin();
                     begin.total = total;
                     begin.type = type;
-                    sendTo(id, begin, true);
+                    sendTo(id, begin);
 
                     byte[] buffer = new byte[512];
                     int read;
@@ -192,7 +192,7 @@ public final class ClajSupport{
                         Packets.StreamChunk chunk = new Packets.StreamChunk();
                         chunk.id = begin.id;
                         chunk.data = Arrays.copyOf(buffer, read);
-                        sendTo(id, chunk, true);
+                        sendTo(id, chunk);
                     }
                 }catch(Throwable t){
                     Log.err("Failed to send a CLaJ stream.");
@@ -260,7 +260,7 @@ public final class ClajSupport{
 
         @Override
         public void send(Object object, Net.SendMode mode){
-            ClajSupport.sendTo(id, object, mode == Net.SendMode.tcp);
+            ClajSupport.sendTo(id, object);
         }
 
         @Override
