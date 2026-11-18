@@ -2,8 +2,10 @@ package io.anuke.mindustry.ui.dialogs;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.Align;
+import com.xpdustry.claj.api.Claj;
 import com.xpdustry.claj.api.ClajLink;
-import io.anuke.mindustry.claj.ClajProtocol;
+import com.xpdustry.claj.api.ClajPinger;
+import com.xpdustry.claj.api.ClajProxy;
 import io.anuke.mindustry.claj.ClajPublicRelays;
 import io.anuke.mindustry.claj.ClajSupport;
 import io.anuke.mindustry.core.Platform;
@@ -19,8 +21,6 @@ import io.anuke.ucore.scene.ui.ScrollPane;
 import io.anuke.ucore.scene.ui.TextField;
 import io.anuke.ucore.scene.ui.layout.Table;
 import io.anuke.ucore.util.Bundles;
-
-import java.util.Map;
 
 import static io.anuke.mindustry.Vars.ui;
 
@@ -80,27 +80,27 @@ public class ClajDialog extends FloatingDialog{
         });
 
         buttons().defaults().size(170f, 54f).pad(3f);
-        buttons().addButton("$text.claj.create", this::create).disabled(b -> creating || ClajSupport.isCreating() || !Net.server() || ClajSupport.hasOpenRoom());
-        buttons().addButton("$text.claj.close-room", this::closeRoom).disabled(b -> !ClajSupport.hasOpenRoom());
+        buttons().addButton("$text.claj.create", this::create).disabled(b -> creating || creatingRoom() || !Net.server() || hasRoom());
+        buttons().addButton("$text.claj.close-room", this::closeRoom).disabled(b -> !hasRoom());
         buttons().row();
-        buttons().addButton("$text.copylink", this::copyLink).disabled(b -> ClajSupport.link() == null).colspan(2).width(346f);
+        buttons().addButton("$text.copylink", this::copyLink).disabled(b -> link() == null).colspan(2).width(346f);
 
         shown(this::refresh);
     }
 
     private void refresh(){
-        if(!ClajSupport.isCreating() && !ClajSupport.hasOpenRoom()){
+        if(!creatingRoom() && !hasRoom()){
             status.setText(Bundles.get("text.claj.none"));
             linkLabel.setText("");
             return;
         }
 
-        if(ClajSupport.isCreating()){
+        if(creatingRoom()){
             status.setText(Bundles.get("text.claj.creating"));
             linkLabel.setText("");
         }else{
             status.setText(Bundles.get("text.claj.room-open"));
-            ClajLink link = ClajSupport.link();
+            ClajLink link = link();
             linkLabel.setText(link == null ? "" : link.toString());
         }
     }
@@ -117,12 +117,27 @@ public class ClajDialog extends FloatingDialog{
             return;
         }
 
+        ClajSupport.Address relay;
+        try{
+            relay = ClajSupport.parseAddress(address);
+        }catch(Exception e){
+            ui.showError(Bundles.format("text.claj.error", message(e)));
+            return;
+        }
+
         short password = password();
+        boolean protectedRoom = password != ClajPinger.NO_PASSWORD;
+
+        ClajSupport.init();
+        ClajProxy proxy = Claj.get().proxies.get(0);
+        proxy.setDefaultConfiguration(false, protectedRoom,
+            protectedRoom ? password : ClajPinger.NO_PASSWORD, false);
+
         creating = true;
         refresh();
         ui.loadfrag.show("$text.claj.creating");
 
-        ClajSupport.createRoom(address, password != ClajProtocol.NO_PASSWORD, password, link -> {
+        Claj.get().createRoom(relay.host, relay.port, link -> {
             creating = false;
             ui.loadfrag.hide();
             refresh();
@@ -131,7 +146,7 @@ public class ClajDialog extends FloatingDialog{
             creating = false;
             ui.loadfrag.hide();
             refresh();
-            ui.showError(Bundles.format("text.claj.room-closed", reason.name()));
+            ui.showError(Bundles.format("text.claj.room-closed", reason == null ? "closed" : reason.name()));
         }, error -> {
             creating = false;
             ui.loadfrag.hide();
@@ -148,11 +163,9 @@ public class ClajDialog extends FloatingDialog{
         ScrollPane pane = new ScrollPane(list);
         pane.setFadeScrollBars(false);
 
-        for(Map.Entry<String, String> entry : ClajPublicRelays.SERVERS.entrySet()){
-            String address = entry.getValue();
-            String name = entry.getKey();
-            list.addButton(name + "\n[lightgray]" + address, "clear", () -> {
-                addressField.setText(address);
+        for(ClajPublicRelays.Relay relay : ClajPublicRelays.SERVERS){
+            list.addButton(relay.name + "\n[lightgray]" + relay.address, "clear", () -> {
+                addressField.setText(relay.address);
                 dialog.hide();
             }).width(340f).pad(2f).row();
         }
@@ -164,13 +177,31 @@ public class ClajDialog extends FloatingDialog{
     }
 
     private void closeRoom(){
-        ClajSupport.closeRoom();
+        if(Claj.initialized()) Claj.get().closeRooms();
         refresh();
     }
 
     private void copyLink(){
-        ClajLink link = ClajSupport.link();
+        ClajLink link = link();
         if(link != null) copy(link);
+    }
+
+    private ClajProxy proxy(){
+        return Claj.initialized() ? Claj.get().proxies.getOrNull(0) : null;
+    }
+
+    private boolean hasRoom(){
+        return Claj.initialized() && Claj.get().hasOpenRoom();
+    }
+
+    private boolean creatingRoom(){
+        ClajProxy proxy = proxy();
+        return proxy != null && proxy.isConnecting();
+    }
+
+    private ClajLink link(){
+        ClajProxy proxy = proxy();
+        return proxy != null && proxy.roomCreated() ? proxy.link() : null;
     }
 
     private void copy(ClajLink link){
@@ -223,14 +254,14 @@ public class ClajDialog extends FloatingDialog{
 
     private short password(){
         String text = passwordField.getText().trim();
-        if(text.isEmpty()) return ClajProtocol.NO_PASSWORD;
+        if(text.isEmpty()) return ClajPinger.NO_PASSWORD;
 
         try{
             int value = Integer.parseInt(text);
-            if(value < 0 || value > 9999) return ClajProtocol.NO_PASSWORD;
+            if(value < 0 || value > 9999) return ClajPinger.NO_PASSWORD;
             return (short)value;
         }catch(NumberFormatException e){
-            return ClajProtocol.NO_PASSWORD;
+            return ClajPinger.NO_PASSWORD;
         }
     }
 

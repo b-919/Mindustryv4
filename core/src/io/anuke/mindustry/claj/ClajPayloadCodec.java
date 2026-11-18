@@ -11,7 +11,7 @@ import java.nio.ByteBuffer;
 /**
  * Converts regular v4 packets to/from opaque payload bytes.
  *
- * <p>This is intentionally separate from {@link ClajProtocol}: the relay only needs the
+ * <p>This is intentionally separate from the CLaJ control layer: the relay only needs the
  * wire protocol and must not load any Mindustry/libGDX packet classes.</p>
  */
 public final class ClajPayloadCodec{

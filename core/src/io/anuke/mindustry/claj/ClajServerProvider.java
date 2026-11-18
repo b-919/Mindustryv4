@@ -1,6 +1,7 @@
 package io.anuke.mindustry.claj;
 
 import com.badlogic.gdx.utils.Array;
+import com.xpdustry.claj.api.Claj;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.net.NetConnection;
 import io.anuke.mindustry.net.Packet;
@@ -22,7 +23,7 @@ public class ClajServerProvider implements Net.ServerProvider{
 
     @Override
     public void host(int port) throws IOException{
-        ClajSupport.closeRoom();
+        if(Claj.initialized()) Claj.get().closeRooms();
         delegate.host(port);
     }
 
@@ -60,7 +61,7 @@ public class ClajServerProvider implements Net.ServerProvider{
 
     @Override
     public void close(){
-        ClajSupport.closeRoom();
+        if(Claj.initialized()) Claj.get().closeRooms();
         delegate.close();
     }
 

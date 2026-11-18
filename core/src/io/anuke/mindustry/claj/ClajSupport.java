@@ -6,21 +6,19 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntMap;
 import com.xpdustry.claj.api.Claj;
-import com.xpdustry.claj.api.ClajLink;
 import com.xpdustry.claj.api.ClajProxy;
 import com.xpdustry.claj.api.net.VirtualConnection;
-import com.xpdustry.claj.common.status.CloseReason;
-import com.xpdustry.claj.common.status.RejectReason;
 import com.xpdustry.claj.common.util.AddressUtil;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.net.NetConnection;
 import io.anuke.mindustry.net.Packets;
 import io.anuke.mindustry.net.Registrator;
 import io.anuke.mindustry.net.Streamable;
-import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.util.Log;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,6 +26,8 @@ import java.util.concurrent.RejectedExecutionException;
 
 /** Bridges the official CLaJ API to the v4 Net implementation. */
 public final class ClajSupport{
+    public static final int DEFAULT_PORT = 50000;
+
     private static final Object lock = new Object();
     private static final IntMap<V4NetConnection> connections = new IntMap<>();
     private static final Object streamLock = new Object();
@@ -42,86 +42,6 @@ public final class ClajSupport{
         if(initialized) return;
         if(!Claj.initialized()) Claj.init(new V4ClajProvider());
         initialized = true;
-    }
-
-    public static void createRoom(String address, boolean isProtected, short password,
-                                  Consumer<ClajLink> created, Consumer<CloseReason> closed,
-                                  Consumer<Throwable> failed){
-        init();
-
-        if(!Net.server()){
-            fail(failed, new IllegalStateException("Host a game before creating a CLaJ room"));
-            return;
-        }
-
-        ClajProtocol.Address relay;
-        try{
-            relay = ClajProtocol.parseAddress(address);
-        }catch(Exception e){
-            fail(failed, e);
-            return;
-        }
-
-        if(hasOpenRoom() || isCreating()){
-            fail(failed, new IllegalStateException("A CLaJ room is already open"));
-            return;
-        }
-
-        ClajProxy proxy = Claj.get().proxies.get(0);
-        proxy.setDefaultConfiguration(false, isProtected,
-            isProtected ? password : ClajProtocol.NO_PASSWORD, false);
-
-        Claj.get().createRoom(relay.host, relay.port,
-            link -> {
-                if(created != null) created.accept(link);
-            },
-            reason -> {
-                if(closed != null) closed.accept(reason == null ? CloseReason.closed : reason);
-            },
-            error -> {
-                if(failed != null) failed.accept(error);
-            });
-    }
-
-    public static void closeRoom(){
-        if(Claj.initialized()) Claj.get().closeRooms();
-    }
-
-    public static boolean hasOpenRoom(){
-        return Claj.initialized() && Claj.get().hasOpenRoom();
-    }
-
-    public static boolean isCreating(){
-        ClajProxy proxy = proxy();
-        return proxy != null && proxy.isConnecting();
-    }
-
-    public static ClajLink link(){
-        ClajProxy proxy = proxy();
-        return proxy != null && proxy.roomCreated() ? proxy.link() : null;
-    }
-
-    public static void join(ClajLink link, short password, Runnable success,
-                            Consumer<RejectReason> reject, Consumer<Throwable> failed){
-        init();
-
-        if(link == null){
-            fail(failed, new IllegalArgumentException("Missing CLaJ link"));
-            return;
-        }
-
-        if(Net.active()){
-            fail(failed, new IllegalStateException("Already connected"));
-            return;
-        }
-
-        Claj.get().joinRoom(link, password, success,
-            reason -> {
-                if(reject != null) reject.accept(reason);
-            },
-            error -> {
-                if(failed != null) failed.accept(error);
-            });
     }
 
     public static void dispose(){
@@ -139,6 +59,34 @@ public final class ClajSupport{
                 streamExecutor.shutdownNow();
                 streamExecutor = null;
             }
+        }
+    }
+
+    /** Parses a {@code host:port} relay address, with {@link #DEFAULT_PORT} as fallback. */
+    public static Address parseAddress(String text){
+        if(text == null) throw new IllegalArgumentException("Missing host");
+        String value = text.trim();
+        if(value.isEmpty()) throw new IllegalArgumentException("Missing host");
+
+        int scheme = value.indexOf("://");
+        if(scheme >= 0) value = value.substring(scheme + 3);
+
+        int slash = value.indexOf('/');
+        if(slash >= 0) value = value.substring(0, slash);
+
+        try{
+            URI uri = new URI("claj://" + value);
+            String host = uri.getHost();
+            if(host == null || host.isEmpty()) throw new IllegalArgumentException("Invalid host");
+            if(host.startsWith("[") && host.endsWith("]")) host = host.substring(1, host.length() - 1);
+
+            int port = uri.getPort();
+            if(port == -1) port = DEFAULT_PORT;
+            if(port < 1 || port > 0xFFFF) throw new IllegalArgumentException("Invalid port");
+
+            return new Address(host, port);
+        }catch(URISyntaxException e){
+            throw new IllegalArgumentException("Invalid host", e);
         }
     }
 
@@ -287,8 +235,14 @@ public final class ClajSupport{
         }
     }
 
-    private static void fail(Consumer<Throwable> failed, Throwable error){
-        if(failed != null) failed.accept(error);
+    public static final class Address{
+        public final String host;
+        public final int port;
+
+        Address(String host, int port){
+            this.host = host;
+            this.port = port;
+        }
     }
 
     static class V4NetConnection extends NetConnection{
@@ -315,4 +269,3 @@ public final class ClajSupport{
         }
     }
 }
-

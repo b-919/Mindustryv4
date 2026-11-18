@@ -7,7 +7,9 @@ import com.badlogic.gdx.utils.ObjectSet;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.Timer.Task;
 import io.anuke.mindustry.core.GameState.State;
-import io.anuke.mindustry.claj.ClajProtocol;
+import com.xpdustry.claj.api.Claj;
+import com.xpdustry.claj.api.ClajPinger;
+import com.xpdustry.claj.api.ClajProxy;
 import io.anuke.mindustry.claj.ClajPublicRelays;
 import io.anuke.mindustry.claj.ClajSupport;
 import io.anuke.mindustry.entities.Player;
@@ -203,7 +205,7 @@ public class ServerControl extends Module{
         }
 
         String address = arg.length > 0 ? arg[0] : ClajPublicRelays.defaultAddress();
-        short password = ClajProtocol.NO_PASSWORD;
+        short password = ClajPinger.NO_PASSWORD;
         if(arg.length > 1){
             try{
                 int parsed = Integer.parseInt(arg[1]);
@@ -212,10 +214,24 @@ public class ServerControl extends Module{
             }
         }
 
+        ClajSupport.Address relay;
+        try{
+            relay = ClajSupport.parseAddress(address);
+        }catch(Exception e){
+            err("Invalid CLaJ relay address: {0}", e.getMessage() == null ? e : e.getMessage());
+            return;
+        }
+
+        ClajSupport.init();
+        ClajProxy proxy = Claj.get().proxies.get(0);
+        boolean protectedRoom = password != ClajPinger.NO_PASSWORD;
+        proxy.setDefaultConfiguration(false, protectedRoom,
+            protectedRoom ? password : ClajPinger.NO_PASSWORD, false);
+
         info("Connecting to CLaJ relay &lc{0}&fr...", address);
-        ClajSupport.createRoom(address, password != ClajProtocol.NO_PASSWORD, password,
+        Claj.get().createRoom(relay.host, relay.port,
             link -> info("&lgCLaJ room created. Link: &lc{0}", link),
-            reason -> info("&lyCLaJ room closed: {0}", reason),
+            reason -> info("&lyCLaJ room closed: {0}", reason == null ? "closed" : reason),
             error -> err("CLaJ room error: {0}", error.getMessage() == null ? error : error.getMessage()));
     }
 
@@ -315,7 +331,7 @@ public class ServerControl extends Module{
             arg -> createClajRoom(arg));
 
         handler.register("claj-stop", "Close the current CLaJ room.", arg -> {
-            ClajSupport.closeRoom();
+            if(Claj.initialized()) Claj.get().closeRooms();
             info("CLaJ room closed.");
         });
 

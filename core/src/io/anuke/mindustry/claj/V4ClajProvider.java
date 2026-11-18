@@ -18,8 +18,37 @@ import io.anuke.ucore.util.Pooling;
 import java.nio.ByteBuffer;
 
 class V4ClajProvider implements ClajProvider{
+    static final ClajType TYPE = ClajType.of("MindustryV4");
+
     private static final ClajVersion version = ClajVersion.of("2.4.5");
+    private static final ConnectionPayloadPacket.Serializer serializer =
+        new ConnectionPayloadPacket.Serializer(){
+            @Override
+            public void read(ConnectionPayloadPacket packet, arc.util.io.ByteBufferInput read){
+                byte[] raw = new byte[read.buffer.remaining()];
+                read.buffer.get(raw);
+                packet.object = ClajPayloadCodec.decode(raw);
+            }
+
+            @Override
+            public void write(ConnectionPayloadPacket packet, arc.util.io.ByteBufferOutput write){
+                if(packet.object instanceof Packet){
+                    write.buffer.put(ClajPayloadCodec.encode((Packet)packet.object));
+                }else if(packet.object instanceof byte[]){
+                    write.buffer.put((byte[])packet.object);
+                }else if(packet.object instanceof ByteBuffer){
+                    write.buffer.put((ByteBuffer)packet.object);
+                }else{
+                    throw new IllegalArgumentException("Unsupported CLaJ payload object: " + packet.object);
+                }
+            }
+        };
+
     private final NetListener listener = new HostListener();
+
+    static ConnectionPayloadPacket.Serializer serializer(){
+        return serializer;
+    }
 
     @Override
     public void postCallback(Runnable task){
@@ -42,7 +71,7 @@ class V4ClajProvider implements ClajProvider{
 
     @Override
     public ClajType getType(){
-        return OfficialClaj.TYPE;
+        return TYPE;
     }
 
     @Override
@@ -57,7 +86,7 @@ class V4ClajProvider implements ClajProvider{
 
     @Override
     public ConnectionPayloadPacket.Serializer getPacketWrapperSerializer(){
-        return OfficialClaj.serializer();
+        return serializer;
     }
 
     @Override

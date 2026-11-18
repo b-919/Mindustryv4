@@ -82,7 +82,7 @@ public class ClajPayloadCodecTest{
     @Test
     public void serializerAcceptsBufferPayloads(){
         ConnectionPayloadPacket.Serializer previous = ConnectionPayloadPacket.serializer;
-        ConnectionPayloadPacket.serializer = OfficialClaj.serializer();
+        ConnectionPayloadPacket.serializer = V4ClajProvider.serializer();
 
         try{
             ConnectionPayloadPacket packet = new ConnectionPayloadPacket();

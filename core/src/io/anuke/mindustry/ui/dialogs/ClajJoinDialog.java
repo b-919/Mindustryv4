@@ -1,7 +1,8 @@
 package io.anuke.mindustry.ui.dialogs;
 
+import com.xpdustry.claj.api.Claj;
 import com.xpdustry.claj.api.ClajLink;
-import io.anuke.mindustry.claj.ClajProtocol;
+import com.xpdustry.claj.api.ClajPinger;
 import io.anuke.mindustry.claj.ClajSupport;
 import io.anuke.mindustry.core.Platform;
 import io.anuke.ucore.core.Settings;
@@ -61,8 +62,9 @@ public class ClajJoinDialog extends FloatingDialog{
             netClient.disconnectQuietly();
         });
 
+        ClajSupport.init();
         netClient.beginConnecting();
-        ClajSupport.join(link, password, () -> ui.join.hide(), reason -> {
+        Claj.get().joinRoom(link, password, () -> ui.join.hide(), reason -> {
             ui.loadfrag.hide();
             ui.showError(Bundles.get("text.claj.reject." + reason.name(), reason.name()));
         }, error -> {
@@ -73,14 +75,14 @@ public class ClajJoinDialog extends FloatingDialog{
 
     private short password(){
         String text = passwordField.getText().trim();
-        if(text.isEmpty()) return ClajProtocol.NO_PASSWORD;
+        if(text.isEmpty()) return ClajPinger.NO_PASSWORD;
 
         try{
             int value = Integer.parseInt(text);
-            if(value < 0 || value > 9999) return ClajProtocol.NO_PASSWORD;
+            if(value < 0 || value > 9999) return ClajPinger.NO_PASSWORD;
             return (short)value;
         }catch(NumberFormatException e){
-            return ClajProtocol.NO_PASSWORD;
+            return ClajPinger.NO_PASSWORD;
         }
     }
 }

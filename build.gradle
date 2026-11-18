@@ -222,7 +222,8 @@ project(":core") {
 
         api "com.xpdustry.claj:common:$clajVersion"
         api "com.xpdustry.claj:api:$clajVersion"
-        implementation "com.xpdustry:arc-lite:$arcLiteVersion"
+        // Exposed because the official CLaJ API uses Arc types in its public signatures.
+        api "com.xpdustry:arc-lite:$arcLiteVersion"
 
         compileOnly project(":annotations")
         annotationProcessor project(":annotations")
@@ -272,7 +273,6 @@ project(":tests"){
         testRuntimeOnly('org.junit.platform:junit-platform-launcher:1.7.1')
         testImplementation "com.badlogicgames.gdx:gdx-backend-headless:$gdxVersion"
         testImplementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
-        testImplementation "com.xpdustry:arc-lite:$arcLiteVersion"
     }
 
     test {
