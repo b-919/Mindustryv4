@@ -55,9 +55,11 @@ room on a relay and shares a link such as
 Both host and client connect outbound to the relay; TCP and UDP must be reachable on the
 relay's port. The link format is `claj://host:port/room-id`.
 
-Relay support targets the current CLaJ 2.4.x control protocol. The relay's major version is
-discovered automatically, but future incompatible CLaJ protocol revisions may require
-updating the `com.xpdustry.claj:common` / `com.xpdustry.claj:api` dependency versions.
+Relay support targets the current CLaJ 2.4.x control protocol. Room control uses the official
+`com.xpdustry.claj.api.Claj` manager; the v4 side only implements the transport hooks. Future
+incompatible CLaJ protocol revisions may require updating the `com.xpdustry.claj:common` /
+`com.xpdustry.claj:api` dependency versions. The transport uses `com.xpdustry:arc-lite` instead
+of the full Arc client stack.
 
 Dedicated servers can also use the console command `claj <relay:port> [password]` to create
 a room and print the link, and `claj-stop` to close it.

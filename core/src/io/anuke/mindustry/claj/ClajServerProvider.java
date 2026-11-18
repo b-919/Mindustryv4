@@ -8,7 +8,7 @@ import io.anuke.mindustry.net.Streamable;
 
 import java.io.IOException;
 
-/** Wraps the real server provider and routes CLaJ clients through the host proxy. */
+/** Wraps the real server provider and routes CLaJ clients through the official proxy. */
 public class ClajServerProvider implements Net.ServerProvider{
     private final Net.ServerProvider delegate;
 
@@ -22,16 +22,14 @@ public class ClajServerProvider implements Net.ServerProvider{
 
     @Override
     public void host(int port) throws IOException{
-        ClajHost host = Claj.host();
-        if(host != null && (host.isRoomCreated() || host.isCreating())) host.dispose();
+        ClajSupport.closeRoom();
         delegate.host(port);
     }
 
     @Override
     public void sendStream(int id, Streamable stream){
-        ClajHost host = Claj.host();
-        if(host != null && host.contains(id)){
-            host.sendStream(id, stream);
+        if(ClajSupport.hasConnection(id)){
+            ClajSupport.sendStream(id, stream);
         }else{
             delegate.sendStream(id, stream);
         }
@@ -41,15 +39,13 @@ public class ClajServerProvider implements Net.ServerProvider{
     public void send(Object object, Net.SendMode mode){
         delegate.send(object, mode);
 
-        ClajHost host = Claj.host();
-        if(host != null && host.isRoomCreated() && object instanceof Packet) host.broadcast(object);
+        if(object instanceof Packet) ClajSupport.broadcast(object, mode == Net.SendMode.tcp);
     }
 
     @Override
     public void sendTo(int id, Object object, Net.SendMode mode){
-        ClajHost host = Claj.host();
-        if(host != null && host.contains(id) && object instanceof Packet){
-            host.sendTo(id, object, mode == Net.SendMode.tcp);
+        if(ClajSupport.hasConnection(id)){
+            ClajSupport.sendTo(id, object, mode == Net.SendMode.tcp);
         }else{
             delegate.sendTo(id, object, mode);
         }
@@ -59,14 +55,12 @@ public class ClajServerProvider implements Net.ServerProvider{
     public void sendExcept(int id, Object object, Net.SendMode mode){
         delegate.sendExcept(id, object, mode);
 
-        ClajHost host = Claj.host();
-        if(host != null && host.isRoomCreated() && object instanceof Packet) host.sendExcept(id, object);
+        if(object instanceof Packet) ClajSupport.sendExcept(id, object, mode == Net.SendMode.tcp);
     }
 
     @Override
     public void close(){
-        ClajHost host = Claj.host();
-        if(host != null) host.dispose();
+        ClajSupport.closeRoom();
         delegate.close();
     }
 
@@ -82,25 +76,19 @@ public class ClajServerProvider implements Net.ServerProvider{
             result.add(connection);
         }
 
-        ClajHost host = Claj.host();
-        if(host != null) result.addAll(host.getConnections());
+        result.addAll(ClajSupport.getConnections());
         return result;
     }
 
     @Override
     public NetConnection getByID(int id){
-        ClajHost host = Claj.host();
-        if(host != null && host.contains(id)){
-            for(NetConnection connection : host.getConnections()){
-                if(connection.id == id) return connection;
-            }
-        }
-        return delegate.getByID(id);
+        NetConnection connection = ClajSupport.getConnection(id);
+        return connection != null ? connection : delegate.getByID(id);
     }
 
     @Override
     public void dispose(){
-        Claj.dispose();
+        ClajSupport.dispose();
         delegate.dispose();
     }
 }

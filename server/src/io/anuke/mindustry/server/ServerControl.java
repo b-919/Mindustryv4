@@ -7,9 +7,9 @@ import com.badlogic.gdx.utils.ObjectSet;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.Timer.Task;
 import io.anuke.mindustry.core.GameState.State;
-import io.anuke.mindustry.claj.Claj;
 import io.anuke.mindustry.claj.ClajProtocol;
 import io.anuke.mindustry.claj.ClajPublicRelays;
+import io.anuke.mindustry.claj.ClajSupport;
 import io.anuke.mindustry.entities.Player;
 import io.anuke.mindustry.game.Difficulty;
 import io.anuke.mindustry.game.EventType.GameOverEvent;
@@ -213,7 +213,7 @@ public class ServerControl extends Module{
         }
 
         info("Connecting to CLaJ relay &lc{0}&fr...", address);
-        Claj.createRoom(address, password != ClajProtocol.NO_PASSWORD, password,
+        ClajSupport.createRoom(address, password != ClajProtocol.NO_PASSWORD, password,
             link -> info("&lgCLaJ room created. Link: &lc{0}", link),
             reason -> info("&lyCLaJ room closed: {0}", reason),
             error -> err("CLaJ room error: {0}", error.getMessage() == null ? error : error.getMessage()));
@@ -315,7 +315,7 @@ public class ServerControl extends Module{
             arg -> createClajRoom(arg));
 
         handler.register("claj-stop", "Close the current CLaJ room.", arg -> {
-            Claj.closeRoom();
+            ClajSupport.closeRoom();
             info("CLaJ room closed.");
         });
 

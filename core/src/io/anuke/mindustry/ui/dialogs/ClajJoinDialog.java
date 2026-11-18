@@ -1,8 +1,8 @@
 package io.anuke.mindustry.ui.dialogs;
 
 import com.xpdustry.claj.api.ClajLink;
-import io.anuke.mindustry.claj.Claj;
 import io.anuke.mindustry.claj.ClajProtocol;
+import io.anuke.mindustry.claj.ClajSupport;
 import io.anuke.mindustry.core.Platform;
 import io.anuke.ucore.core.Settings;
 import io.anuke.ucore.scene.ui.TextField;
@@ -62,7 +62,7 @@ public class ClajJoinDialog extends FloatingDialog{
         });
 
         netClient.beginConnecting();
-        Claj.join(link, password, () -> ui.join.hide(), reason -> {
+        ClajSupport.join(link, password, () -> ui.join.hide(), reason -> {
             ui.loadfrag.hide();
             ui.showError(Bundles.get("text.claj.reject." + reason.name(), reason.name()));
         }, error -> {

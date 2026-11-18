@@ -9,9 +9,9 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntMap;
 import com.badlogic.gdx.utils.ObjectMap;
 import io.anuke.mindustry.core.Platform;
-import io.anuke.mindustry.claj.Claj;
 import io.anuke.mindustry.claj.ClajClientProvider;
 import io.anuke.mindustry.claj.ClajServerProvider;
+import io.anuke.mindustry.claj.ClajSupport;
 import io.anuke.mindustry.gen.Call;
 import io.anuke.mindustry.net.Packets.KickReason;
 import io.anuke.mindustry.net.Packets.StreamBegin;
@@ -348,7 +348,7 @@ public class Net{
     }
 
     public static void dispose(){
-        Claj.dispose();
+        ClajSupport.dispose();
         if(clientProvider != null) clientProvider.dispose();
         if(serverProvider != null) serverProvider.dispose();
         clientProvider = null;

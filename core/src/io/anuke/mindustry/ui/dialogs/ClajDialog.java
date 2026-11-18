@@ -3,10 +3,9 @@ package io.anuke.mindustry.ui.dialogs;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.Align;
 import com.xpdustry.claj.api.ClajLink;
-import io.anuke.mindustry.claj.Claj;
-import io.anuke.mindustry.claj.ClajHost;
 import io.anuke.mindustry.claj.ClajProtocol;
 import io.anuke.mindustry.claj.ClajPublicRelays;
+import io.anuke.mindustry.claj.ClajSupport;
 import io.anuke.mindustry.core.Platform;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.net.Net;
@@ -81,29 +80,27 @@ public class ClajDialog extends FloatingDialog{
         });
 
         buttons().defaults().size(170f, 54f).pad(3f);
-        buttons().addButton("$text.claj.create", this::create).disabled(b -> creating || Claj.isCreatingRoom() || !Net.server() || Claj.hasOpenRoom());
-        buttons().addButton("$text.claj.close-room", this::closeRoom).disabled(b -> !Claj.hasOpenRoom());
+        buttons().addButton("$text.claj.create", this::create).disabled(b -> creating || ClajSupport.isCreating() || !Net.server() || ClajSupport.hasOpenRoom());
+        buttons().addButton("$text.claj.close-room", this::closeRoom).disabled(b -> !ClajSupport.hasOpenRoom());
         buttons().row();
-        buttons().addButton("$text.copylink", this::copyLink).disabled(b -> Claj.link() == null).colspan(2).width(346f);
+        buttons().addButton("$text.copylink", this::copyLink).disabled(b -> ClajSupport.link() == null).colspan(2).width(346f);
 
         shown(this::refresh);
     }
 
     private void refresh(){
-        ClajHost host = Claj.host();
-
-        if(host == null || (!host.isCreating() && !host.isRoomCreated())){
+        if(!ClajSupport.isCreating() && !ClajSupport.hasOpenRoom()){
             status.setText(Bundles.get("text.claj.none"));
             linkLabel.setText("");
             return;
         }
 
-        if(host.isCreating()){
+        if(ClajSupport.isCreating()){
             status.setText(Bundles.get("text.claj.creating"));
             linkLabel.setText("");
         }else{
             status.setText(Bundles.get("text.claj.room-open"));
-            ClajLink link = host.link();
+            ClajLink link = ClajSupport.link();
             linkLabel.setText(link == null ? "" : link.toString());
         }
     }
@@ -125,7 +122,7 @@ public class ClajDialog extends FloatingDialog{
         refresh();
         ui.loadfrag.show("$text.claj.creating");
 
-        Claj.createRoom(address, password != ClajProtocol.NO_PASSWORD, password, link -> {
+        ClajSupport.createRoom(address, password != ClajProtocol.NO_PASSWORD, password, link -> {
             creating = false;
             ui.loadfrag.hide();
             refresh();
@@ -167,12 +164,12 @@ public class ClajDialog extends FloatingDialog{
     }
 
     private void closeRoom(){
-        Claj.closeRoom();
+        ClajSupport.closeRoom();
         refresh();
     }
 
     private void copyLink(){
-        ClajLink link = Claj.link();
+        ClajLink link = ClajSupport.link();
         if(link != null) copy(link);
     }
 

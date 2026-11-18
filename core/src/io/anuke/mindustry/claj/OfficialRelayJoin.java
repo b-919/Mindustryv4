@@ -5,18 +5,13 @@ import arc.net.DcReason;
 import arc.net.NetListener;
 import com.badlogic.gdx.Gdx;
 import com.xpdustry.claj.api.ClajClientSerializer;
-import com.xpdustry.claj.api.ClajLink;
 import com.xpdustry.claj.common.ClajNet;
 import com.xpdustry.claj.common.packets.ClajMessagePacket;
 import com.xpdustry.claj.common.packets.ClajPopupPacket;
 import com.xpdustry.claj.common.packets.ClajTextMessagePacket;
 import com.xpdustry.claj.common.packets.RoomClosedPacket;
-import com.xpdustry.claj.common.packets.RoomJoinAcceptedPacket;
 import com.xpdustry.claj.common.packets.RoomJoinDeniedPacket;
-import com.xpdustry.claj.common.packets.RoomJoinPacket;
-import com.xpdustry.claj.common.packets.RoomJoinRequestPacket;
 import io.anuke.mindustry.Vars;
-import io.anuke.mindustry.claj.ClajProtocol.RejectReason;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.net.Packet;
 import io.anuke.mindustry.net.Packets;
@@ -24,47 +19,33 @@ import io.anuke.ucore.function.Consumer;
 import io.anuke.ucore.util.Log;
 import io.anuke.ucore.util.Pooling;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /** Join side of a room hosted on an official CLaJ relay (Arc Net transport). */
 public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
     private static final int HANDSHAKE_TIMEOUT = 5000;
-    private static final int JOIN_GRACE = 1500;
 
-    private final ClajLink link;
-    private final short password;
+    private final String host;
+    private final int port;
+    private final ByteBuffer joinPacket;
     private final Runnable success;
-    private final Consumer<RejectReason> reject;
     private final Consumer<Throwable> failed;
-    private final CountDownLatch handshake = new CountDownLatch(1);
-    private final CountDownLatch joinedLatch = new CountDownLatch(1);
 
     private volatile Client client;
-    private volatile boolean accepted;
-    private volatile RejectReason denied;
-    private volatile Throwable error;
     private volatile boolean joined;
     private volatile boolean closed;
 
-    public OfficialRelayJoin(ClajLink link, short password, Runnable success,
-                             Consumer<RejectReason> reject, Consumer<Throwable> failed){
-        this.link = link;
-        this.password = password;
+    public OfficialRelayJoin(String host, int port, ByteBuffer joinPacket,
+                             Runnable success, Consumer<Throwable> failed){
+        this.host = host;
+        this.port = port;
+        this.joinPacket = joinPacket;
         this.success = success;
-        this.reject = reject;
         this.failed = failed;
     }
 
     public void start(){
-        try{
-            OfficialClaj.init();
-        }catch(Throwable t){
-            fail(t);
-            return;
-        }
-
         Thread thread = new Thread(this::connect, "CLaJ Official Join Connect");
         thread.setDaemon(true);
         thread.start();
@@ -82,54 +63,18 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
                 return;
             }
 
-            connection.connect(HANDSHAKE_TIMEOUT, link.host, link.port, link.port);
+            connection.connect(HANDSHAKE_TIMEOUT, host, port, port);
+        }catch(Throwable t){
+            fail(t);
+        }
+    }
 
-            if(!handshake.await(HANDSHAKE_TIMEOUT, TimeUnit.MILLISECONDS)){
-                fail(new RuntimeException("CLaJ join timed out"));
-                return;
-            }
+    @Override
+    public void connected(arc.net.Connection connection){
+        if(closed) return;
 
-            if(closed) return;
-
-            if(denied != null){
-                reject(denied);
-                return;
-            }
-
-            if(error != null){
-                fail(error);
-                return;
-            }
-
-            if(!accepted){
-                fail(new RuntimeException("CLaJ join was not accepted"));
-                return;
-            }
-
-            RoomJoinPacket join = new RoomJoinPacket();
-            join.roomId = link.roomId;
-            join.withPassword = password != ClajProtocol.NO_PASSWORD;
-            join.password = password;
-            join.type = OfficialClaj.TYPE;
-            connection.sendTCP(join);
-
-            if(!joinedLatch.await(JOIN_GRACE, TimeUnit.MILLISECONDS)){
-                // The official protocol has no acknowledgement for the actual join packet.
-                accepted = true;
-            }
-
-            if(closed) return;
-
-            if(denied != null){
-                reject(denied);
-                return;
-            }
-
-            if(error != null){
-                fail(error);
-                return;
-            }
-
+        try{
+            connection.sendTCP(joinPacket.duplicate());
             joined = true;
 
             post(() -> {
@@ -137,7 +82,7 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
 
                 Packets.Connect connect = new Packets.Connect();
                 connect.id = 0;
-                connect.addressTCP = link.host;
+                connect.addressTCP = host;
 
                 try{
                     Net.handleClientReceived(connect);
@@ -154,29 +99,14 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
     }
 
     @Override
-    public void connected(arc.net.Connection connection){
-        if(closed) return;
-
-        RoomJoinRequestPacket request = new RoomJoinRequestPacket();
-        request.roomId = link.roomId;
-        request.withPassword = password != ClajProtocol.NO_PASSWORD;
-        request.password = password;
-        request.type = OfficialClaj.TYPE;
-        connection.sendTCP(request);
-    }
-
-    @Override
     public void disconnected(arc.net.Connection connection, DcReason reason){
         if(closed) return;
 
-        if(!joined){
-            error = new RuntimeException("CLaJ relay connection closed");
-            handshake.countDown();
-            joinedLatch.countDown();
-            return;
+        if(joined){
+            disconnected();
+        }else{
+            fail(new IOException("CLaJ relay connection closed"));
         }
-
-        disconnected();
     }
 
     @Override
@@ -184,33 +114,11 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
         if(closed) return;
 
         try{
-            if(object instanceof RoomJoinAcceptedPacket){
-                long roomId = ((RoomJoinAcceptedPacket)object).roomId;
-                if(roomId != link.roomId){
-                    error = new RuntimeException("Relay accepted the wrong room");
-                }else{
-                    accepted = true;
-                }
-                handshake.countDown();
+            if(object instanceof RoomClosedPacket){
+                if(joined) disconnected();
+                else fail(new IOException("Room closed by the relay"));
             }else if(object instanceof RoomJoinDeniedPacket){
-                RoomJoinDeniedPacket packet = (RoomJoinDeniedPacket)object;
-                if(packet.roomId != link.roomId){
-                    error = new RuntimeException("Relay denied the wrong room");
-                }else if(joined){
-                    fail(new RuntimeException("Relay denied the room after accepting it"));
-                }else{
-                    denied = OfficialClaj.toRejectReason(packet.reason);
-                }
-                handshake.countDown();
-                joinedLatch.countDown();
-            }else if(object instanceof RoomClosedPacket){
-                if(joined){
-                    disconnected();
-                }else{
-                    error = new RuntimeException("Room closed by the relay");
-                    handshake.countDown();
-                    joinedLatch.countDown();
-                }
+                fail(new IOException("Relay denied the room"));
             }else if(object instanceof Packet){
                 if(!joined){
                     Pooling.free(object);
@@ -238,7 +146,6 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
                     if(Vars.ui != null) Vars.ui.showInfo(text);
                 });
             }else if(object instanceof ClajMessagePacket){
-                // CLaJ reuses packet instances per network thread; read the value before posting.
                 String message = ((ClajMessagePacket)object).message.name();
                 post(() -> {
                     if(Vars.ui != null && Vars.ui.chatfrag != null){
@@ -277,20 +184,7 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
     public void close(){
         closed = true;
         joined = false;
-        handshake.countDown();
-        joinedLatch.countDown();
-
-        Client connection = client;
-        if(connection != null){
-            try{
-                connection.close();
-            }catch(Throwable ignored){
-            }
-            try{
-                connection.stop();
-            }catch(Throwable ignored){
-            }
-        }
+        closeClient();
     }
 
     @Override
@@ -303,28 +197,10 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
         if(closed) return;
         closed = true;
         joined = false;
-
-        post(() -> {
-            if(Net.client()){
-                Net.handleClientReceived(new Packets.Disconnect());
-            }
-        });
-    }
-
-    private void reject(RejectReason reason){
-        if(closed) return;
-        closed = true;
-        joined = false;
-        handshake.countDown();
-        joinedLatch.countDown();
         closeClient();
 
         post(() -> {
-            try{
-                if(reject != null) reject.accept(reason);
-            }finally{
-                resetConnection();
-            }
+            if(Net.client()) Net.handleClientReceived(new Packets.Disconnect());
         });
     }
 
@@ -332,17 +208,9 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
         if(closed) return;
         closed = true;
         joined = false;
-        handshake.countDown();
-        joinedLatch.countDown();
         closeClient();
 
-        post(() -> {
-            try{
-                if(failed != null) failed.accept(throwable);
-            }finally{
-                resetConnection();
-            }
-        });
+        post(() -> Net.showError(throwable));
     }
 
     private void closeClient(){
@@ -356,16 +224,6 @@ public class OfficialRelayJoin implements ClajJoinConnection, NetListener{
                 connection.stop();
             }catch(Throwable ignored){
             }
-        }
-    }
-
-    private void resetConnection(){
-        try{
-            if(Vars.netClient != null) Vars.netClient.setQuiet();
-            if(Net.active()) Net.disconnect();
-        }catch(Throwable t){
-            Log.err("Failed to reset the official CLaJ connection.");
-            Log.err(t);
         }
     }
 
