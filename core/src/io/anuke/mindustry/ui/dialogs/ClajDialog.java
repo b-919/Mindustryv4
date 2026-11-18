@@ -2,10 +2,10 @@ package io.anuke.mindustry.ui.dialogs;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.Align;
+import com.xpdustry.claj.api.ClajLink;
 import io.anuke.mindustry.claj.Claj;
 import io.anuke.mindustry.claj.ClajHost;
 import io.anuke.mindustry.claj.ClajProtocol;
-import io.anuke.mindustry.claj.ClajLink;
 import io.anuke.mindustry.claj.ClajPublicRelays;
 import io.anuke.mindustry.core.Platform;
 import io.anuke.mindustry.graphics.Palette;

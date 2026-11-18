@@ -47,6 +47,8 @@ allprojects {
         gdxControllersVersion = '1.9.13'
         roboVMVersion = '2.3.0'
         uCoreVersion = '3dfb820142a0fc583ad19413a24fc5038aa29d89'
+        clajVersion = '2.4.5'
+        arcLiteVersion = 'v158.1'
 
         getVersionString = {
             String buildVersion = getBuildVersion()
@@ -103,6 +105,7 @@ allprojects {
         maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
         maven { url "https://oss.sonatype.org/content/repositories/releases/" }
         maven { url 'https://jitpack.io' }
+        maven { url 'https://maven.xpdustry.com/releases' }
     }
 }
 
@@ -186,7 +189,7 @@ project(":ios") {
 }
 
 project(":core") {
-    apply plugin: "java"
+    apply plugin: "java-library"
     java {
         toolchain {
             languageVersion = JavaLanguageVersion.of(17)
@@ -217,9 +220,9 @@ project(":core") {
         implementation "com.badlogicgames.gdx:gdx-controllers:$gdxControllersVersion"
         implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
 
-        // Official CLaJ relay transport (Arc Net). Used only when connecting to public CLaJ relays.
-        implementation "com.github.Anuken.Arc:arc-core:v159.5"
-        implementation "com.github.Anuken.Arc:arcnet:v159.5"
+        api "com.xpdustry.claj:common:$clajVersion"
+        api "com.xpdustry.claj:api:$clajVersion"
+        implementation "com.xpdustry:arc-lite:$arcLiteVersion"
 
         compileOnly project(":annotations")
         annotationProcessor project(":annotations")
@@ -269,8 +272,7 @@ project(":tests"){
         testRuntimeOnly('org.junit.platform:junit-platform-launcher:1.7.1')
         testImplementation "com.badlogicgames.gdx:gdx-backend-headless:$gdxVersion"
         testImplementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
-        testImplementation "com.github.Anuken.Arc:arc-core:v159.5"
-        testImplementation "com.github.Anuken.Arc:arcnet:v159.5"
+        testImplementation "com.xpdustry:arc-lite:$arcLiteVersion"
     }
 
     test {

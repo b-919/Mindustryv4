@@ -5,6 +5,7 @@ import arc.net.DcReason;
 import arc.net.NetListener;
 import com.badlogic.gdx.Gdx;
 import com.xpdustry.claj.api.ClajClientSerializer;
+import com.xpdustry.claj.api.ClajLink;
 import com.xpdustry.claj.common.ClajNet;
 import com.xpdustry.claj.common.packets.ClajMessagePacket;
 import com.xpdustry.claj.common.packets.ClajPopupPacket;

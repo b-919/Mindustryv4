@@ -1,5 +1,6 @@
 package io.anuke.mindustry.claj;
 
+import com.xpdustry.claj.api.ClajLink;
 import io.anuke.mindustry.net.Net;
 import io.anuke.mindustry.net.Packets;
 import org.junit.jupiter.api.Disabled;

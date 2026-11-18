@@ -1,7 +1,7 @@
 package io.anuke.mindustry.ui.dialogs;
 
+import com.xpdustry.claj.api.ClajLink;
 import io.anuke.mindustry.claj.Claj;
-import io.anuke.mindustry.claj.ClajLink;
 import io.anuke.mindustry.claj.ClajProtocol;
 import io.anuke.mindustry.core.Platform;
 import io.anuke.ucore.core.Settings;

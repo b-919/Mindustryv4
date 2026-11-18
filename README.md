@@ -57,7 +57,7 @@ relay's port. The link format is `claj://host:port/room-id`.
 
 Relay support targets the current CLaJ 2.4.x control protocol. The relay's major version is
 discovered automatically, but future incompatible CLaJ protocol revisions may require
-updating the bundled `com.xpdustry.claj.common` sources.
+updating the `com.xpdustry.claj:common` / `com.xpdustry.claj:api` dependency versions.
 
 Dedicated servers can also use the console command `claj <relay:port> [password]` to create
 a room and print the link, and `claj-stop` to close it.

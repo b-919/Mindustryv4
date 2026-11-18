@@ -1,6 +1,7 @@
 package io.anuke.mindustry.claj;
 
 import com.badlogic.gdx.utils.Array;
+import com.xpdustry.claj.api.ClajLink;
 import io.anuke.mindustry.claj.ClajProtocol.CloseReason;
 import io.anuke.mindustry.net.NetConnection;
 import io.anuke.mindustry.net.Streamable;

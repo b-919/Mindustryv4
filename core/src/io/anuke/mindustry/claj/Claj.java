@@ -1,5 +1,6 @@
 package io.anuke.mindustry.claj;
 
+import com.xpdustry.claj.api.ClajLink;
 import io.anuke.mindustry.claj.ClajProtocol.CloseReason;
 import io.anuke.mindustry.claj.ClajProtocol.RejectReason;
 import io.anuke.mindustry.net.Net;
@@ -39,9 +40,9 @@ public final class Claj{
             return;
         }
 
-        ClajLink.Address relay;
+        ClajProtocol.Address relay;
         try{
-            relay = ClajLink.parseAddress(address);
+            relay = ClajProtocol.parseAddress(address);
         }catch(Exception e){
             failed.accept(e);
             return;

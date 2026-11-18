@@ -7,6 +7,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.IntMap;
 import com.xpdustry.claj.api.ClajClientSerializer;
+import com.xpdustry.claj.api.ClajLink;
 import com.xpdustry.claj.common.packets.ClajMessagePacket;
 import com.xpdustry.claj.common.packets.ClajPopupPacket;
 import com.xpdustry.claj.common.packets.ClajTextMessagePacket;
