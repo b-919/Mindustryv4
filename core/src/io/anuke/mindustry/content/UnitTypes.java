@@ -11,6 +11,7 @@ import io.anuke.mindustry.game.ContentList;
 import io.anuke.mindustry.type.ContentType;
 import io.anuke.mindustry.graphics.Palette;
 import io.anuke.mindustry.type.Weapon;
+import io.anuke.ucore.graphics.Draw;
 import io.anuke.ucore.util.Mathf;
 
 public class UnitTypes implements ContentList{
@@ -24,7 +25,7 @@ public class UnitTypes implements ContentList{
         atrax,
         trainEngine,
         minerDroneT1, minerDroneT2, logisticsDrone,
-        evilDraug, evilDagger, evilWraith, explosiveBiomass, FlyingExplosiveBiomass, evilTanky, exterminatorBiomass, evilSwarmDrone, artilleryBiomass, acidMosquito; // the mass units btw
+        evilDraug, evilDagger, evilWraith, explosiveBiomass, FlyingExplosiveBiomass, evilTanky, exterminatorBiomass, evilSwarmDrone, artilleryBiomass, acidMosquito, tentacles; // the mass units btw
 
     @Override
     public void load(){
@@ -112,6 +113,7 @@ public class UnitTypes implements ContentList{
             mineAimRotation = true;
             engineSize = 3f;
             controller = CoreMinerAI::new;
+            canShootWeapons = false;
             trailColor.set(Palette.lightFlame);
             drag = 0.01f;
             speed = 0.3f;
@@ -648,6 +650,7 @@ public class UnitTypes implements ContentList{
             mineAimRotation = true;
             cellRegionName = "small-biomass-heart";
             cellPulse = true;
+            canShootWeapons = false;
             controller = CoreMinerAI::new;
             drag = 0.01f;
             speed = 0.19f;
@@ -774,6 +777,31 @@ public class UnitTypes implements ContentList{
             @Override
             public boolean isHidden() {
                 return true;
+            }
+        };
+        // testing only
+        tentacles = new UnitType("tentacles", Tentacles.class, Tentacles::new){{
+            controller = PursueAI::new;
+            health = 900;
+            mass = 4f;
+            speed = 0.16f;
+            maxVelocity = 0.75f;
+            drag = 0.4f;
+            hitsize = 10f;
+            range = 90f;
+            targetAir = false;
+            weapon = Weapons.evilDaggerWeapon;
+            drawWeaponMounts = false;
+            iconRegionName = "unit-icon-evil-dagger";
+            unitCost = 90;
+            spawnsInSiegeMode = false;
+            living = true;
+        }
+
+            @Override
+            public void load(){
+                super.load();
+                region = Draw.region("evil-dagger");
             }
         };
     }
