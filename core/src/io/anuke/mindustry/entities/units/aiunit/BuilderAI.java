@@ -16,6 +16,7 @@ import io.anuke.mindustry.type.ItemType;
 import io.anuke.mindustry.type.Recipe;
 import io.anuke.mindustry.world.Build;
 import io.anuke.mindustry.world.Tile;
+import io.anuke.mindustry.world.blocks.BuildBlock;
 import io.anuke.mindustry.world.blocks.BuildBlock.BuildEntity;
 import io.anuke.mindustry.world.meta.BlockFlag;
 import io.anuke.ucore.core.Events;
@@ -92,9 +93,10 @@ public class BuilderAI extends CommandAI{
         }
     }
 
-    /** Mining/building/rebuilding drones must not fire their weapon. */
-    public boolean isBusy(){
-        return mode == Mode.mine || mode == Mode.build || mode == Mode.rebuild;
+    public boolean canShoot(){
+        return mode == Mode.repair && unit.target instanceof TileEntity
+                && unit.target.getTeam() == unit.getTeam()
+                && ((TileEntity)unit.target).healthf() < 1f;
     }
 
     protected void updateMode(){
@@ -139,7 +141,7 @@ public class BuilderAI extends CommandAI{
 
         if(unit.target.distanceTo(unit) > unit.getType().range){
             flying.circle(unit.getType().range * 0.9f);
-        }else{
+        }else if(canShoot()){
             unit.shootAt(unit.target);
         }
     }
@@ -161,6 +163,12 @@ public class BuilderAI extends CommandAI{
             return;
         }
 
+        if(!validTarget(tile, request)){
+            fly().getPlaceQueue().clear();
+            restoreAfterRebuild();
+            return;
+        }
+
         unit.target = tile;
         flying.circle(BuilderTrait.buildRange * 0.7f);
 
@@ -174,8 +182,21 @@ public class BuilderAI extends CommandAI{
         FlyingUnit flying = (FlyingUnit)unit;
         BuildEntity entity = unit.target instanceof BuildEntity ? (BuildEntity)unit.target : null;
         TileEntity core = unit.getClosestCore();
+        BuilderTrait.BuildRequest request = fly().getCurrentRequest();
 
         if(entity == null){
+            fly().getPlaceQueue().clear();
+            checkRetreat();
+            if(rebuilding){
+                restoreAfterRebuild();
+            }else{
+                mode = Mode.repair;
+            }
+            return;
+        }
+
+        if(request != null && !validTarget(entity.tile, request)){
+            fly().getPlaceQueue().clear();
             checkRetreat();
             if(rebuilding){
                 restoreAfterRebuild();
@@ -340,7 +361,7 @@ public class BuilderAI extends CommandAI{
                 }
             }
 
-            if(unit.target != null && unit.target != p && unit.distanceTo(unit.target) < unit.getType().range){
+            if(canShoot() && unit.target != null && unit.target != p && unit.distanceTo(unit.target) < unit.getType().range){
                 unit.shootAt(unit.target);
             }
         }
@@ -449,6 +470,16 @@ public class BuilderAI extends CommandAI{
         rebuildReturnMode = null;
         rebuilding = false;
         mode = next;
+    }
+    protected boolean validTarget(Tile tile, BuilderTrait.BuildRequest request){
+        if(tile == null || request.breaking) return tile != null;
+        if(request.recipe == null) return false;
+        if(tile.block() == Blocks.air) return true;
+        if(tile.block() instanceof BuildBlock){
+            BuildEntity existing = tile.entity();
+            return existing == null || existing.recipe == null || existing.recipe.result == request.recipe.result;
+        }
+        return false;
     }
 
     protected boolean canRebuild(BlockPlan plan){

@@ -106,7 +106,7 @@ public class FlyingUnit extends BaseUnit implements CarryTrait, MinerTrait, Buil
 
     @Override
     public boolean canShootWeapons(){
-        if(controller instanceof BuilderAI && ((BuilderAI)controller).isBusy()){
+        if(controller instanceof BuilderAI && !((BuilderAI)controller).canShoot()){
             return false;
         }
         return super.canShootWeapons() && getMineTile() == null;

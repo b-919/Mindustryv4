@@ -5,7 +5,6 @@ import io.anuke.mindustry.entities.units.UnitType;
 
 /**Defines the composition of a squad: its size, domain and the unit types it accepts.*/
 enum SquadPreset{
-    /**Flexible opener squads; air and ground are kept separate.*/
     LOW_GROUND(5, new UnitType[]{UnitTypes.evilDagger}, null, false, false),
     LOW_AIR(5, new UnitType[]{UnitTypes.evilWraith}, null, true, false),
     DEMOLITION_AIR(4, new UnitType[]{UnitTypes.FlyingExplosiveBiomass}, null, true, false),
@@ -14,11 +13,8 @@ enum SquadPreset{
     ARTILLERY_AIR(2, new UnitType[]{UnitTypes.acidMosquito}, new int[]{2}, true, false),
     ARTILLERY_GROUND(2, new UnitType[]{UnitTypes.artilleryBiomass}, new int[]{2}, false, false),
     ULTRA(5, new UnitType[]{UnitTypes.exterminatorBiomass, UnitTypes.artilleryBiomass}, new int[]{3, 2}, false, false),
-    /**Air-only strike wing; hunts enemy factories and producers instead of cores.*/
     AIR_STRIKE(4, new UnitType[]{UnitTypes.evilWraith, UnitTypes.FlyingExplosiveBiomass}, new int[]{2, 2}, true, true),
-    /**Cheap disposable air swarm; fast, ignores terrain and harasses production.*/
-    SWARM(6, new UnitType[]{UnitTypes.evilSwarmDrone}, new int[]{6}, true, true),
-    /**Ground siege line; slow but grinds structures with sustained fire.*/
+    SWARM(6, new UnitType[]{UnitTypes.evilWraith}, new int[]{6}, true, true),
     SIEGE(4, new UnitType[]{UnitTypes.evilTanky, UnitTypes.artilleryBiomass}, new int[]{2, 2}, false, false);
 
     final int size;

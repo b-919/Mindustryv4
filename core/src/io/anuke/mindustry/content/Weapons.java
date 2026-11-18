@@ -340,7 +340,7 @@ public class Weapons implements ContentList{
             alternate = true;
             recoil = 3.5f;
             shake = 2f;
-            x = -4f;
+            x = 0f;
             shootY = 5.5f;
             mirror = false;
             ejectEffect = Fx.none;
@@ -373,8 +373,10 @@ public class Weapons implements ContentList{
         }};
 
         evilDaggerWeapon = new Weapon("evil-dagger-weapon"){{
+            mirror = false;
             shootY = 1.5f;
-            x = 3f;
+            x = 5f;
+            y = -1f;
             reload = 28f;
             alternate = true;
             ejectEffect = ShootFx.shellEjectSmall;
@@ -382,9 +384,10 @@ public class Weapons implements ContentList{
         }};
 
         evilTankyWeapon = new Weapon("evil-tanky-weapon"){{
+            mirror = false;
             shootY = 4f;
             reload = 14f;
-            x = 15f;
+            x = -1.5f;
             alternate = true;
             recoil = 1f;
             ejectEffect = Fx.none;

@@ -477,6 +477,7 @@ public class CraftingBlocks extends BlockList implements ContentList{
             setAmbientSound("none");
             spreadsInfection = true;
             infectionRadius = 6f;
+            drawCached = false;
         }
             @Override
             public boolean canPlaceOn(Tile tile) {
