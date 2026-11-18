@@ -73,7 +73,7 @@ public class BuilderAI extends CommandAI{
     @Override
     public void updateUnit(){
         if(!unit.updateOrder()){
-            if(!followPlayerMode && (mode == Mode.repair || mode == Mode.mine) && timer.get(timerRebuildCheck, 20)){
+            if(!followPlayerMode && mode == Mode.mine && timer.get(timerRebuildCheck, 20)){
                 startRebuild();
             }
 
@@ -94,7 +94,7 @@ public class BuilderAI extends CommandAI{
     }
 
     public boolean canShoot(){
-        return mode == Mode.repair && unit.target instanceof TileEntity
+        return mode == Mode.repair && !fly().isBuilding() && unit.target instanceof TileEntity
                 && unit.target.getTeam() == unit.getTeam()
                 && ((TileEntity)unit.target).healthf() < 1f;
     }
@@ -279,7 +279,7 @@ public class BuilderAI extends CommandAI{
         }
 
         if(unit.target instanceof Tile tile){
-            flying.moveTo(unit.getType().range / 1.5f);
+            flying.approach(unit.getType().range * 0.9f);
 
             if(unit.distanceTo(tile) < unit.getType().range && fly().getMineTile() != tile){
                 fly().setMineTile(tile);

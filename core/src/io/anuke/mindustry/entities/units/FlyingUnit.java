@@ -337,8 +337,8 @@ public class FlyingUnit extends BaseUnit implements CarryTrait, MinerTrait, Buil
             }else{
                 rotation = Mathf.slerpDelta(rotation, velocity.angle(), type.baseRotateSpeed);
             }
-        }else if(type != null && type.mineAimRotation && mineTile != null && target != null && mineTile.distanceTo(this) < type.range){
-            rotation = Mathf.slerpDelta(rotation, angleTo(target), 0.3f);
+        }else if(mineTile != null){
+            //keep facing the ore being mined; updateMining() slerps the rotation toward it
         }else{
             rotation = velocity.angle();
         }
@@ -372,6 +372,18 @@ public class FlyingUnit extends BaseUnit implements CarryTrait, MinerTrait, Buil
         vec.setLength(movementSpeed() * length);
         if(length < 0) vec.rotate(180f);
 
+        movePref(vec);
+    }
+
+    public void approach(float stopDistance){
+        if(target == null) return;
+
+        if(distanceTo(target) <= stopDistance){
+            velocity.scl(0.9f);
+            return;
+        }
+
+        vec.set(target.getX() - x, target.getY() - y).setLength(movementSpeed());
         movePref(vec);
     }
 

@@ -511,7 +511,7 @@ public class UnitTypes implements ContentList{
             range = 55f;
             health = 40;
             drillPower = 3;
-            toMine = ObjectSet.with(Items.lead, Items.copper);
+            toMine = ObjectSet.with(Items.lead, Items.copper, Items.scrap, Items.coal);
             commands.add(UnitCommand.mine);
             spawnsInSiegeMode = false;
             playerControllable = false;
@@ -535,7 +535,7 @@ public class UnitTypes implements ContentList{
             health = 220;
             minePower = 1.2f;
             drillPower = 6;
-            toMine = ObjectSet.with(Items.lead, Items.copper);
+            toMine = ObjectSet.with(Items.thorium, Items.titanium, Items.chromium);
             commands.add(UnitCommand.mine);
             spawnsInSiegeMode = false;
             playerControllable = false;

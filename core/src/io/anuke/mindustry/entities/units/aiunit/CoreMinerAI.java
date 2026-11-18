@@ -70,7 +70,7 @@ public class CoreMinerAI extends CommandAI{
         }
 
         if(unit.target instanceof Tile tile){
-            flying.moveTo(unit.type.range / 1.5f);
+            flying.approach(unit.type.range * 0.9f);
 
             if(unit.distanceTo(tile) < unit.type.range && flying.getMineTile() != tile){
                 flying.setMineTile(tile);

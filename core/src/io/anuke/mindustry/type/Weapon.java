@@ -224,7 +224,7 @@ public class Weapon extends Content{
         if(!ignoreShootCone && cone < 360f && Angles.angleDist(current, rotating ? mount.targetRotation : aimAngle) > cone) return;
 
         float shootAngle = rotating ? weaponRotation
-            : Angles.angle(barrelX, barrelY, mount.aimX, mount.aimY) + (bodyRotation - aimAngle) + baseRotation;
+            : Angles.angle(barrelX, barrelY, mount.aimX, mount.aimY);
 
         shootMount(owner, mount, barrelX - owner.getX(), barrelY - owner.getY(), shootAngle);
 

@@ -62,7 +62,7 @@ public class MinerAI extends CommandAI{
         }
 
         if(unit.target instanceof Tile tile){
-            flying.moveTo(MinerTrait.mineDistance * 0.8f);
+            flying.approach(MinerTrait.mineDistance * 0.9f);
             if(unit.distanceTo(tile.worldx(), tile.worldy()) < MinerTrait.mineDistance){
                 flying.setMineTile(tile);
             }
